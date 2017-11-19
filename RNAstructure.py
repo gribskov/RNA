@@ -57,9 +57,53 @@ class RNAstructure:
 
         return str
 
+    def getStemList(self):
+        unpaired = 2
+        instem = False
+        lpos = 0
+        rpos = 0
+        for pos in range(0, len(self.pair)-1):
+            if self.pair[pos] and self.pair[pos] < pos:
+                # check that left stem is smaller than right stem
+                continue
 
+            term = pos-lpos > unpaired or rpos-self.pair[lpos] > unpaired
+            #print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term, 'lpos:',lpos, 'rpos:', rpos)
+            if instem:
+                # currently in a stem
+                if term:
+                    # end old stem
+                    print( 'stem:',lstart,lpos,self.pair[lpos],rstop )
+                    lstart = pos
+                    rstop = self.pair[pos]
+                    instem = False
+               
+                if self.pair[pos]:
+                        lpos = pos
+                        rpos = self.pair[pos]
+                        instem = True
+                        
+            else:
+                # not in a stem
+                if self.pair[pos]:
+                    # start a new stem
+                    lstart = pos
+                    rstop = self.pair[pos]
+                    lpos = pos
+                    rpos = self.pair[pos]
+                    instem = True
 
+class Stem:
+    def __init__(self):
+        self.lbegin = 0
+        self.lend   = 0
+        self.rbegin = 0
+        self.rend   = 0
+        self.lvienna = ''
+        self.rvienna = ''
+        
 if __name__ == '__main__':
     rna = RNAstructure()
     rna.CTRead('data/mr_s129.probknot.ct')
     print(rna )
+    rna.getStemList()
