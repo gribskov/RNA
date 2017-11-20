@@ -7,6 +7,7 @@ class RNAstructure:
     def __init__(self):
         self.sequence = ''
         self.pair = []   # base number of the paired base
+        self.stemlist = []
 
     def CTRead(self,filename):
         '''
@@ -57,42 +58,55 @@ class RNAstructure:
 
         return str
 
-    def getStemList(self):
+    def stemListGet(self):
+        stem = Stem()
         unpaired = 2
         instem = False
-        lpos = 0
-        rpos = 0
         for pos in range(0, len(self.pair)-1):
             if self.pair[pos] and self.pair[pos] < pos:
                 # check that left stem is smaller than right stem
                 continue
 
-            term = pos-lpos > unpaired or rpos-self.pair[lpos] > unpaired
+            term = pos-stem.lend > unpaired or stem.rend-self.pair[stem.lend] > unpaired
             #print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term, 'lpos:',lpos, 'rpos:', rpos)
             if instem:
                 # currently in a stem
                 if term:
                     # end old stem
-                    print( 'stem:',lstart,lpos,self.pair[lpos],rstop )
-                    lstart = pos
-                    rstop = self.pair[pos]
+                    self.stemlist.append(stem)
+                    stem = Stem()
+                    stem.lbegin = pos
+                    stem.rend = self.pair[pos]
                     instem = False
                
                 if self.pair[pos]:
-                        lpos = pos
-                        rpos = self.pair[pos]
+                        stem.lend = pos
+                        stem.rbegin = self.pair[pos]
                         instem = True
                         
             else:
                 # not in a stem
                 if self.pair[pos]:
                     # start a new stem
-                    lstart = pos
-                    rstop = self.pair[pos]
-                    lpos = pos
-                    rpos = self.pair[pos]
+                    stem = Stem()
+                    stem.lbegin = pos
+                    stem.rend = self.pair[pos]
+                    stem.lend = pos
+                    stem.rbegin = self.pair[pos]
                     instem = True
 
+        if instem:
+            # if you  end in a stem, save it before closing
+            self.stemlist.append(stem)
+
+    def stemlistFormat(self):
+        n = 0
+        str = ''
+        for stem in self.stemlist:
+            n += 1
+            str += '{0}\t{1}\n'.format(n, stem.formatted())
+        return str
+ 
 class Stem:
     def __init__(self):
         self.lbegin = 0
@@ -101,9 +115,14 @@ class Stem:
         self.rend   = 0
         self.lvienna = ''
         self.rvienna = ''
-        
+
+    def formatted(self):
+        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin,self.lend,self.rbegin,self.rend,self.lvienna,self.rvienna)
+
 if __name__ == '__main__':
     rna = RNAstructure()
     rna.CTRead('data/mr_s129.probknot.ct')
+    rna.stemListGet()
     print(rna )
-    rna.getStemList()
+    print('Stemlist\n')
+    print( rna.stemlistFormat() )
