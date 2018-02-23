@@ -45,13 +45,14 @@ def possible(s):
 if __name__ == '__main__':
     n = 2
     s = [0 for i in range(n)]
-    print(n, s)
+    # print(n, s)
 
     stack = []
     struc = []
     stack.append((0, s, struc))
 
     while stack:
+        # TODO: need to copy not alias
         n, s, struc = stack.pop()
         struc.append(n)
         s[n] += 1
