@@ -80,6 +80,22 @@ def toPairs(g):
 
     return pairs
 
+def fromPairs(p):
+    """---------------------------------------------------------------------------------------------
+    convert a graph in pair format to array format
+    :param p: graph in pair format
+    :return g: graph in list format
+    ---------------------------------------------------------------------------------------------"""
+    g = [0 for i in range(len(p)*2)]
+
+    stem = 0
+    for pair in p:
+        g[pair[0]] = stem
+        g[pair[1]] = stem
+        stem += 1
+
+    return g
+
 
 # --------------------------------------------------------------------------------------------------
 # Testing
@@ -95,6 +111,7 @@ graphs = enumerate(3)
 for g in graphs:
     print('graph:', g)
     pairs = toPairs(g)
-    print('pairs:', pairs)
+    print('pairs:', pairs, end='\t=>\t')
+    print(fromPairs(pairs))
 
 exit(0)
