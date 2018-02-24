@@ -73,15 +73,10 @@ def toPairs(g):
     :param g: graph in array format
     :retuen: array of tuples
     ---------------------------------------------------------------------------------------------"""
-    pairs = [() for i in range(int(len(g) / 2))]
-    S = [0 for i in range(len(g))]
+    pairs = [[] for i in range(int(len(g) / 2))]
 
-    for i in g:
-        if s[i] == 0:
-            pairs[i][0] = i
-            s[i] += 1
-        elif s[i] == 1:
-            pairs[i][1] = i
+    for i in range(len(g)):
+        pairs[g[i]].append(i)
 
     return pairs
 
@@ -96,10 +91,10 @@ if __name__ == '__main__':
         total += len(g)
         print(size, len(g), total)
 
-graphs = enumerate(2)
+graphs = enumerate(3)
 for g in graphs:
-    print(g)
+    print('graph:', g)
     pairs = toPairs(g)
-    print(pairs)
+    print('pairs:', pairs)
 
 exit(0)
