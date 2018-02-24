@@ -39,17 +39,17 @@ def possible(s):
     return possible
 
 
-# --------------------------------------------------------------------------------------------------
-# Testing
-# --------------------------------------------------------------------------------------------------
-if __name__ == '__main__':
-    n = 3
+def enumerate(n):
+    """---------------------------------------------------------------------------------------------
+    enumerate all graphs with n stems
+    :param n: number of stems
+    :return: array of graph lists
+    ---------------------------------------------------------------------------------------------"""
+    graphs = []
     s = [0 for i in range(n)]
-    # print(n, s)
-
     stack = []
     struc = []
-    stack.append((0, s, struc))
+    stack.append((0, s[:], struc))
 
     while stack:
         n, s, struc = stack.pop()
@@ -61,25 +61,22 @@ if __name__ == '__main__':
             for n in p:
                 stack.append((n, s[:], struc[:]))
         else:
-            print(struc)
+            graphs.append(struc)
 
+    return graphs
 
-    # s = [0, 0]
-    # print(s, possible(s))
-    # s = [1, 0]
-    # print(s, possible(s))
-    # s = [1, 1]
-    # print(s, possible(s))
-    # s = [2, 1]
-    # print(s, possible(s))
-    # s = [2, 2]
-    # print(s, possible(s))
-    # s = [0, 0, 0]
-    # print(s, possible(s))
-    # s = [1, 0, 0]
-    # print(s, possible(s))
-    # s = [1, 1, 0]
-    # print(s, possible(s))
-    # s = [1, 1, 1]
-    # print(s, possible(s))
-    exit(0)
+# --------------------------------------------------------------------------------------------------
+# Testing
+# --------------------------------------------------------------------------------------------------
+if __name__ == '__main__':
+    total = 0
+    for size in range(1, 8):
+        g = enumerate(size)
+        total += len(g)
+        print(size, len(g), total)
+
+graphs = enumerate(2)
+for g in graphs:
+    print(g)
+
+exit(0)
