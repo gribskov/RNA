@@ -65,6 +65,27 @@ def enumerate(n):
 
     return graphs
 
+
+def toPairs(g):
+    """"--------------------------------------------------------------------------------------------
+    convert a graph in array format to pair format.  returns a list of tuples with the begin/end
+    position of each stem
+    :param g: graph in array format
+    :retuen: array of tuples
+    ---------------------------------------------------------------------------------------------"""
+    pairs = [() for i in range(int(len(g) / 2))]
+    S = [0 for i in range(len(g))]
+
+    for i in g:
+        if s[i] == 0:
+            pairs[i][0] = i
+            s[i] += 1
+        elif s[i] == 1:
+            pairs[i][1] = i
+
+    return pairs
+
+
 # --------------------------------------------------------------------------------------------------
 # Testing
 # --------------------------------------------------------------------------------------------------
@@ -78,5 +99,7 @@ if __name__ == '__main__':
 graphs = enumerate(2)
 for g in graphs:
     print(g)
+    pairs = toPairs(g)
+    print(pairs)
 
 exit(0)
