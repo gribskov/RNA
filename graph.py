@@ -80,13 +80,14 @@ def toPairs(g):
 
     return pairs
 
+
 def fromPairs(p):
     """---------------------------------------------------------------------------------------------
     convert a graph in pair format to array format
     :param p: graph in pair format
     :return g: graph in list format
     ---------------------------------------------------------------------------------------------"""
-    g = [0 for i in range(len(p)*2)]
+    g = [0 for i in range(len(p) * 2)]
 
     stem = 0
     for pair in p:
@@ -95,6 +96,23 @@ def fromPairs(p):
         stem += 1
 
     return g
+
+
+def reversePairs(p):
+    """---------------------------------------------------------------------------------------------
+    reverse the positions of the stems by converting to maxpos-pos and resorting to be in order of
+    first coordinate
+    :param p: graph in pair format
+    :return: graph in pair format (reversed)
+    ---------------------------------------------------------------------------------------------"""
+    m = len(p) * 2 - 1
+    for i in range(len(p)):
+        p[i][0], p[i][1] = m - p[i][1], m - p[i][0]
+
+
+    p.sort(key=lambda k: k[0])
+
+    return p
 
 
 # --------------------------------------------------------------------------------------------------
@@ -109,9 +127,11 @@ if __name__ == '__main__':
 
 graphs = enumerate(3)
 for g in graphs:
-    print('graph:', g)
+    print('\ngraph:', g)
     pairs = toPairs(g)
     print('pairs:', pairs, end='\t=>\t')
     print(fromPairs(pairs))
+    rev = reversePairs(pairs)
+    print('reversed:', rev)
 
 exit(0)
