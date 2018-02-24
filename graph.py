@@ -23,6 +23,18 @@ class PairGraph:
         if l:
             self.fromList(l)
 
+    def __str__(self, sep='_'):
+        """-----------------------------------------------------------------------------------------
+        Return a serialized version of the pair structure
+        :return: string
+        -----------------------------------------------------------------------------------------"""
+
+        s = ''
+        for p in self.pairs:
+            s += '{}_{}_'.format(p[0],p[1])
+
+        return s.rstrip('_')
+
     def fromList(self, g):
         """"----------------------------------------------------------------------------------------
         convert a graph in array format to pair format.  returns a list of lists with the
@@ -136,6 +148,7 @@ if __name__ == '__main__':
     print(graph.pairs)
     graph.reverse()
     print(graph.pairs)
+    print(str(graph))
 
     total = 0
     for size in range(1, 8):
