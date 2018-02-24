@@ -43,7 +43,7 @@ def possible(s):
 # Testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    n = 2
+    n = 3
     s = [0 for i in range(n)]
     # print(n, s)
 
@@ -52,7 +52,6 @@ if __name__ == '__main__':
     stack.append((0, s, struc))
 
     while stack:
-        # TODO: need to copy not alias
         n, s, struc = stack.pop()
         struc.append(n)
         s[n] += 1
@@ -60,9 +59,10 @@ if __name__ == '__main__':
         p = possible(s)
         if p:
             for n in p:
-                stack.append((n, s, struc))
+                stack.append((n, s[:], struc[:]))
         else:
             print(struc)
+
 
     # s = [0, 0]
     # print(s, possible(s))
