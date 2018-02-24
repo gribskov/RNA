@@ -1,15 +1,76 @@
-class Graph:
+class PairGraph:
     """=============================================================================================
     RNA graph class
+
+    Synopsis
+        graph = PairGraph()
+        graph.fromList([0,1,1,0])
+            or
+        graph = PairGraph(l=[0,1,1,0])
+
+        graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self):
+    def __init__(self, l=[]):
         """-----------------------------------------------------------------------------------------
         Graph constructor
+        Internal data structure is a pair graph: a list in which each element is a stem.  The stems
+        give the coordinates of the left and right half stems as integers along a line.
         -----------------------------------------------------------------------------------------"""
-        self.structure = ''
+        self.pairs = []
+        self.nstem = 0
+
+        if l:
+            self.fromList(l)
+
+    def fromList(self, g):
+        """"----------------------------------------------------------------------------------------
+        convert a graph in array format to pair format.  returns a list of lists with the
+        begin/end position of each stem
+        :param g: graph in array format
+        :return: number of stems in new graph
+        -----------------------------------------------------------------------------------------"""
+        self.nstem = int(len(g) / 2)
+        self.pairs = [[] for i in range(self.nstem)]
+
+        for i in range(len(g)):
+            self.pairs[g[i]].append(i)
+
+        return self.nstem
+
+    def toList(self):
+        """-----------------------------------------------------------------------------------------
+        convert a graph in pair format to array format
+        :return g: graph in list format
+        -----------------------------------------------------------------------------------------"""
+        g = [0 for i in range(self.nstem * 2)]
+
+        stem = 0
+        for pair in self.pairs:
+            g[pair[0]] = stem
+            g[pair[1]] = stem
+            stem += 1
+
+        return g
+
+    def reverse(self):
+        """-----------------------------------------------------------------------------------------
+        reverse the positions of the stems by converting to maxpos-pos and resorting in order
+        of first coordinate
+        :return: None
+        -----------------------------------------------------------------------------------------"""
+        m = self.nstem * 2 - 1
+        for i in range(self.nstem):
+            self.pairs[i][0], self.pairs[i][1] = m - self.pairs[i][1], m - self.pairs[i][0]
+
+        self.pairs.sort(key=lambda k: k[0])
+
+        return None
 
 
+# --------------------------------------------------------------------------------------------------
+# Non-object functions
+# --------------------------------------------------------------------------------------------------
 def possible(s):
     """
     return a list of the possible next stems.  Two kinds of stems can be added
@@ -66,72 +127,29 @@ def enumerate(n):
     return graphs
 
 
-def toPairs(g):
-    """"--------------------------------------------------------------------------------------------
-    convert a graph in array format to pair format.  returns a list of tuples with the begin/end
-    position of each stem
-    :param g: graph in array format
-    :retuen: array of tuples
-    ---------------------------------------------------------------------------------------------"""
-    pairs = [[] for i in range(int(len(g) / 2))]
-
-    for i in range(len(g)):
-        pairs[g[i]].append(i)
-
-    return pairs
-
-
-def fromPairs(p):
-    """---------------------------------------------------------------------------------------------
-    convert a graph in pair format to array format
-    :param p: graph in pair format
-    :return g: graph in list format
-    ---------------------------------------------------------------------------------------------"""
-    g = [0 for i in range(len(p) * 2)]
-
-    stem = 0
-    for pair in p:
-        g[pair[0]] = stem
-        g[pair[1]] = stem
-        stem += 1
-
-    return g
-
-
-def reversePairs(p):
-    """---------------------------------------------------------------------------------------------
-    reverse the positions of the stems by converting to maxpos-pos and resorting to be in order of
-    first coordinate
-    :param p: graph in pair format
-    :return: graph in pair format (reversed)
-    ---------------------------------------------------------------------------------------------"""
-    m = len(p) * 2 - 1
-    for i in range(len(p)):
-        p[i][0], p[i][1] = m - p[i][1], m - p[i][0]
-
-
-    p.sort(key=lambda k: k[0])
-
-    return p
-
-
 # --------------------------------------------------------------------------------------------------
 # Testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+
+    graph = PairGraph(l=[0, 1, 2, 1, 0, 2])
+    print(graph.pairs)
+    graph.reverse()
+    print(graph.pairs)
+
     total = 0
     for size in range(1, 8):
         g = enumerate(size)
         total += len(g)
         print(size, len(g), total)
 
-graphs = enumerate(3)
-for g in graphs:
-    print('\ngraph:', g)
-    pairs = toPairs(g)
-    print('pairs:', pairs, end='\t=>\t')
-    print(fromPairs(pairs))
-    rev = reversePairs(pairs)
-    print('reversed:', rev)
+    graphs = enumerate(3)
+    for g in graphs:
+        pgraph = PairGraph(l=g)
+        print('\ngraph:', g)
+        print('pairs:', pgraph.pairs, end='\t=>\t')
+        print(pgraph.toList())
+        pgraph.reverse()
+        print('reversed:', pgraph.pairs)
 
-exit(0)
+    exit(0)
