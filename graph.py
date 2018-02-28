@@ -88,14 +88,14 @@ class PairGraph:
         return None
 
 
-class Dfs():
+class Xios():
     """=============================================================================================
     Graph structure with XIOS edges
     ============================================================================================="""
 
     def __init__(self, pairs):
         """-----------------------------------------------------------------------------------------
-        dfs constructor
+        Xios constructor
         Initialize from graph
         -----------------------------------------------------------------------------------------"""
         self.edgelist = [[] for k in range(len(graph))]
@@ -120,7 +120,7 @@ class Dfs():
         :return: None
         -----------------------------------------------------------------------------------------"""
         for i in range(len(pairs)):
-            for j in range(i+1, len(pairs)):
+            for j in range(i + 1, len(pairs)):
                 if pairs.pairs[i][1] < pairs.pairs[j][0]:
                     self.edgelist[i].append([j, 's'])
                 elif pairs.pairs[i][1] > pairs.pairs[j][1]:
@@ -239,7 +239,7 @@ if __name__ == '__main__':
         pgraph.reverse()
         print('reversed:', pgraph.pairs)
 
-        dfs = Dfs(pgraph)
-        print(str(dfs))
+        xios = Xios(pgraph)
+        print(str(xios))
 
     exit(0)
