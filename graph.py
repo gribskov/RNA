@@ -214,15 +214,18 @@ class Xios():
         for v in range(len(self.edgelist)):
             edges += self.extend(v)
         edges.sort(key=lambda k: (self.order[k[2]], k[0], k[1]))
-        # print('edges:', edges)
+        print('edges:', edges)
 
         # add minimum initial edges to stack.  since we will only consider connected graphs, we
         # don't consider others
         e_min = edges[0][2]
         e_n = 0
-        while edges[e_n][2] == e_min:
-            stack.append(edges[e_n])
-            e_n += 1
+        for e_n in range(len(edges)):
+            if edges[e_n][2] == e_min:
+                stack.append(edges[e_n])
+                continue
+            else:
+                break
 
         print('stack:', stack)
 
