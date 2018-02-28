@@ -3,6 +3,8 @@ class PairGraph:
     RNA graph class
 
     Synopsis
+        from fasta import Fasta()
+
         graph = PairGraph()
         graph.fromList([0,1,1,0])
             or
@@ -31,9 +33,15 @@ class PairGraph:
 
         s = ''
         for p in self.pairs:
-            s += '{}_{}_'.format(p[0],p[1])
+            s += '{}_{}_'.format(p[0], p[1])
 
         return s.rstrip('_')
+
+    def __len__(self):
+        """-----------------------------------------------------------------------------------------
+        length is the number of stems
+        -----------------------------------------------------------------------------------------"""
+        return len(self.pairs)
 
     def fromList(self, g):
         """"----------------------------------------------------------------------------------------
@@ -78,6 +86,72 @@ class PairGraph:
         self.pairs.sort(key=lambda k: k[0])
 
         return None
+
+
+class Dfs():
+    """=============================================================================================
+    Graph structure with XIOS edges
+    ============================================================================================="""
+
+    def __init__(self, pairs):
+        """-----------------------------------------------------------------------------------------
+        dfs constructor
+        Initialize from graph
+        -----------------------------------------------------------------------------------------"""
+        self.edgelist = [[] for k in range(len(graph))]
+        self.getEdgeFromPairs(pairs)
+
+    def getEdgeFromGraph(self, graph):
+        """-----------------------------------------------------------------------------------------
+        Construct edgelist structure from pairGraph
+        :param graph:
+        :return: None
+        -----------------------------------------------------------------------------------------"""
+        # self.getEdgeFromList(graph.fromList())
+        #
+        # return None
+
+    def getEdgeFromPairs(self, pairs):
+        """-----------------------------------------------------------------------------------------
+        Construct edgelist structure from pairList. By the construction of the pair list, it is
+        guaranteed that pairs[i][0] < pairs[j][0].
+
+        :param list:
+        :return: None
+        -----------------------------------------------------------------------------------------"""
+        for i in range(len(pairs)):
+            for j in range(i+1, len(pairs)):
+                if pairs.pairs[i][1] < pairs.pairs[j][0]:
+                    self.edgelist[i].append([j, 's'])
+                elif pairs.pairs[i][1] > pairs.pairs[j][1]:
+                    self.edgelist[i].append([j, 'i'])
+                else:
+                    self.edgelist[i].append([j, 'o'])
+
+        return None
+
+    def __str__(self):
+        """-----------------------------------------------------------------------------------------
+        formatted string representation of XIOS graph
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        s = ''
+        for v in range(len(self.edgelist)):
+            s += '{}:'.format(v)
+            for e in self.edgelist[v]:
+                s += ' {}{}'.format(e[0], e[1])
+            s += '\n'
+
+        return s
+
+    def dfs(self):
+        """-----------------------------------------------------------------------------------------
+        Determine canonical graph labeling using gspan DFS algorithm
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        pass
+
+        return
 
 
 # --------------------------------------------------------------------------------------------------
@@ -158,11 +232,14 @@ if __name__ == '__main__':
 
     graphs = enumerate(3)
     for g in graphs:
-        pgraph = PairGraph(l=g)
+        pgraph = PairGraph(g)
         print('\ngraph:', g)
         print('pairs:', pgraph.pairs, end='\t=>\t')
         print(pgraph.toList())
         pgraph.reverse()
         print('reversed:', pgraph.pairs)
+
+        dfs = Dfs(pgraph)
+        print(str(dfs))
 
     exit(0)
