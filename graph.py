@@ -93,23 +93,50 @@ class Xios():
     Graph structure with XIOS edges
     ============================================================================================="""
 
-    def __init__(self, pairs):
+    def __init__(self, pairs=''):
         """-----------------------------------------------------------------------------------------
         Xios constructor
         Initialize from graph
-        -----------------------------------------------------------------------------------------"""
+        :param graph: a PairGraph object
+         -----------------------------------------------------------------------------------------"""
         self.edgelist = [[] for k in range(len(graph))]
-        self.getEdgeFromPairs(pairs)
+        if pairs:
+            self.getEdgeFromPairs(pairs)
 
-    def getEdgeFromGraph(self, graph):
+        return None
+
+    def __len__(self):
+        """-----------------------------------------------------------------------------------------
+        length is number of vertices
+
+        :return: length of xios graph (number of vertices)
+        -----------------------------------------------------------------------------------------"""
+        return len(self.edgelist)
+
+    def __str__(self):
+        """-----------------------------------------------------------------------------------------
+        formatted string representation of XIOS graph
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        s = '\n'
+        for v in range(len(self.edgelist)):
+            s += '{}:'.format(v)
+            for e in self.edgelist[v]:
+                s += ' {}{}'.format(e[0], e[1])
+            s += '\n'
+
+        return s
+
+    def getEdgeFromList(self, graph):
         """-----------------------------------------------------------------------------------------
         Construct edgelist structure from pairGraph
         :param graph:
-        :return: None
+        :return: size of graph (number of stems)
         -----------------------------------------------------------------------------------------"""
-        # self.getEdgeFromList(graph.fromList())
-        #
-        # return None
+        pairs = PairGraph(l=graph)
+        self.getEdgeFromPairs(pairs)
+
+        return len(self)
 
     def getEdgeFromPairs(self, pairs):
         """-----------------------------------------------------------------------------------------
@@ -117,8 +144,9 @@ class Xios():
         guaranteed that pairs[i][0] < pairs[j][0].
 
         :param list:
-        :return: None
+        :return: size of graph (number of stems)
         -----------------------------------------------------------------------------------------"""
+        self.edgelist = [[] for k in range(len(pairs))]
         for i in range(len(pairs)):
             for j in range(i + 1, len(pairs)):
                 if pairs.pairs[i][1] < pairs.pairs[j][0]:
@@ -128,21 +156,7 @@ class Xios():
                 else:
                     self.edgelist[i].append([j, 'o'])
 
-        return None
-
-    def __str__(self):
-        """-----------------------------------------------------------------------------------------
-        formatted string representation of XIOS graph
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        s = ''
-        for v in range(len(self.edgelist)):
-            s += '{}:'.format(v)
-            for e in self.edgelist[v]:
-                s += ' {}{}'.format(e[0], e[1])
-            s += '\n'
-
-        return s
+        return len(self)
 
     def dfs(self):
         """-----------------------------------------------------------------------------------------
@@ -235,11 +249,15 @@ if __name__ == '__main__':
         pgraph = PairGraph(g)
         print('\ngraph:', g)
         print('pairs:', pgraph.pairs, end='\t=>\t')
-        print(pgraph.toList())
-        pgraph.reverse()
-        print('reversed:', pgraph.pairs)
 
         xios = Xios(pgraph)
-        print(str(xios))
+        print('xios', str(xios))
+        pgraph.reverse()
+        print('reversed:', str(pgraph))
+        print('pairs:', pgraph.pairs, end='\t=>\t')
+        l = pgraph.toList()
+        print('reversed list:', l)
+        xios.getEdgeFromList(l)
+        print('xios (from list):', str(xios))
 
     exit(0)
