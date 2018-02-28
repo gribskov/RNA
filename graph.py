@@ -87,6 +87,48 @@ class PairGraph:
 
         return None
 
+    def connected(self):
+        """-----------------------------------------------------------------------------------------
+        Returns True if graph is i-o connected
+        :return: True / False
+        -----------------------------------------------------------------------------------------"""
+        pos = 1
+        for d in self.depth():
+            if pos == 0:
+                continue
+            pos += 1
+            if d == 0:
+                break
+
+        if pos < len(self) * 2:
+            return False
+
+        return True
+
+    def depth(self):
+        """-----------------------------------------------------------------------------------------
+        Return  list with the nesting depth at each postion of the graph in list format.  This is
+        useful for mountain plots and determining connectivity.  If the level reaches zero before the
+        last position, the graph is disconnected.
+        :return: list
+        -----------------------------------------------------------------------------------------"""
+        depth = []
+        d = 0
+        stem = []
+
+        for s in self.toList():
+            if s in stem:
+                # stem seen before
+                d -= 1
+            else:
+                # new stem
+                stem.append(s)
+                d += 1
+
+            depth.append(d)
+
+        return depth
+
 
 class Xios():
     """=============================================================================================
@@ -97,7 +139,7 @@ class Xios():
         """-----------------------------------------------------------------------------------------
         Xios constructor
         Initialize from graph
-        :param graph: a PairGraph object
+        :param pairs: a PairGraph object
          -----------------------------------------------------------------------------------------"""
         # self.order = ['i', 'j', 'o', 's', 'x']
         self.order = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
@@ -273,12 +315,21 @@ if __name__ == '__main__':
     print(graph.pairs)
     print(str(graph))
 
+    print('\nTesting connectivity')
+    graph = PairGraph(l=[0, 0, 1, 1, 2, 2])
+    print(graph.pairs)
+    if not graph.connected():
+        print('Not connected')
+
+
+    print('\nenumerating: size, len, totaltotal')
     total = 0
     for size in range(1, 8):
         g = enumerate(size)
         total += len(g)
         print(size, len(g), total)
 
+    print('\n3 stem graphs')
     graphs = enumerate(3)
     for g in graphs:
         pgraph = PairGraph(g)
