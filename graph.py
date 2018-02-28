@@ -99,6 +99,8 @@ class Xios():
         Initialize from graph
         :param graph: a PairGraph object
          -----------------------------------------------------------------------------------------"""
+        # self.order = ['i', 'j', 'o', 's', 'x']
+        self.order = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         self.edgelist = [[] for k in range(len(graph))]
         if pairs:
             self.getEdgeFromPairs(pairs)
@@ -163,9 +165,32 @@ class Xios():
         Determine canonical graph labeling using gspan DFS algorithm
         :return:
         -----------------------------------------------------------------------------------------"""
-        pass
+        edges = []
+        for v in range(len(self.edgelist)):
+            edges += self.extend(v)
+        edges.sort(key=lambda k: (self.order[k[2]], k[0], k[1]))
+        print(edges)
+        rmp = []
+        map = []
+        stack = []
 
         return
+
+    def extend(self, v0):
+        """-----------------------------------------------------------------------------------------
+        return a list of edges of the vertex
+        param v: vertex number in graph
+        :return: list of edges, v0, e, v1
+        -----------------------------------------------------------------------------------------"""
+        edge = []
+        for v1, e in self.edgelist[v0]:
+            edge.append([v0, v1, e])
+            if e == 'i':
+                edge.append([v1, v0, 'j'])
+            else:
+                edge.append([v1, v0, e])
+
+        return edge
 
 
 # --------------------------------------------------------------------------------------------------
@@ -259,5 +284,7 @@ if __name__ == '__main__':
         print('reversed list:', l)
         xios.getEdgeFromList(l)
         print('xios (from list):', str(xios))
+
+        xios.dfs()
 
     exit(0)
