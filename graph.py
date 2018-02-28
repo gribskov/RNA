@@ -208,13 +208,14 @@ class Xios():
         :return:
         -----------------------------------------------------------------------------------------"""
         rmp = []
-        map = []
+        g2d = []        # graph to dfs map
+        d2g = []        # dfs to graph map
         stack = []
         edges = []
         for v in range(len(self.edgelist)):
             edges += self.extend(v)
         edges.sort(key=lambda k: (self.order[k[2]], k[0], k[1]))
-        print('edges:', edges)
+        # print('edges:', edges)
 
         # add minimum initial edges to stack.  since we will only consider connected graphs, we
         # don't consider others
@@ -228,6 +229,15 @@ class Xios():
                 break
 
         print('stack:', stack)
+
+        #TODO debug following
+        while stack:
+            v0, v1, e = stack.pop()
+            for v in [v0, v1]:
+                if v not in g2d:
+                    d2g.append(v)
+                    g2d[v] = len(d2g) - 1
+            print(stack)
 
         return
 
