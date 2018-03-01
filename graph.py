@@ -208,8 +208,9 @@ class Xios():
         :return:
         -----------------------------------------------------------------------------------------"""
         rmp = []
-        g2d = []        # graph to dfs map
-        d2g = []        # dfs to graph map
+        g2d = [len(self.edgelist) for k in range(len(self.edgelist))]  # graph to dfs map
+        d2g = []  # dfs to graph map
+        dfs = []
         stack = []
         edges = []
         for v in range(len(self.edgelist)):
@@ -230,14 +231,21 @@ class Xios():
 
         print('stack:', stack)
 
-        #TODO debug following
         while stack:
             v0, v1, e = stack.pop()
             for v in [v0, v1]:
                 if v not in g2d:
                     d2g.append(v)
                     g2d[v] = len(d2g) - 1
-            print(stack)
+            dfs.append([0, 1, e])
+            rmp = [v0,v1]
+
+            print('stack:',stack)
+            print('dfs:', dfs)
+            print('rmp:', rmpl)
+
+
+            pass
 
         return
 
@@ -256,6 +264,17 @@ class Xios():
                 edge.append([v1, v0, e])
 
         return edge
+
+    def sextend(self,v):
+        """-----------------------------------------------------------------------------------------
+        return a sorted list of extensions of vertex v. sorted order is:
+        1) backwards edges in d-order
+        2) forward edges (to unknown g-edges)
+
+        TODO: how do you know edge has been used?
+        :param v:
+        :return:
+        """
 
 
 # --------------------------------------------------------------------------------------------------
@@ -333,7 +352,6 @@ if __name__ == '__main__':
     print(graph.pairs)
     if not graph.connected():
         print('Not connected')
-
 
     print('\nenumerating: size, len, totaltotal')
     total = 0
