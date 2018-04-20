@@ -74,6 +74,7 @@ class RNAstructure:
                 # currently in a stem
                 if term:
                     # end old stem
+                    stem.trimVienna();
                     self.stemlist.append(stem)
                     stem = Stem()
                     stem.lbegin = pos
@@ -83,8 +84,14 @@ class RNAstructure:
                 if self.pair[pos]:
                     stem.lend = pos
                     stem.rbegin = self.pair[pos]
+                    stem.lvienna += '('
+                    stem.rvienna = ')' + stem.rvienna
                     instem = True
+                else:
+                    stem.lvienna += '.'
+                    stem.rvienna = '.' + stem.rvienna
 
+                        
             else:
                 # not in a stem
                 if self.pair[pos]:
@@ -98,6 +105,7 @@ class RNAstructure:
 
         if instem:
             # if you  end in a stem, save it before closing
+            stem.trimVienna()
             self.stemlist.append(stem)
 
     def stemlistFormat(self):
@@ -119,9 +127,11 @@ class Stem:
         self.rvienna = ''
 
     def formatted(self):
-        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin, self.lend, self.rbegin, self.rend, self.lvienna,
-                                                     self.rvienna)
+        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin,self.lend,self.rbegin,self.rend,self.lvienna,self.rvienna)
 
+    def trimVienna(self):
+       self.lvienna = self.lvienna.rstrip('.')
+       self.rvienna = self.rvienna.lstrip('.')
 
 if __name__ == '__main__':
     rna = RNAstructure()
