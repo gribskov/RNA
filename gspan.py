@@ -84,7 +84,7 @@ class Gspan:
         :return:
         -----------------------------------------------------------------------------------------"""
         g2d = self.g2d
-        off0 = 16
+        off0 = 256
         off1 = off0 * 256
 
         def lex(e):
@@ -95,26 +95,50 @@ class Gspan:
                 forward from rightmost vertex,
                 forward from internal vertex on rightmost path
             """
-
-            if g2d[e[0]] and g2d[e[1]]:
+            x = 1
+            if g2d[e[0]] is not None and g2d[e[1]] is not None:
                 # both vertices defined, this is either a known edge or a backward edge
-                return max(g2d[e[0]]) * off1 + min(g2d[e[1]]) * off0 + e[2]
+                val = g2d[e[0]] + g2d[e[1]] * off0 + e[2] * off1
+                print(e, 'b val', val)
+                return val
 
-            elif g2d[e[0]]:
+            elif g2d[e[0]] is not None:
                 # e[0] is known, forward extension on rightmost path
-                return g2d[e[0]] * off0 + e[2]
+                val = g2d[e[0]] + e[2] * off1
+                print(e, '0 val', val)
+                return val
 
-            elif g2d[e[1]]:
+            elif g2d[e[1]] is not None:
                 # e[1] is known, forward extension on rightmost path
-                return g2d[e[1]] * off0 + e[2]
+                val = g2d[e[1]] * off0 + e[2] * off1
+                print(e, '1 val', val)
+                return val
+
 
             # fallthrough: g2d[e[0]] and g2d[e[1]] are both None:
             # sort by edge type only
+            print(e, 'n val', e[2])
             return e[2]
 
-        self.graph.sort(key=lex)
+        self.graph.sort(key=lex, reverse=False)
 
         return True
+
+    def graph2dfs(self):
+        """-----------------------------------------------------------------------------------------
+        convert the node labels in the graph to dfs labels
+        :return: list of edges
+        -----------------------------------------------------------------------------------------"""
+        g2d = self.g2d
+        dfs = []
+        for edge in self.graph:
+            row = []
+            dfs.append(row)
+            for i in range(0, 2):
+                row.append(g2d[edge[i]])
+            row.append(edge[2])
+
+        return dfs
 
 
 # ==================================================================================================
@@ -134,7 +158,7 @@ if __name__ == '__main__':
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
                 [[0, 1, j], [0, 2, j], [1, 2, j]]]
 
-    # graph normalization crate an unnormalized graph by doubling the vertex numbers
+    # graph normalization create an unnormalized graph by doubling the vertex numbers
     print('Graph normalization')
     g = copy.deepcopy(graphset[1])
     print('    original graph: {}'.format(g))
@@ -153,8 +177,8 @@ if __name__ == '__main__':
     for g in graphset:
         gspan = Gspan(graph=g)
         print(g)
-        gspan.g2d = [1, 2, 0]
+        gspan.g2d = [0, 1, 2]
         gspan.sort_by_edge()
-        print(gspan.graph, '\n')
+        print(gspan.graph2dfs(), '\n')
 
 exit(0)
