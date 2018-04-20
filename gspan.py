@@ -78,6 +78,44 @@ class Gspan:
 
         return self.vnum
 
+    def sort_by_edge(self):
+        """-----------------------------------------------------------------------------------------
+        sort graph by edges, using current g2d map
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        g2d = self.g2d
+        off0 = 16
+        off1 = off0 * 256
+
+        def lex(e):
+            """
+            lexicographic order for edges:
+                (known edges not on rightmost path)
+                backward from rightmost vertex,
+                forward from rightmost vertex,
+                forward from internal vertex on rightmost path
+            """
+
+            if g2d[e[0]] and g2d[e[1]]:
+                # both vertices defined, this is either a known edge or a backward edge
+                return max(g2d[e[0]]) * off1 + min(g2d[e[1]]) * off0 + e[2]
+
+            elif g2d[e[0]]:
+                # e[0] is known, forward extension on rightmost path
+                return g2d[e[0]] * off0 + e[2]
+
+            elif g2d[e[1]]:
+                # e[1] is known, forward extension on rightmost path
+                return g2d[e[1]] * off0 + e[2]
+
+            # fallthrough: g2d[e[0]] and g2d[e[1]] are both None:
+            # sort by edge type only
+            return e[2]
+
+        self.graph.sort(key=lex)
+
+        return True
+
 
 # ==================================================================================================
 # testing
@@ -112,4 +150,11 @@ if __name__ == '__main__':
     if g == gspan.graph:
         print('    passes test')
 
-    exit(0)
+    for g in graphset:
+        gspan = Gspan(graph=g)
+        print(g)
+        gspan.g2d = [1, 2, 0]
+        gspan.sort_by_edge()
+        print(gspan.graph, '\n')
+
+exit(0)
