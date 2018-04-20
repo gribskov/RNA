@@ -1,18 +1,21 @@
-'''
-RNA structure
-a single RNA structure
-'''
-
-
 class RNAstructure:
+    """=============================================================================================
+    RNA structure
+    a single RNA structure
+    what is a structure?  well might you ask.
+    ============================================================================================="""
+
     def __init__(self):
         self.sequence = ''
         self.pair = []  # base number of the paired base
         self.stemlist = []
+        self.length = 0
+        self.id = None
 
     def CTRead(self, filename):
-        '''
+        """-----------------------------------------------------------------------------------------
         Read in RNAstructure CT file
+
         format example:
           240  ENERGY = -49.3   mr_s129
             1 A       0    2    0    1
@@ -25,14 +28,14 @@ class RNAstructure:
 
         usage
             rna.CTRead(filename)
-        '''
+        -----------------------------------------------------------------------------------------"""
         with open(filename, 'r') as ct:
             line = ct.readline()
             print('firstline:', line)
             # print('field:',field)
 
             if line.find('ENERGY') >= 0:
-                # 
+                #
                 pass
             else:
                 # probknot file
@@ -41,11 +44,12 @@ class RNAstructure:
                 self.id = field[1]
 
             self.pair = [0] * (self.length + 1)
-            nline = 0
+            # nline = 0
             nbase = 0
             for line in ct:
                 n, base, prev, next, pair, n2 = line.split()
-                print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:', n2)
+                print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:',
+                      n2)
                 self.sequence += base
                 if pair != '0':
                     self.pair[int(pair)] = int(n)
@@ -60,6 +64,8 @@ class RNAstructure:
         return str
 
     def stemListGet(self):
+        """-----------------------------------------------------------------------------------------
+        -----------------------------------------------------------------------------------------"""
         stem = Stem()
         unpaired = 2
         instem = False
@@ -69,12 +75,13 @@ class RNAstructure:
                 continue
 
             term = pos - stem.lend > unpaired or stem.rend - self.pair[stem.lend] > unpaired
-            # print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term, 'lpos:',lpos, 'rpos:', rpos)
+            # print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term,
+            # 'lpos:',lpos, 'rpos:', rpos)
             if instem:
                 # currently in a stem
                 if term:
                     # end old stem
-                    stem.trimVienna();
+                    stem.trimVienna()
                     self.stemlist.append(stem)
                     stem = Stem()
                     stem.lbegin = pos
@@ -91,7 +98,6 @@ class RNAstructure:
                     stem.lvienna += '.'
                     stem.rvienna = '.' + stem.rvienna
 
-                        
             else:
                 # not in a stem
                 if self.pair[pos]:
@@ -109,6 +115,10 @@ class RNAstructure:
             self.stemlist.append(stem)
 
     def stemlistFormat(self):
+        """-----------------------------------------------------------------------------------------
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
         n = 0
         str = ''
         for stem in self.stemlist:
@@ -118,7 +128,14 @@ class RNAstructure:
 
 
 class Stem:
+    """=============================================================================================
+
+    ============================================================================================="""
+
     def __init__(self):
+        """-----------------------------------------------------------------------------------------
+
+        -----------------------------------------------------------------------------------------"""
         self.lbegin = 0
         self.lend = 0
         self.rbegin = 0
@@ -127,11 +144,25 @@ class Stem:
         self.rvienna = ''
 
     def formatted(self):
-        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin,self.lend,self.rbegin,self.rend,self.lvienna,self.rvienna)
+        """-----------------------------------------------------------------------------------------
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin, self.lend, self.rbegin, self.rend,
+                                                     self.lvienna, self.rvienna)
 
     def trimVienna(self):
-       self.lvienna = self.lvienna.rstrip('.')
-       self.rvienna = self.rvienna.lstrip('.')
+        """-----------------------------------------------------------------------------------------
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        self.lvienna = self.lvienna.rstrip('.')
+        self.rvienna = self.rvienna.lstrip('.')
+
+
+# ==================================================================================================
+# main/test
+# ==================================================================================================
 
 if __name__ == '__main__':
     rna = RNAstructure()
@@ -140,3 +171,5 @@ if __name__ == '__main__':
     print(rna)
     print('Stemlist\n')
     print(rna.stemlistFormat())
+
+    exit(0)
