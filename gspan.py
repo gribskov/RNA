@@ -33,11 +33,11 @@ class Gspan:
    
     ============================================================================================="""
 
-    def __init__(self):
+    def __init__(self, graph=None):
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = None
+        self.graph = graph
         self.map = None
         self.mindfs = []
         self.g2d = None
@@ -92,8 +92,6 @@ if __name__ == '__main__':
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
                 [[0, 1, j], [0, 2, j], [1, 2, j]]]
 
-    gspan = Gspan()
-
     # graph normalization crate an unnormalized graph by doubling the vertex numbers
     print('Graph normalization')
     g = copy.deepcopy(graphset[1])
@@ -103,7 +101,7 @@ if __name__ == '__main__':
             edge[i] *= 2
     print('    un-normalized graph: {}'.format(g))
 
-    gspan.graph = g
+    gspan = Gspan(graph=g)
     gspan.graph_normalize()
     print('    renormalized graph: {}'.format(gspan.graph))
     if g == gspan.graph:
