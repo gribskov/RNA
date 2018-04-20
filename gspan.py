@@ -2,6 +2,32 @@ import sys
 import copy
 
 
+class Edge(list):
+    """=============================================================================================
+    Edge class is necessary to implement lexicographic sorting
+    ============================================================================================="""
+
+    def __init__(self, edge=[None, None, None]):
+        """-----------------------------------------------------------------------------------------
+        An edge is list of vertex 0, vertex 1, and edge type; all ints.  No assumption is made that
+        v0 is less than v1.
+        -----------------------------------------------------------------------------------------"""
+        super(Edge, self).__init__(edge)
+        # self = [None, None, None]
+        # x=0
+
+    def set(self, v0=None, v1=None, e=None):
+        """-----------------------------------------------------------------------------------------
+        set v0, v1, edge
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        self[0] = v0
+        self[1] = v1
+        self[2] = e
+
+        return True
+
+
 class Gspan:
     """=============================================================================================
     Yan and Han algorithm for canonical graph labeling
@@ -114,7 +140,6 @@ class Gspan:
                 print(e, '1 val', val)
                 return val
 
-
             # fallthrough: g2d[e[0]] and g2d[e[1]] are both None:
             # sort by edge type only
             print(e, 'n val', e[2])
@@ -173,6 +198,9 @@ if __name__ == '__main__':
     print('    renormalized graph: {}'.format(gspan.graph))
     if g == gspan.graph:
         print('    passes test')
+
+    e = Edge()
+    e.set(1, 2)
 
     for g in graphset:
         gspan = Gspan(graph=g)
