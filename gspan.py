@@ -39,10 +39,14 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         self.graph = graph
         self.map = None
+        self.vnum = 0
         self.mindfs = []
         self.g2d = None
         self.d2g = None
         self.unexplored = []
+
+        if graph:
+            self.graph_normalize()
 
     def graph_normalize(self):
         """-----------------------------------------------------------------------------------------
@@ -69,8 +73,8 @@ class Gspan:
         self.map = v
 
         # initialize d2g and g2d
-        self.d2g = [None for i in range(0, self.vnum)]
-        self.g2d = [None for i in range(0, self.vnum)]
+        self.d2g = [None for _ in range(0, self.vnum)]
+        self.g2d = [None for _ in range(0, self.vnum)]
 
         return self.vnum
 
@@ -102,7 +106,8 @@ if __name__ == '__main__':
     print('    un-normalized graph: {}'.format(g))
 
     gspan = Gspan(graph=g)
-    gspan.graph_normalize()
+    # graph normalization should be automatic
+    # gspan.graph_normalize()
     print('    renormalized graph: {}'.format(gspan.graph))
     if g == gspan.graph:
         print('    passes test')
