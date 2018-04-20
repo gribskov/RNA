@@ -2,14 +2,15 @@
 RNA structure
 a single RNA structure
 '''
-class RNAstructure:
 
+
+class RNAstructure:
     def __init__(self):
         self.sequence = ''
-        self.pair = []   # base number of the paired base
+        self.pair = []  # base number of the paired base
         self.stemlist = []
 
-    def CTRead(self,filename):
+    def CTRead(self, filename):
         '''
         Read in RNAstructure CT file
         format example:
@@ -27,10 +28,10 @@ class RNAstructure:
         '''
         with open(filename, 'r') as ct:
             line = ct.readline()
-            print('firstline:', line)                
-            #print('field:',field)
+            print('firstline:', line)
+            # print('field:',field)
 
-            if line.find('ENERGY')>=0:
+            if line.find('ENERGY') >= 0:
                 # 
                 pass
             else:
@@ -38,13 +39,13 @@ class RNAstructure:
                 field = line.split()
                 self.length = int(field[0])
                 self.id = field[1]
-            
-            self.pair = [0] * (self.length+1)
+
+            self.pair = [0] * (self.length + 1)
             nline = 0
             nbase = 0
             for line in ct:
-                n,base,prev,next,pair,n2 = line.split()
-                print( 'n:',n,'base:',base,'pref:',prev,'next:',next,'pair:',pair,'n2:',n2)
+                n, base, prev, next, pair, n2 = line.split()
+                print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:', n2)
                 self.sequence += base
                 if pair != '0':
                     self.pair[int(pair)] = int(n)
@@ -62,13 +63,13 @@ class RNAstructure:
         stem = Stem()
         unpaired = 2
         instem = False
-        for pos in range(0, len(self.pair)-1):
+        for pos in range(0, len(self.pair) - 1):
             if self.pair[pos] and self.pair[pos] < pos:
                 # check that left stem is smaller than right stem
                 continue
 
-            term = pos-stem.lend > unpaired or stem.rend-self.pair[stem.lend] > unpaired
-            #print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term, 'lpos:',lpos, 'rpos:', rpos)
+            term = pos - stem.lend > unpaired or stem.rend - self.pair[stem.lend] > unpaired
+            # print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term, 'lpos:',lpos, 'rpos:', rpos)
             if instem:
                 # currently in a stem
                 if term:
@@ -78,12 +79,12 @@ class RNAstructure:
                     stem.lbegin = pos
                     stem.rend = self.pair[pos]
                     instem = False
-               
+
                 if self.pair[pos]:
-                        stem.lend = pos
-                        stem.rbegin = self.pair[pos]
-                        instem = True
-                        
+                    stem.lend = pos
+                    stem.rbegin = self.pair[pos]
+                    instem = True
+
             else:
                 # not in a stem
                 if self.pair[pos]:
@@ -106,23 +107,26 @@ class RNAstructure:
             n += 1
             str += '{0}\t{1}\n'.format(n, stem.formatted())
         return str
- 
+
+
 class Stem:
     def __init__(self):
         self.lbegin = 0
-        self.lend   = 0
+        self.lend = 0
         self.rbegin = 0
-        self.rend   = 0
+        self.rend = 0
         self.lvienna = ''
         self.rvienna = ''
 
     def formatted(self):
-        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin,self.lend,self.rbegin,self.rend,self.lvienna,self.rvienna)
+        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin, self.lend, self.rbegin, self.rend, self.lvienna,
+                                                     self.rvienna)
+
 
 if __name__ == '__main__':
     rna = RNAstructure()
     rna.CTRead('data/mr_s129.probknot.ct')
     rna.stemListGet()
-    print(rna )
+    print(rna)
     print('Stemlist\n')
-    print( rna.stemlistFormat() )
+    print(rna.stemlistFormat())
