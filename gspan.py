@@ -5,6 +5,9 @@ import copy
 class Edge(list):
     """=============================================================================================
     Edge class is necessary to implement lexicographic sorting
+    e1 < e2 if i1==i2 and j1<j2
+               i1<j1 and j1=i2
+               e1 <(E,T) and e2 <(E,T) e3 then e1 < e3
     ============================================================================================="""
 
     def __init__(self, edge=[None, None, None]):
@@ -15,6 +18,9 @@ class Edge(list):
         super(Edge, self).__init__(edge)
         # self = [None, None, None]
         # x=0
+
+    def __eq__(self, other):
+        return self[0] == other[0] and self[1] == other[1] and self[2] == other[2]
 
     def set(self, v0=None, v1=None, e=None):
         """-----------------------------------------------------------------------------------------
