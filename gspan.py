@@ -81,7 +81,7 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = graph
+        self.graph = None
         self.map = None
         self.vnum = 0
         self.mindfs = []
@@ -90,7 +90,24 @@ class Gspan:
         self.unexplored = []
 
         if graph:
+            self.graph_load(graph)
             self.graph_normalize()
+
+    def graph_load(self, graph):
+        """-----------------------------------------------------------------------------------------
+        load a graph in the form of a list, into a graph object composed of Edge()
+
+        :param graph: list of lists
+        :return: int, number of vertices
+        -----------------------------------------------------------------------------------------"""
+        self.graph = list()
+        v = 0
+        for edge_in in graph:
+            edge = Edge(edge_in)
+            self.graph.append(edge)
+            v += 1
+
+        return
 
     def graph_normalize(self):
         """-----------------------------------------------------------------------------------------
@@ -108,10 +125,12 @@ class Gspan:
                 if edge[i] not in v:
                     v.append(edge[i])
 
-        # convert edge numbers
+        # convert edge numbers, flip directed edges so they are all 0 (i) not 1 (j)
         for edge in self.graph:
             for i in range(0, 2):
                 edge[i] = v.index(edge[i])
+            if edge[2] == 1:
+                edge.reverse()
 
         self.vnum = len(v)
         self.map = v
@@ -218,18 +237,19 @@ if __name__ == '__main__':
         print('    passes test')
 
     e = Edge()
-    e.set(2,3,0)
+    e.set(2, 3, 0)
     print(e)
     e.reverse()
     print(e)
-    e.set(1,2,1)
+    e.set(1, 2, 1)
     print(e)
     e.reverse()
     print(e)
 
     for g in graphset:
+        print('    input graph', g)
         gspan = Gspan(graph=g)
-        print(g)
+        print('    normalized graph', gspan.graph)
         gspan.g2d = [0, 1, 2]
         gspan.sort_by_edge()
         print(gspan.graph2dfs(), '\n')
