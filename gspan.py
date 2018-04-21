@@ -107,7 +107,8 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
-        return
+        self.vnum = v
+        return v
 
     def graph_normalize(self):
         """-----------------------------------------------------------------------------------------
