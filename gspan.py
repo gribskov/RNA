@@ -1,7 +1,9 @@
 import sys
 import copy
+from functools import total_ordering
 
 
+@total_ordering
 class Edge(list):
     """=============================================================================================
     Edge class is necessary to implement lexicographic sorting
@@ -9,6 +11,7 @@ class Edge(list):
                i1<j1 and j1=i2
                e1 <(E,T) and e2 <(E,T) e3 then e1 < e3
     ============================================================================================="""
+    g2d = []  # class variable for translation of edges to dfs numbering
 
     def __init__(self, edge=[None, None, None]):
         """-----------------------------------------------------------------------------------------
@@ -16,11 +19,78 @@ class Edge(list):
         v0 is less than v1.
         -----------------------------------------------------------------------------------------"""
         super(Edge, self).__init__(edge)
-        # self = [None, None, None]
-        # x=0
 
     def __eq__(self, other):
         return self[0] == other[0] and self[1] == other[1] and self[2] == other[2]
+
+    def __lt__(self, other):
+        ia = Edge.g2d[self[0]]
+        ja = Edge.g2d[self[1]]
+
+        ib = Edge.g2d[other[0]]
+        jb = Edge.g2d[other[1]]
+
+        if ia is None:
+            # a is unmapped
+            if ib is None:
+                # b is unmapped, smaller edgetype is less
+                return self[2] < other[2]
+            else:
+                # a unmapped, b is known or on rightmost path
+                return False
+        elif ib is None:
+            # a is known or on rightmost path, b is unmapped
+            return True
+
+        # both a and b are at least partially known
+        if ja is None:
+            # a is an extension
+            if jb is None:
+                # a and b are both extensions on rightmost path
+                return ia > ib
+            else:
+                # a is extension, b is known
+                return False
+        elif jb is None:
+            # a is known, b is extension
+            return True
+
+        # both a and b are known edges
+        if ia < ja:
+            # a is forward
+            if ib > jb:
+                # b is backward
+                return False
+            else:
+                # both forward edges
+                if ia < ib:
+                    return True
+                if ia > ib:
+                    return False
+
+                # ia == ib
+                if ja < jb:
+                    return True
+                if ja > jb:
+                    return False
+
+        else:
+            # a is backward
+            if ib > jb:
+                # both backward edges
+                if ia < ib:
+                    return True
+                if ia > ib:
+                    return False
+
+                # ia ==ib
+                if ja < jb:
+                    return True
+                return False
+
+            else:
+                # a backward, b forward
+                return True
 
     def set(self, v0=None, v1=None, e=None):
         """-----------------------------------------------------------------------------------------
@@ -151,39 +221,9 @@ class Gspan:
         off0 = 256
         off1 = off0 * 256
 
-        def lex(e):
-            """
-            lexicographic order for edges:
-                (known edges not on rightmost path)
-                backward from rightmost vertex,
-                forward from rightmost vertex,
-                forward from internal vertex on rightmost path
-            """
-            x = 1
-            if g2d[e[0]] is not None and g2d[e[1]] is not None:
-                # both vertices defined, this is either a known edge or a backward edge
-                val = g2d[e[0]] + g2d[e[1]] * off0 + e[2] * off1
-                print(e, 'b val', val)
-                return val
-
-            elif g2d[e[0]] is not None:
-                # e[0] is known, forward extension on rightmost path
-                val = g2d[e[0]] + e[2] * off1
-                print(e, '0 val', val)
-                return val
-
-            elif g2d[e[1]] is not None:
-                # e[1] is known, forward extension on rightmost path
-                val = g2d[e[1]] * off0 + e[2] * off1
-                print(e, '1 val', val)
-                return val
-
-            # fallthrough: g2d[e[0]] and g2d[e[1]] are both None:
-            # sort by edge type only
-            print(e, 'n val', e[2])
-            return e[2]
-
-        self.graph.sort(key=lex, reverse=False)
+        Edge.g2d=[0,1,2]
+        self.graph.sort()
+        print('    sorted:', self.graph)
 
         return True
 
@@ -239,10 +279,12 @@ if __name__ == '__main__':
 
     e = Edge()
     e.set(2, 3, 0)
+    e.g2d = [0, 1, 2]
     print(e)
     e.reverse()
     print(e)
     e.set(1, 2, 1)
+    e.g2d = [2, 1, 0]
     print(e)
     e.reverse()
     print(e)
