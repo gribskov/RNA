@@ -21,7 +21,10 @@ class Edge(list):
         super(Edge, self).__init__(edge)
 
     def __eq__(self, other):
-        return self[0] == other[0] and self[1] == other[1] and self[2] == other[2]
+        return ( self[0] == other[0] and self[1] == other[1] and self[2] == other[2] )
+
+    def __ne__(self, other):
+        return not ( self[0] == other )
 
     def __lt__(self, other):
         ia = Edge.g2d[self[0]]
@@ -63,15 +66,15 @@ class Edge(list):
                 return False
             else:
                 # both forward edges
-                if ia < ib:
-                    return True
-                if ia > ib:
-                    return False
-
-                # ia == ib
                 if ja < jb:
                     return True
                 if ja > jb:
+                    return False
+
+                # ja = jb
+                if ia < ib:
+                    return True
+                if ia > ib:
                     return False
 
         else:
@@ -212,17 +215,36 @@ class Gspan:
 
         return self.vnum
 
-    def sort_by_edge(self):
+    def order(self, row=0):
+        """-----------------------------------------------------------------------------------------
+        given the g2d map, orient the edges so that when only one vertex is defined it is v0 (i)
+        or when unadded known edges have v0 < v1
+        :param row: int, beginning row for transformation
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        for edge in self.graph[row:]:
+            if self.g2d[edge[0]] is None:
+                if self.g2d[edge[1]] is None:
+                    continue
+                edge.reverse()
+
+            elif self.g2d[edge[1]] is None:
+                    continue
+
+            elif self.g2d[edge[0]] < self.g2d[edge[1]]:
+                edge.reverse()
+
+        return True
+
+    def sort_by_edge(self, row=0):
         """-----------------------------------------------------------------------------------------
         sort graph by edges, using current g2d map
         :return:
         -----------------------------------------------------------------------------------------"""
-        g2d = self.g2d
-        off0 = 256
-        off1 = off0 * 256
-
-        Edge.g2d=[0,1,2]
-        self.graph.sort()
+        Edge.g2d = self.g2d
+        tmp = self.graph[row:]
+        tmp.sort()
+        self.graph[row:] = tmp
         print('    sorted:', self.graph)
 
         return True
@@ -259,7 +281,8 @@ if __name__ == '__main__':
     '''
     graphset = [[[0, 1, i], [1, 2, i], [2, 0, j]],
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
-                [[0, 1, j], [0, 2, j], [1, 2, j]]]
+                [[0, 1, j], [0, 2, j], [1, 2, j]],
+                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
     print('Graph normalization')
@@ -289,12 +312,46 @@ if __name__ == '__main__':
     e.reverse()
     print(e)
 
-    for g in graphset:
-        print('    input graph', g)
-        gspan = Gspan(graph=g)
-        print('    normalized graph', gspan.graph)
-        gspan.g2d = [0, 1, 2]
-        gspan.sort_by_edge()
-        print(gspan.graph2dfs(), '\n')
+    Edge.g2d = [1, 0, 2, None]
+    e1 = Edge([0, 3, 0])
+    e2 = Edge([2, 1, 1])
+    if e1 < e2:
+        print('e1 smaller')
+    if e2 < e1:
+        print('e2 smaller')
+    g=[ Edge([0,1,0]), Edge([2,0,1])]
+    Edge.g2d=[0, None, 2, 3]
+    g.sort()
+    print(g)
+
+    # g = graphset[1]
+    g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
+    print('input graph', g)
+    gspan = Gspan(graph=g)
+    glen = len(gspan.graph)
+
+    # initialize first edge
+    gspan.sort_by_edge()
+    e = gspan.graph[0]
+    gspan.g2d[e[0]] = 0
+    gspan.g2d[e[1]] = 1
+    d = 2
+    i = 1
+
+    while i < glen - 1:
+        print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+        gspan.order(i)
+        print('    order', gspan.graph)
+        gspan.sort_by_edge(i)
+        print('    sorted dfs', gspan.graph2dfs())
+        e = gspan.graph[i]
+        if gspan.g2d[e[1]] is None:
+            # forward extension
+            gspan.g2d[e[1]] = d
+            d += 1
+
+        i += 1
+
+    print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
 
 exit(0)
