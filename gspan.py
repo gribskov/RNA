@@ -33,6 +33,18 @@ class Edge(list):
 
         return True
 
+    def reverse(self):
+        """-----------------------------------------------------------------------------------------
+        reverse the direction of the edge
+
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        self[0], self[1] = self[1], self[0]
+        if self[2] < 2:
+            self[2] ^= 1
+
+        return True
+
 
 class Gspan:
     """=============================================================================================
@@ -206,7 +218,14 @@ if __name__ == '__main__':
         print('    passes test')
 
     e = Edge()
-    e.set(1, 2)
+    e.set(2,3,0)
+    print(e)
+    e.reverse()
+    print(e)
+    e.set(1,2,1)
+    print(e)
+    e.reverse()
+    print(e)
 
     for g in graphset:
         gspan = Gspan(graph=g)
