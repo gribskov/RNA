@@ -67,7 +67,7 @@ class RNAstructure:
         """-----------------------------------------------------------------------------------------
         -----------------------------------------------------------------------------------------"""
         stem = Stem()
-        unpaired = 2
+        unpaired = 3
         instem = False
         for pos in range(0, len(self.pair) - 1):
             if self.pair[pos] == 0 or self.pair[pos] < pos:
@@ -121,12 +121,14 @@ class RNAstructure:
 
 class Stem:
     """=============================================================================================
-
+    coordinates of stem regions (including allowed gaps) and the corresponding Vienna strings.
     ============================================================================================="""
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-
+        Stem constructor
+        begin-end coordinates are small->big for left side
+        end-begin for right side
         -----------------------------------------------------------------------------------------"""
         self.lbegin = 0
         self.lend = 0
@@ -137,19 +139,26 @@ class Stem:
 
     def formatted(self):
         """-----------------------------------------------------------------------------------------
-
-        :return:
+        Return a formatted version of the stem:
+            left begin pos
+            left end pos
+            right begin pso
+            right end pos
+            left Vienna string
+            right Vienna string
+        :return: string, with stem coordinates and Vienna structure
         -----------------------------------------------------------------------------------------"""
         return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin, self.lend, self.rbegin, self.rend,
                                                      self.lvienna, self.rvienna)
 
     def trimVienna(self):
         """-----------------------------------------------------------------------------------------
-
-        :return:
+        Removes leading and trailing unpaired positions (.) from vienna strings
+        :return: True
         -----------------------------------------------------------------------------------------"""
         self.lvienna = self.lvienna.rstrip('.')
         self.rvienna = self.rvienna.lstrip('.')
+        return True
 
 
 # ==================================================================================================
