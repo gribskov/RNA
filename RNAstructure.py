@@ -87,19 +87,19 @@ class RNAstructure:
                     stem.rbegin = self.pair[pos]
                     stem.lvienna += '{}('.format('.'*lgap)
                     stem.rvienna = '){}'.format('.'*rgap) + stem.rvienna
+                    continue
 
-            else:
-                # not in a stem, start a new stem
-                stem = Stem()
-                self.stemlist.append(stem)
-                instem = True
+            # not in a stem, start a new stem
+            stem = Stem()
+            self.stemlist.append(stem)
+            instem = True
 
-                stem.lbegin = pos
-                stem.rend = self.pair[pos]
-                stem.lend = pos
-                stem.rbegin = self.pair[pos]
-                stem.lvienna = '('
-                stem.rvienna = ')'
+            stem.lbegin = pos
+            stem.rend = self.pair[pos]
+            stem.lend = pos
+            stem.rbegin = self.pair[pos]
+            stem.lvienna = '('
+            stem.rvienna = ')'
 
         if instem:
             # if you  end in a stem, save it before closing
@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     exit(0)
 
-"""
+""" correct by manual inspection
 29-31:231-229
 33-37:225-221
 41-44:220-217
