@@ -70,44 +70,36 @@ class RNAstructure:
         unpaired = 2
         instem = False
         for pos in range(0, len(self.pair) - 1):
-            if self.pair[pos] and self.pair[pos] < pos:
-                # check that left stem is smaller than right stem
+            if self.pair[pos] == 0 or self.pair[pos] < pos:
                 continue
 
-            term = pos - stem.lend > unpaired or stem.rend - self.pair[stem.lend] > unpaired
-            # print( 'pos:',pos, 'pair:',self.pair[pos], 'instem:', instem, 'term:', term,
-            # 'lpos:',lpos, 'rpos:', rpos)
             if instem:
                 # currently in a stem
-                if term:
-                    # end old stem
+                lgap = pos - stem.lend - 1
+                rgap = stem.rbegin - self.pair[pos] - 1
+                if lgap >= unpaired or rgap >= unpaired:
+                    # gap is too big, end old stem
                     stem.trimVienna()
-                    self.stemlist.append(stem)
-                    stem = Stem()
-                    stem.lbegin = pos
-                    stem.rend = self.pair[pos]
                     instem = False
-
-                if self.pair[pos]:
+                else:
+                    # extend current stem
                     stem.lend = pos
                     stem.rbegin = self.pair[pos]
-                    stem.lvienna += '('
-                    stem.rvienna = ')' + stem.rvienna
-                    instem = True
-                else:
-                    stem.lvienna += '.'
-                    stem.rvienna = '.' + stem.rvienna
+                    stem.lvienna += '{}('.format('.'*lgap)
+                    stem.rvienna = '){}'.format('.'*rgap) + stem.rvienna
 
             else:
-                # not in a stem
-                if self.pair[pos]:
-                    # start a new stem
-                    stem = Stem()
-                    stem.lbegin = pos
-                    stem.rend = self.pair[pos]
-                    stem.lend = pos
-                    stem.rbegin = self.pair[pos]
-                    instem = True
+                # not in a stem, start a new stem
+                stem = Stem()
+                self.stemlist.append(stem)
+                instem = True
+
+                stem.lbegin = pos
+                stem.rend = self.pair[pos]
+                stem.lend = pos
+                stem.rbegin = self.pair[pos]
+                stem.lvienna = '('
+                stem.rvienna = ')'
 
         if instem:
             # if you  end in a stem, save it before closing
@@ -173,3 +165,32 @@ if __name__ == '__main__':
     print(rna.stemlistFormat())
 
     exit(0)
+
+"""
+29-31:231-229
+33-37:225-221
+41-44:220-217
+48-52:211-207
+55-58:68-65
+65-68:58-55
+76-80:192-188
+84-91:184-177
+95-98:155-152
+100-103:150-147
+106-108:145-143
+117-119:130-128
+129-130:119-117
+143-145:108-106
+147-150:103-100
+152-155:98-95
+163-165:176-174
+174-176:165-163
+177-184:91-84
+188-192:80-76
+201-205:216-212
+207-211:52-48
+212-216:205-201
+217-225:44-33
+229-231:31-29
+"""
+
