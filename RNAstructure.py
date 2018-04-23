@@ -28,14 +28,17 @@ class RNAstructure:
 
         usage
             rna.CTRead(filename)
+        :param filename: string, filename with CT formatted structure
+        :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
+        nbase = 0
         with open(filename, 'r') as ct:
             line = ct.readline()
-            print('firstline:', line)
+            # print('firstline:', line)
             # print('field:',field)
 
             if line.find('ENERGY') >= 0:
-                #
+                # TODO: not sure what this is checking
                 pass
             else:
                 # probknot file
@@ -44,30 +47,37 @@ class RNAstructure:
                 self.id = field[1]
 
             self.pair = [0] * (self.length + 1)
-            # nline = 0
-            nbase = 0
+
             for line in ct:
-                n, base, prev, next, pair, n2 = line.split()
-                print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:',
-                      n2)
+                n, base, prev, following, pair, n2 = line.split()
+                # print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:',
+                #       n2)
                 self.sequence += base
                 if pair != '0':
                     self.pair[int(pair)] = int(n)
                     self.pair[int(n)] = int(pair)
                 nbase += 1
 
+        return nbase
+
     def __str__(self):
-        str = 'RNA:\n'
-        for key in self.__dict__:
-            str += '{0} = {1}\n'.format(key, self.__dict__[key])
-
-        return str
-
-    def stemListGet(self):
         """-----------------------------------------------------------------------------------------
+        string representation of a structure
+        :return: string
         -----------------------------------------------------------------------------------------"""
-        stem = Stem()
-        unpaired = 3
+        rnastr = 'RNA:\n'
+        for key in self.__dict__:
+            rnastr += '{0} = {1}\n'.format(key, self.__dict__[key])
+
+        return rnastr
+
+    def stemListGet(self, unpaired=2):
+        """-----------------------------------------------------------------------------------------
+        Construct the stemlist from the paired base list in stem.pair
+        :return: integer, number of stems in stemlist
+        -----------------------------------------------------------------------------------------"""
+        maxgap = unpaired + 1
+        nstem = 0
         instem = False
         for pos in range(0, len(self.pair) - 1):
             if self.pair[pos] == 0 or self.pair[pos] < pos:
@@ -77,7 +87,7 @@ class RNAstructure:
                 # currently in a stem
                 lgap = pos - stem.lend - 1
                 rgap = stem.rbegin - self.pair[pos] - 1
-                if lgap >= unpaired or rgap >= unpaired:
+                if lgap >= maxgap or rgap >= maxgap:
                     # gap is too big, end old stem
                     stem.trimVienna()
                     instem = False
@@ -85,12 +95,13 @@ class RNAstructure:
                     # extend current stem
                     stem.lend = pos
                     stem.rbegin = self.pair[pos]
-                    stem.lvienna += '{}('.format('.'*lgap)
-                    stem.rvienna = '){}'.format('.'*rgap) + stem.rvienna
+                    stem.lvienna += '{}('.format('.' * lgap)
+                    stem.rvienna = '){}'.format('.' * rgap) + stem.rvienna
                     continue
 
             # not in a stem, start a new stem
             stem = Stem()
+            nstem += 1
             self.stemlist.append(stem)
             instem = True
 
@@ -106,17 +117,19 @@ class RNAstructure:
             stem.trimVienna()
             self.stemlist.append(stem)
 
+        return nstem
+
     def stemlistFormat(self):
         """-----------------------------------------------------------------------------------------
-
-        :return:
+        Returns a string with the stemlist formatted according to Stem.formatted()
+        :return: string
         -----------------------------------------------------------------------------------------"""
         n = 0
-        str = ''
+        stemstr = ''
         for stem in self.stemlist:
             n += 1
-            str += '{0}\t{1}\n'.format(n, stem.formatted())
-        return str
+            stemstr += '{0}\t{1}\n'.format(n, stem.formatted())
+        return stemstr
 
 
 class Stem:
@@ -169,7 +182,7 @@ if __name__ == '__main__':
     rna = RNAstructure()
     rna.CTRead('data/mr_s129.probknot.ct')
     rna.stemListGet()
-    print(rna)
+    # print(rna)
     print('Stemlist\n')
     print(rna.stemlistFormat())
 
@@ -202,4 +215,3 @@ if __name__ == '__main__':
 217-225:44-33
 229-231:31-29
 """
-
