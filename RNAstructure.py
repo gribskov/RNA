@@ -9,6 +9,7 @@ class RNAstructure:
         self.sequence = ''
         self.pair = []  # base number of the paired base
         self.stemlist = []
+        self.adjacency = None
         self.length = 0
         self.id = None
 
@@ -131,6 +132,46 @@ class RNAstructure:
             stemstr += '{0}\t{1}\n'.format(n, stem.formatted())
         return stemstr
 
+    def getAdjacency(self):
+        """-----------------------------------------------------------------------------------------
+        Calculate an adjacency matrix from a stemlist. assumes stesm are ordered by the beginning
+        of the left half-stem.
+        :return: dict, keys are edge types, values are counts
+        -----------------------------------------------------------------------------------------"""
+        nstem = len(self.stemlist)
+
+        edges = {'i': 0, 'j': 0, 'o': 0, 's': 0, 'x': 0}
+        a = [[0 for _ in range(nstem)] for _ in range(nstem)]
+
+        for i in range(nstem):
+            stem_i = self.stemlist[i]
+
+            for j in range(i + 1, nstem):
+                stem_j = self.stemlist[j]
+
+                if stem_i.rend < stem_j.lbegin:
+                    # serial edge
+                    a[i][j] = 's'
+                    a[j][i] = 's'
+
+                elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
+                    # overlap edge (pseudoknot)
+                    a[i][j] = 'o'
+                    a[j][i] = 'o'
+
+                elif stem_i.lend < stem_j.lbegin and stem_i.rbegin > stem_j.rend:
+                    # included edge (directed, j is inside i)
+                    a[i][j] = 'i'
+                    a[j][i] = 'j'
+
+                else:
+                    # excluded edge (stems overlap)
+                    a[i][j] = 'x'
+                    a[j][i] = 'x'
+
+        self.adjacency = a
+        return edges
+
 
 class Stem:
     """=============================================================================================
@@ -186,9 +227,13 @@ if __name__ == '__main__':
     print('Stemlist\n')
     print(rna.stemlistFormat())
 
+    edges = rna.getAdjacency()
+    print('edges', edges)
+    print(rna.adjacency)
+
     exit(0)
 
-""" correct by manual inspection
+""" correct structure of mr_s129 by manual inspection
 29-31:231-229
 33-37:225-221
 41-44:220-217
