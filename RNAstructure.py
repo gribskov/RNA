@@ -7,11 +7,13 @@ class RNAstructure:
 
     def __init__(self):
         self.sequence = ''
+        self.length = 0
+        self.energy = None  # not defined for probknot
         self.pair = []  # base number of the paired base
         self.stemlist = []
         self.adjacency = None
-        self.length = 0
         self.id = None
+        self.filename = None
 
     def CTRead(self, filename):
         """-----------------------------------------------------------------------------------------
@@ -33,14 +35,16 @@ class RNAstructure:
         :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
         nbase = 0
+        self.filename = filename    # TODO should strip directory path from filename
         with open(filename, 'r') as ct:
             line = ct.readline()
             # print('firstline:', line)
             # print('field:',field)
 
             if line.find('ENERGY') >= 0:
-                # TODO: not sure what this is checking
-                pass
+                field = line.split()
+                self.energy = field[3]
+
             else:
                 # probknot file
                 field = line.split()
