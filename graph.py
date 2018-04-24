@@ -10,13 +10,28 @@ class PairGraph:
     extensions for pseudoknots). A second representation numbers the stem regions based on the
     pairing.  Again, this can be condensed so each stem is represented by a single digit
     For instance, for a tRNA
+
     >S.cerevisiae_tRNA-PHE M10740/1-73
     GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUUUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCA
-    (((((((..((((........)))).((((.........)))).....(((((.......)))))))))))..
-    1111111  2222        2222 3333         3333      4444       444411111111
+    (((((((..((((........)))).((((.........)))).....(((((.......)))))))))))).   Vienna format
+    1111111  2222        2222 3333         3333     44444       444441111111    stem number
+    1111111  2222        3333 4444         5555      6666       777788888888    position
 
     abstract shape (level 3) [ [ ] [ ] [ ] ]    (spaces added for readability)
+    list format   1 2 2 3 3 4 4 1               index indicates position, value indicates stem
+    pair format   (1,8) (2,3) (4,5) (6,7)       each item is a stem, values are the positions
+                  1 8 2 3 4 5 6 7               (serialized pair format)
 
+    example with a pseudoknot added
+    GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUUUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCA
+    (((((((..((((........)))).((((.........)))).[[[.(((((..]]]..)))))))))))).   Vienna format
+    1111111  2222        2222 3333         3333 444 55555  444  555551111111    stem number
+    1111111  2222        3333 4444         5555 666 77777  888  999991111111    position
+                                                                     0000000
+    ( ( ) ( ) [ ( ] ) )
+    1 2 2 3 3 4 5 4 5 1
+    (1, 10) (2, 3) (4, 5) (6, 8) (7, 9)
+    1 10 2 3 4 5 6 8 7 9
 
     Synopsis
         from graph import PairGraph
@@ -61,23 +76,36 @@ class PairGraph:
 
     def fromList(self, g):
         """"----------------------------------------------------------------------------------------
-        convert a graph in array format to pair format.  returns a list of lists with the
-        begin/end position of each stem
-        :param g: graph in array format
-        :return: number of stems in new graph
+        read a graph in list format as a list.  returns a list of lists with the begin/end position
+        of each stem (pair format)
+        :param g: list, structure in list format
+        :return: integer, number of stems
         -----------------------------------------------------------------------------------------"""
         self.nstem = int(len(g) / 2)
         self.pairs = [[] for _ in range(self.nstem)]
 
+        # the values indicate the stem number, the index indicates the position
         for i in range(len(g)):
             self.pairs[g[i]].append(i)
 
         return self.nstem
 
+    def fromListAsString(self, g, sep=' '):
+        """-----------------------------------------------------------------------------------------
+        the input list is a string separated by sep
+        :param g: string, input graph as a string
+        :param sep: string, separation character in input string
+        :return: integer, number of stems
+        -----------------------------------------------------------------------------------------"""
+        listval = g.split(sep)
+        nstem = self.fromList(listval)
+
+        return nstem
+
     def toList(self):
         """-----------------------------------------------------------------------------------------
-        convert a graph in pair format to array format
-        :return g: graph in list format
+        return the structure in list format (s a list)
+        :return g: list, structure in list format
         -----------------------------------------------------------------------------------------"""
         g = [0 for _ in range(self.nstem * 2)]
 
@@ -88,6 +116,14 @@ class PairGraph:
             stem += 1
 
         return g
+
+    def toVienna(self):
+        """-----------------------------------------------------------------------------------------
+        return a string with the structure in vienna format.  This is basically the abstract shapes
+        format with support for pseudoknots.
+        :return: string
+        -----------------------------------------------------------------------------------------"""
+        pass
 
     def reverse(self):
         """-----------------------------------------------------------------------------------------
@@ -101,7 +137,7 @@ class PairGraph:
 
         self.pairs.sort(key=lambda k: k[0])
 
-        return None
+        return self.pairs
 
     def connected(self):
         """-----------------------------------------------------------------------------------------
@@ -283,11 +319,13 @@ def enumerate(n):
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    graph = PairGraph(inlist=[0, 1, 2, 1, 0, 2])
-    print(graph.pairs)
-    graph.reverse()
-    print(graph.pairs)
-    print(str(graph))
+    print('\nlist format')
+    structure = [0, 1, 2, 1, 0, 2]
+    print('    input list', structure)
+    graph = PairGraph(inlist=structure)
+    print('    pairs', graph.pairs)
+    print('    reversed', graph.reverse())
+    print('    serialized', str(graph))
 
     print('\nTesting connectivity')
     graph = PairGraph(inlist=[0, 0, 1, 1, 2, 2])
@@ -295,7 +333,7 @@ if __name__ == '__main__':
     if not graph.connected():
         print('Not connected')
 
-    print('\nenumerating: size, len, totaltotal')
+    print('\nenumerating: size, len, total')
     total = 0
     for size in range(1, 8):
         g = enumerate(size)
