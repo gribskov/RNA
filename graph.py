@@ -2,8 +2,24 @@ class PairGraph:
     """=============================================================================================
     RNA graph class
 
+    There are several ways to represent a folded RNA structure as a linear string at an abstract
+    level where we consider simply paired regions rather than individual base pairs.  These include
+    the Giegerich abstract shapes approach, where the runs of parentheses and dots in a Vienna
+    formatted structure are condensed to single brackets (square brackets in their formulation).
+    This package handles the manipulation of these kinds of linear representations (including some
+    extensions for pseudoknots). A second representation numbers the stem regions based on the
+    pairing.  Again, this can be condensed so each stem is represented by a single digit
+    For instance, for a tRNA
+    >S.cerevisiae_tRNA-PHE M10740/1-73
+    GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUUUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCA
+    (((((((..((((........)))).((((.........)))).....(((((.......)))))))))))..
+    1111111  2222        2222 3333         3333      4444       444411111111
+
+    abstract shape (level 3) [ [ ] [ ] [ ] ]    (spaces added for readability)
+
+
     Synopsis
-        from fasta import Fasta()
+        from graph import PairGraph
 
         graph = PairGraph()
         graph.fromList([0,1,1,0])
