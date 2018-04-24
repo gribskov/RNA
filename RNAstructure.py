@@ -35,7 +35,7 @@ class RNAstructure:
         :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
         nbase = 0
-        self.filename = filename    # TODO should strip directory path from filename
+        self.filename = filename  # TODO should strip directory path from filename
         with open(filename, 'r') as ct:
             line = ct.readline()
             # print('firstline:', line)
@@ -118,9 +118,9 @@ class RNAstructure:
             stem.rvienna = ')'
 
         # if instem:
-            # if you  end in a stem, clean up the Vienna string
-            # stem.trimVienna()
-            # self.stemlist.append(stem)
+        # if you  end in a stem, clean up the Vienna string
+        # stem.trimVienna()
+        # self.stemlist.append(stem)
 
         return nstem
 
@@ -179,14 +179,14 @@ class RNAstructure:
 
         self.adjacency = a
         return edges
-    
+
     def adjacencyFormat(self):
         """-----------------------------------------------------------------------------------------
 
         :return: string, formatted version of adjacency matrix
         -----------------------------------------------------------------------------------------"""
         adjstr = ''
-        width = 4   # TODO set based on matrix size?
+        width = 4  # TODO set based on matrix size?
         if not self.adjacency:
             adjstr = 'None'
             return adjstr
@@ -199,6 +199,32 @@ class RNAstructure:
             adjstr += '\n'
 
         return adjstr
+
+    def edgelist(self, include="ijo", whole=False):
+        """-----------------------------------------------------------------------------------------
+        An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
+        tuples with the number and type of nodes with edges
+        :return: list, edgelist
+        -----------------------------------------------------------------------------------------"""
+        elist = []
+        if not self.adjacency:
+            return elist
+
+        size = len(self.adjacency)
+        a = self.adjacency
+        for i in range(size):
+            e = []
+            elist.append(e)
+            begin = i + 1
+            if whole:
+                begin = 0
+
+            for j in range(begin, size):
+                if i == j:
+                    continue
+                if a[i][j] in include:
+                    e.append([j, a[i][j]])
+        return elist
 
 
 class Stem:
@@ -259,6 +285,11 @@ if __name__ == '__main__':
     print('edges', edges)
     print('\nAdjacency matrix\n')
     print(rna.adjacencyFormat())
+
+    print('\nEdgelist\n')
+    e = rna.edgelist()
+    for i in range(len(e)):
+        print('{}:\t{}'.format(i, e[i]))
 
     exit(0)
 
