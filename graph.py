@@ -13,7 +13,7 @@ class PairGraph:
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self, l=[]):
+    def __init__(self, inlist=[]):
         """-----------------------------------------------------------------------------------------
         Graph constructor
         Internal data structure is a pair graph: a list in which each element is a stem.  The stems
@@ -22,8 +22,8 @@ class PairGraph:
         self.pairs = []
         self.nstem = 0
 
-        if l:
-            self.fromList(l)
+        if inlist:
+            self.fromList(inlist)
 
     def __str__(self, sep='_'):
         """-----------------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ class PairGraph:
         :return: number of stems in new graph
         -----------------------------------------------------------------------------------------"""
         self.nstem = int(len(g) / 2)
-        self.pairs = [[] for i in range(self.nstem)]
+        self.pairs = [[] for _ in range(self.nstem)]
 
         for i in range(len(g)):
             self.pairs[g[i]].append(i)
@@ -63,7 +63,7 @@ class PairGraph:
         convert a graph in pair format to array format
         :return g: graph in list format
         -----------------------------------------------------------------------------------------"""
-        g = [0 for i in range(self.nstem * 2)]
+        g = [0 for _ in range(self.nstem * 2)]
 
         stem = 0
         for pair in self.pairs:
@@ -130,7 +130,7 @@ class PairGraph:
         return depth
 
 
-class Xios():
+class Xios:
     """=============================================================================================
     Graph structure with XIOS edges
     ============================================================================================="""
@@ -140,19 +140,16 @@ class Xios():
         Xios constructor
         Initialize from graph
         :param pairs: a PairGraph object
-         -----------------------------------------------------------------------------------------"""
+         ----------------------------------------------------------------------------------------"""
         # self.order = ['i', 'j', 'o', 's', 'x']
         self.order = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        self.edgelist = [[] for k in range(len(graph))]
+        self.edgelist = [[] for _ in range(len(graph))]
         if pairs:
             self.getEdgeFromPairs(pairs)
-
-        return None
 
     def __len__(self):
         """-----------------------------------------------------------------------------------------
         length is number of vertices
-
         :return: length of xios graph (number of vertices)
         -----------------------------------------------------------------------------------------"""
         return len(self.edgelist)
@@ -160,7 +157,7 @@ class Xios():
     def __str__(self):
         """-----------------------------------------------------------------------------------------
         formatted string representation of XIOS graph
-        :return:
+        :return: string, formatted representation of XIOS graph
         -----------------------------------------------------------------------------------------"""
         s = '\n'
         for v in range(len(self.edgelist)):
@@ -177,7 +174,7 @@ class Xios():
         :param graph:
         :return: size of graph (number of stems)
         -----------------------------------------------------------------------------------------"""
-        pairs = PairGraph(l=graph)
+        pairs = PairGraph(inlist=graph)
         self.getEdgeFromPairs(pairs)
 
         return len(self)
@@ -194,26 +191,30 @@ class Xios():
         for i in range(len(pairs)):
             for j in range(i + 1, len(pairs)):
                 if pairs.pairs[i][1] < pairs.pairs[j][0]:
+                    # end position of pair i is before beginning of pair j
                     self.edgelist[i].append([j, 's'])
                 elif pairs.pairs[i][1] > pairs.pairs[j][1]:
+                    # end position of pair i is after end position of pair j
                     self.edgelist[i].append([j, 'i'])
                 else:
+                    # ijij, i.e. a pseudoknot
                     self.edgelist[i].append([j, 'o'])
 
         return len(self)
+
 
 # --------------------------------------------------------------------------------------------------
 # Non-object functions
 # --------------------------------------------------------------------------------------------------
 def possible(s):
-    """
+    """---------------------------------------------------------------------------------------------
     return a list of the possible next stems.  Two kinds of stems can be added
     1) stems with use zero can be added in numerical order
     2) stems that have use == 1 can be added, but only if the the count of open stems would be > 0
 
     :param s: stem usage list
     :return: list of possible elements to add
-    """
+    ---------------------------------------------------------------------------------------------"""
     possible = []
     candidate = []
     first = True
@@ -241,7 +242,7 @@ def enumerate(n):
     :return: array of graph lists
     ---------------------------------------------------------------------------------------------"""
     graphs = []
-    s = [0 for i in range(n)]
+    s = [0 for _ in range(n)]
     stack = []
     struc = []
     stack.append((0, s[:], struc))
@@ -266,14 +267,14 @@ def enumerate(n):
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-    graph = PairGraph(l=[0, 1, 2, 1, 0, 2])
+    graph = PairGraph(inlist=[0, 1, 2, 1, 0, 2])
     print(graph.pairs)
     graph.reverse()
     print(graph.pairs)
     print(str(graph))
 
     print('\nTesting connectivity')
-    graph = PairGraph(l=[0, 0, 1, 1, 2, 2])
+    graph = PairGraph(inlist=[0, 0, 1, 1, 2, 2])
     print(graph.pairs)
     if not graph.connected():
         print('Not connected')
@@ -297,9 +298,9 @@ if __name__ == '__main__':
         pgraph.reverse()
         print('reversed:', str(pgraph))
         print('pairs:', pgraph.pairs, end='\t=>\t')
-        l = pgraph.toList()
-        print('reversed list:', l)
-        xios.getEdgeFromList(l)
+        glist = pgraph.toList()
+        print('reversed list:', glist)
+        xios.getEdgeFromList(glist)
         print('xios (from list):', str(xios))
 
     exit(0)
