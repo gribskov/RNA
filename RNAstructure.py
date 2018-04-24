@@ -113,10 +113,10 @@ class RNAstructure:
             stem.lvienna = '('
             stem.rvienna = ')'
 
-        if instem:
-            # if you  end in a stem, save it before closing
-            stem.trimVienna()
-            self.stemlist.append(stem)
+        # if instem:
+            # if you  end in a stem, clean up the Vienna string
+            # stem.trimVienna()
+            # self.stemlist.append(stem)
 
         return nstem
 
@@ -132,7 +132,7 @@ class RNAstructure:
             stemstr += '{0}\t{1}\n'.format(n, stem.formatted())
         return stemstr
 
-    def getAdjacency(self):
+    def adjacencyGet(self):
         """-----------------------------------------------------------------------------------------
         Calculate an adjacency matrix from a stemlist. assumes stesm are ordered by the beginning
         of the left half-stem.
@@ -153,24 +153,48 @@ class RNAstructure:
                     # serial edge
                     a[i][j] = 's'
                     a[j][i] = 's'
+                    edges['s'] += 1
 
                 elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
                     # overlap edge (pseudoknot)
                     a[i][j] = 'o'
                     a[j][i] = 'o'
+                    edges['o'] += 1
 
                 elif stem_i.lend < stem_j.lbegin and stem_i.rbegin > stem_j.rend:
                     # included edge (directed, j is inside i)
                     a[i][j] = 'i'
                     a[j][i] = 'j'
+                    edges['i'] += 1
 
                 else:
                     # excluded edge (stems overlap)
                     a[i][j] = 'x'
                     a[j][i] = 'x'
+                    edges['x'] += 1
 
         self.adjacency = a
         return edges
+    
+    def adjacencyFormat(self):
+        """-----------------------------------------------------------------------------------------
+
+        :return: string, formatted version of adjacency matrix
+        -----------------------------------------------------------------------------------------"""
+        adjstr = ''
+        width = 4   # TODO set based on matrix size?
+        if not self.adjacency:
+            adjstr = 'None'
+            return adjstr
+
+        size = len(self.adjacency)
+        for i in range(size):
+            for j in range(size):
+                # must cast to str so zeros format correctly
+                adjstr += '{:{}}'.format(str(self.adjacency[i][j]), width)
+            adjstr += '\n'
+
+        return adjstr
 
 
 class Stem:
@@ -227,9 +251,10 @@ if __name__ == '__main__':
     print('Stemlist\n')
     print(rna.stemlistFormat())
 
-    edges = rna.getAdjacency()
+    edges = rna.adjacencyGet()
     print('edges', edges)
-    print(rna.adjacency)
+    print('\nAdjacency matrix\n')
+    print(rna.adjacencyFormat())
 
     exit(0)
 
