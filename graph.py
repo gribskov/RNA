@@ -117,13 +117,20 @@ class PairGraph:
 
         return g
 
+    def fromVienna(self):
+        """-----------------------------------------------------------------------------------------
+        Read structure in Vienna format
+        :return: integer, number of stems
+        -----------------------------------------------------------------------------------------"""
+        pass
+
     def toVienna(self):
         """-----------------------------------------------------------------------------------------
         return a string with the structure in vienna format.  This is basically the abstract shapes
         format with support for pseudoknots.
         :return: string
         -----------------------------------------------------------------------------------------"""
-        pass
+        return 'not implemented'
 
     def reverse(self):
         """-----------------------------------------------------------------------------------------
@@ -323,9 +330,16 @@ if __name__ == '__main__':
     structure = [0, 1, 2, 1, 0, 2]
     print('    input list', structure)
     graph = PairGraph(inlist=structure)
-    print('    pairs', graph.pairs)
-    print('    reversed', graph.reverse())
     print('    serialized', str(graph))
+    print('    pairs', graph.pairs)
+    print('    list', graph.toList())
+    print('    vienna', graph.toVienna())
+
+    print('\nreverse')
+    print('    reversed', graph.reverse())
+    print('    pairs', graph.pairs)
+    print('    list', graph.toList())
+    print('    vienna', graph.toVienna())
 
     print('\nTesting connectivity')
     graph = PairGraph(inlist=[0, 0, 1, 1, 2, 2])
