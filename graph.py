@@ -107,9 +107,9 @@ class PairGraph:
 
     def depth(self):
         """-----------------------------------------------------------------------------------------
-        Return  list with the nesting depth at each postion of the graph in list format.  This is
-        useful for mountain plots and determining connectivity.  If the level reaches zero before the
-        last position, the graph is disconnected.
+        Return  list with the nesting depth at each position of the graph in list format.  This is
+        useful for mountain plots and determining connectivity.  If the level reaches zero before
+        the last position, the graph is disconnected.
         :return: list
         -----------------------------------------------------------------------------------------"""
         depth = []
@@ -201,81 +201,6 @@ class Xios():
                     self.edgelist[i].append([j, 'o'])
 
         return len(self)
-
-    def dfs(self):
-        """-----------------------------------------------------------------------------------------
-        Determine canonical graph labeling using gspan DFS algorithm
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        rmp = []
-        g2d = [len(self.edgelist) for k in range(len(self.edgelist))]  # graph to dfs map
-        d2g = []  # dfs to graph map
-        dfs = []
-        stack = []
-        edges = []
-        for v in range(len(self.edgelist)):
-            edges += self.extend(v)
-        edges.sort(key=lambda k: (self.order[k[2]], k[0], k[1]))
-        # print('edges:', edges)
-
-        # add minimum initial edges to stack.  since we will only consider connected graphs, we
-        # don't consider others
-        e_min = edges[0][2]
-        e_n = 0
-        for e_n in range(len(edges)):
-            if edges[e_n][2] == e_min:
-                stack.append(edges[e_n])
-                continue
-            else:
-                break
-
-        print('stack:', stack)
-
-        while stack:
-            v0, v1, e = stack.pop()
-            for v in [v0, v1]:
-                if v not in g2d:
-                    d2g.append(v)
-                    g2d[v] = len(d2g) - 1
-            dfs.append([0, 1, e])
-            rmp = [v0,v1]
-
-            print('stack:',stack)
-            print('dfs:', dfs)
-            print('rmp:', rmpl)
-
-
-            pass
-
-        return
-
-    def extend(self, v0):
-        """-----------------------------------------------------------------------------------------
-        return a list of edges of the vertex
-        param v: vertex number in graph
-        :return: list of edges, v0, e, v1
-        -----------------------------------------------------------------------------------------"""
-        edge = []
-        for v1, e in self.edgelist[v0]:
-            edge.append([v0, v1, e])
-            if e == 'i':
-                edge.append([v1, v0, 'j'])
-            else:
-                edge.append([v1, v0, e])
-
-        return edge
-
-    def sextend(self,v):
-        """-----------------------------------------------------------------------------------------
-        return a sorted list of extensions of vertex v. sorted order is:
-        1) backwards edges in d-order
-        2) forward edges (to unknown g-edges)
-
-        TODO: how do you know edge has been used?
-        :param v:
-        :return:
-        """
-
 
 # --------------------------------------------------------------------------------------------------
 # Non-object functions
@@ -376,7 +301,5 @@ if __name__ == '__main__':
         print('reversed list:', l)
         xios.getEdgeFromList(l)
         print('xios (from list):', str(xios))
-
-        xios.dfs()
 
     exit(0)
