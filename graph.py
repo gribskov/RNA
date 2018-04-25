@@ -220,110 +220,9 @@ class RNAGraph:
         return depth
 
 
-class Xios:
-    """=============================================================================================
-    Graph structure with XIOS edges
-    ============================================================================================="""
-
-    def __init__(self, pairs=''):
-        """-----------------------------------------------------------------------------------------
-        Xios constructor
-        Initialize from graph
-        :param pairs: a RNAGraph object
-         ----------------------------------------------------------------------------------------"""
-        # self.order = ['i', 'j', 'o', 's', 'x']
-        self.order = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        self.edgelist = [[] for _ in range(len(graph))]
-        if pairs:
-            self.getEdgeFromPairs(pairs)
-
-    def __len__(self):
-        """-----------------------------------------------------------------------------------------
-        length is number of vertices
-        :return: length of xios graph (number of vertices)
-        -----------------------------------------------------------------------------------------"""
-        return len(self.edgelist)
-
-    def __str__(self):
-        """-----------------------------------------------------------------------------------------
-        formatted string representation of XIOS graph
-        :return: string, formatted representation of XIOS graph
-        -----------------------------------------------------------------------------------------"""
-        s = '\n'
-        for v in range(len(self.edgelist)):
-            s += '{}:'.format(v)
-            for e in self.edgelist[v]:
-                s += ' {}{}'.format(e[0], e[1])
-            s += '\n'
-
-        return s
-
-    def getEdgeFromList(self, graph):
-        """-----------------------------------------------------------------------------------------
-        Construct edgelist structure from RNAGraph
-        :param graph:
-        :return: size of graph (number of stems)
-        -----------------------------------------------------------------------------------------"""
-        pairs = RNAGraph(inlist=graph)
-        self.getEdgeFromPairs(pairs)
-
-        return len(self)
-
-    def getEdgeFromPairs(self, pairs):
-        """-----------------------------------------------------------------------------------------
-        Construct edgelist structure from pairList. By the construction of the pair list, it is
-        guaranteed that pairs[i][0] < pairs[j][0].
-
-        :param list:
-        :return: size of graph (number of stems)
-        -----------------------------------------------------------------------------------------"""
-        self.edgelist = [[] for k in range(len(pairs))]
-        for i in range(len(pairs)):
-            for j in range(i + 1, len(pairs)):
-                if pairs.pairs[i][1] < pairs.pairs[j][0]:
-                    # end position of pair i is before beginning of pair j
-                    self.edgelist[i].append([j, 's'])
-                elif pairs.pairs[i][1] > pairs.pairs[j][1]:
-                    # end position of pair i is after end position of pair j
-                    self.edgelist[i].append([j, 'i'])
-                else:
-                    # ijij, i.e. a pseudoknot
-                    self.edgelist[i].append([j, 'o'])
-
-        return len(self)
-
-
 # --------------------------------------------------------------------------------------------------
 # Non-object functions
 # --------------------------------------------------------------------------------------------------
-def possible(s):
-    """---------------------------------------------------------------------------------------------
-    return a list of the possible next stems.  Two kinds of stems can be added
-    1) stems with use zero can be added in numerical order
-    2) stems that have use == 1 can be added, but only if the the count of open stems would be > 0
-
-    :param s: stem usage list
-    :return: list of possible elements to add
-    ---------------------------------------------------------------------------------------------"""
-    possible = []
-    candidate = []
-    first = True
-    open = 0
-    all = 0
-    for i in range(len(s)):
-        all += 2 - s[i]
-        if s[i] == 0 and first:
-            first = False
-            possible.append(i)
-        elif s[i] == 1:
-            candidate.append(i)
-            open += 1
-
-    if open > 1 or all == 1:
-        possible += candidate
-
-    return possible
-
 
 def enumerateRNATopology(n):
     """---------------------------------------------------------------------------------------------
@@ -401,6 +300,5 @@ if __name__ == '__main__':
         print('    pairs:', pgraph.pairs, end='\t=>\t')
         glist = pgraph.toList()
         print('    reversed list:', glist)
-
 
     exit(0)
