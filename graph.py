@@ -321,12 +321,11 @@ if __name__ == '__main__':
         print('    list:', pgraph.toList())
         print('    vienna', pgraph.toVienna())
 
-        xios = Xios(pgraph)
-        print('xios', str(xios))
         pgraph.reverse()
         print('    reversed:', str(pgraph))
         print('    pairs:', pgraph.pairs, end='\t=>\t')
         glist = pgraph.toList()
         print('    reversed list:', glist)
+        print('    vienna', pgraph.toVienna())
 
     exit(0)
