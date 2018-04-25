@@ -134,38 +134,32 @@ class PairGraph:
         vienna = ['.' for _ in range(self.nstem * 2)]
         list_format = self.toList()
 
-        # open = []
-        # level = 0
-        # for i in range(self.nstem):
-        #     level = 0
-        #     for j in range(0,i):
-        #         if self.pairs[j][0] < self.pairs[i][0] and self.pairs[j][1] > self.pairs[i][1]:
-        #             # i is properly nested in j
-        #             pass
-        #         elif self.pairs[j][1] < self.pairs[i][0]:
-        #             pass
-        #         else:
-        #             level += 1
-        #     vienna[self.pairs[i][0]] = bracket[level][0]
-        #     vienna[self.pairs[i][1]] = bracket[level][1]
-        inuse = []
-        open = {}
-        for stem in self.toList():
-            if str(stem) in open:
-                level = open[str(stem)]
-                vienna[self.pairs[stem][0]] = bracket[level][0]
-                vienna[self.pairs[stem][1]] = bracket[level][1]
-                inuse.remove(level)
-
-            else:
-                first = 0
-                for level in range(len(bracket)):
-                    if level not in inuse:
-                        first = level
+        level = []
+        knot = True
+        for stemi in self.pairs:
+            avail = 0
+            for l in range(len((level))):
+                knot = True
+                for stem_num in range(len(level[l])):
+                    stemj = self.pairs[stem_num]
+                    if stemi[0] > stemj[1] or (stemi[0] > stemj[0] and stemi[1] < stemj[1]):
+                        # stemi is nested or serial with the stem using this level (stemj)
+                        knot = False
+                    else:
+                        knot = True
                         break
 
-                open[str(stem)] = first
+                if not knot:
+                    level[l].append(stemi)
+                    break
+            if knot:
+                level.append([])
+                level[-1].append(stemi)
 
+        for l in range(len(level)):
+            for stem in level[l]:
+                vienna[stem[0]] = bracket[l][0]
+                vienna[stem[1]] = bracket[l][1]
 
         return pad.join(vienna)
 
