@@ -124,13 +124,50 @@ class PairGraph:
         -----------------------------------------------------------------------------------------"""
         pass
 
-    def toVienna(self):
+    def toVienna(self, pad=' '):
         """-----------------------------------------------------------------------------------------
         return a string with the structure in vienna format.  This is basically the abstract shapes
         format with support for pseudoknots.
         :return: string
         -----------------------------------------------------------------------------------------"""
-        return 'not implemented'
+        bracket = [['(',')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
+        vienna = ['.' for _ in range(self.nstem * 2)]
+        list_format = self.toList()
+
+        # open = []
+        # level = 0
+        # for i in range(self.nstem):
+        #     level = 0
+        #     for j in range(0,i):
+        #         if self.pairs[j][0] < self.pairs[i][0] and self.pairs[j][1] > self.pairs[i][1]:
+        #             # i is properly nested in j
+        #             pass
+        #         elif self.pairs[j][1] < self.pairs[i][0]:
+        #             pass
+        #         else:
+        #             level += 1
+        #     vienna[self.pairs[i][0]] = bracket[level][0]
+        #     vienna[self.pairs[i][1]] = bracket[level][1]
+        inuse = []
+        open = {}
+        for stem in self.toList():
+            if str(stem) in open:
+                level = open[str(stem)]
+                vienna[self.pairs[stem][0]] = bracket[level][0]
+                vienna[self.pairs[stem][1]] = bracket[level][1]
+                inuse.remove(level)
+
+            else:
+                first = 0
+                for level in range(len(bracket)):
+                    if level not in inuse:
+                        first = level
+                        break
+
+                open[str(stem)] = first
+
+
+        return pad.join(vienna)
 
     def reverse(self):
         """-----------------------------------------------------------------------------------------
@@ -294,7 +331,7 @@ def possible(s):
     return possible
 
 
-def enumerate(n):
+def enumerateRNATopology(n):
     """---------------------------------------------------------------------------------------------
     enumerate all graphs with n stems
     :param n: number of stems
@@ -350,16 +387,17 @@ if __name__ == '__main__':
     print('\nenumerating: size, len, total')
     total = 0
     for size in range(1, 8):
-        g = enumerate(size)
+        g = enumerateRNATopology(size)
         total += len(g)
         print(size, len(g), total)
 
     print('\n3 stem graphs')
-    graphs = enumerate(3)
+    graphs = enumerateRNATopology(3)
     for g in graphs:
         pgraph = PairGraph(g)
         print('\ngraph:', g)
         print('pairs:', pgraph.pairs, end='\t=>\t')
+        print('    vienna', pgraph.toVienna())
 
         xios = Xios(pgraph)
         print('xios', str(xios))
