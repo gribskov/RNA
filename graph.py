@@ -390,17 +390,18 @@ if __name__ == '__main__':
     for g in graphs:
         pgraph = PairGraph(g)
         print('\ngraph:', g)
-        print('pairs:', pgraph.pairs, end='\t=>\t')
+        print('    pairs:', pgraph.pairs, end='\t=>\t')
+        print('    list:', pgraph.toList())
         print('    vienna', pgraph.toVienna())
 
         xios = Xios(pgraph)
         print('xios', str(xios))
         pgraph.reverse()
-        print('reversed:', str(pgraph))
-        print('pairs:', pgraph.pairs, end='\t=>\t')
+        print('    reversed:', str(pgraph))
+        print('    pairs:', pgraph.pairs, end='\t=>\t')
         glist = pgraph.toList()
-        print('reversed list:', glist)
+        print('    reversed list:', glist)
         xios.getEdgeFromList(glist)
-        print('xios (from list):', str(xios))
+        print('    xios (from list):', str(xios))
 
     exit(0)
