@@ -1,4 +1,4 @@
-class PairGraph:
+class RNAGraph:
     """=============================================================================================
     RNA graph class
 
@@ -34,12 +34,12 @@ class PairGraph:
     1 10 2 3 4 5 6 8 7 9
 
     Synopsis
-        from graph import PairGraph
+        from graph import RNAGraph
 
-        graph = PairGraph()
+        graph = RNAGraph()
         graph.fromList([0,1,1,0])
             or
-        graph = PairGraph(l=[0,1,1,0])
+        graph = RNAGraph(l=[0,1,1,0])
 
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
@@ -130,7 +130,7 @@ class PairGraph:
         format with support for pseudoknots.
         :return: string
         -----------------------------------------------------------------------------------------"""
-        bracket = [['(',')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
+        bracket = [['(', ')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
         vienna = ['.' for _ in range(self.nstem * 2)]
         list_format = self.toList()
 
@@ -229,7 +229,7 @@ class Xios:
         """-----------------------------------------------------------------------------------------
         Xios constructor
         Initialize from graph
-        :param pairs: a PairGraph object
+        :param pairs: a RNAGraph object
          ----------------------------------------------------------------------------------------"""
         # self.order = ['i', 'j', 'o', 's', 'x']
         self.order = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
@@ -260,11 +260,11 @@ class Xios:
 
     def getEdgeFromList(self, graph):
         """-----------------------------------------------------------------------------------------
-        Construct edgelist structure from pairGraph
+        Construct edgelist structure from RNAGraph
         :param graph:
         :return: size of graph (number of stems)
         -----------------------------------------------------------------------------------------"""
-        pairs = PairGraph(inlist=graph)
+        pairs = RNAGraph(inlist=graph)
         self.getEdgeFromPairs(pairs)
 
         return len(self)
@@ -357,38 +357,38 @@ def enumerateRNATopology(n):
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
+    print('\nTesting connectivity')
+    graph = RNAGraph(inlist=[0, 0, 1, 1, 2, 2])
+    print('    ', graph.pairs)
+    if not graph.connected():
+        print('Not connected')
+
     print('\nlist format')
     structure = [0, 1, 2, 1, 0, 2]
     print('    input list', structure)
-    graph = PairGraph(inlist=structure)
+    graph = RNAGraph(inlist=structure)
     print('    serialized', str(graph))
     print('    pairs', graph.pairs)
     print('    list', graph.toList())
     print('    vienna', graph.toVienna())
 
-    print('\nreverse')
+    print('\n    reverse')
     print('    reversed', graph.reverse())
     print('    pairs', graph.pairs)
     print('    list', graph.toList())
     print('    vienna', graph.toVienna())
-
-    print('\nTesting connectivity')
-    graph = PairGraph(inlist=[0, 0, 1, 1, 2, 2])
-    print(graph.pairs)
-    if not graph.connected():
-        print('Not connected')
 
     print('\nenumerating: size, len, total')
     total = 0
     for size in range(1, 8):
         g = enumerateRNATopology(size)
         total += len(g)
-        print(size, len(g), total)
+        print('    ', size, len(g), total)
 
     print('\n3 stem graphs')
     graphs = enumerateRNATopology(3)
     for g in graphs:
-        pgraph = PairGraph(g)
+        pgraph = RNAGraph(g)
         print('\ngraph:', g)
         print('    pairs:', pgraph.pairs, end='\t=>\t')
         print('    list:', pgraph.toList())
@@ -401,7 +401,6 @@ if __name__ == '__main__':
         print('    pairs:', pgraph.pairs, end='\t=>\t')
         glist = pgraph.toList()
         print('    reversed list:', glist)
-        xios.getEdgeFromList(glist)
-        print('    xios (from list):', str(xios))
+
 
     exit(0)
