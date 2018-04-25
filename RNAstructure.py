@@ -35,7 +35,8 @@ class RNAstructure:
         :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
         nbase = 0
-        self.filename = filename  # TODO should strip directory path from filename
+        path = filename.split('/')
+        self.filename = path[-1]
         with open(filename, 'r') as ct:
             line = ct.readline()
             # print('firstline:', line)
