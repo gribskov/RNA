@@ -76,7 +76,7 @@ class RNAstructure:
 
         return rnastr
 
-    def stemListGet(self, unpaired=2):
+    def stemListGetFromPairs(self, unpaired=2):
         """-----------------------------------------------------------------------------------------
         Construct the stemlist from the paired base list in stem.pair
         :return: integer, number of stems in stemlist
@@ -117,11 +117,29 @@ class RNAstructure:
             stem.lvienna = '('
             stem.rvienna = ')'
 
-        # if instem:
-        # if you  end in a stem, clean up the Vienna string
-        # stem.trimVienna()
-        # self.stemlist.append(stem)
+        return nstem
 
+    def stemListGetFromGraph(self, g):
+        """-----------------------------------------------------------------------------------------
+        Create stemlist from an RNAGraph object (graph.py).  Since the RNA graph is abstract the
+        start and end locations of the stems correspond to the stem position
+        :param g: RNAGraph object
+        :return: integer, number of stems in stemlist
+        -----------------------------------------------------------------------------------------"""
+        vienna = g.toVienna().split()
+        nstem = 0
+        for stem in g.pairs:
+            s = Stem()
+            s.lbegin = stem[0]
+            s.lend = stem[0]
+            s.rbegin = stem[1]
+            s.rend = stem[1]
+            s.lvienna = vienna[stem[0]]
+            s.rvienna = vienna[stem[1]]
+            self.stemlist.append(s)
+            nstem += 1
+
+        self.nstem = nstem
         return nstem
 
     def stemlistFormat(self):
@@ -138,7 +156,7 @@ class RNAstructure:
 
     def adjacencyGet(self):
         """-----------------------------------------------------------------------------------------
-        Calculate an adjacency matrix from a stemlist. assumes stesm are ordered by the beginning
+        Calculate an adjacency matrix from a stemlist. assumes stems are ordered by the beginning
         of the left half-stem.
         :return: dict, keys are edge types, values are counts
         -----------------------------------------------------------------------------------------"""
@@ -226,6 +244,27 @@ class RNAstructure:
                     e.append([j, a[i][j]])
         return elist
 
+    def edgelistFormat(self, include='ijo', whole=False):
+        """-----------------------------------------------------------------------------------------
+        Return a formatted version of the edgelist
+        :param include: string, list of edgetypes to include
+        :param whole: boolean, If true return the square matrix, otherwise triangular
+        :return: string
+        -----------------------------------------------------------------------------------------"""
+        edgestr = ''
+        # e = self.edgelist(include,whole)
+        n = 0
+        for edge in self.edgelist(include,whole):
+            n += 1
+            edgestr += '{}: '.format(n)
+            for neighbor in edge:
+                edgestr += '{}{}, '.format(neighbor[0], neighbor[1])
+
+            edgestr = edgestr.rstrip(', ')
+            edgestr += '\n'
+
+        return edgestr
+
 
 class Stem:
     """=============================================================================================
@@ -276,7 +315,7 @@ class Stem:
 if __name__ == '__main__':
     rna = RNAstructure()
     rna.CTRead('data/mr_s129.probknot.ct')
-    rna.stemListGet()
+    rna.stemListGetFromPairs()
     # print(rna)
     print('Stemlist\n')
     print(rna.stemlistFormat())
@@ -291,7 +330,6 @@ if __name__ == '__main__':
     for i in range(len(e)):
         print('{}:\t{}'.format(i, e[i]))
 
-    exit(0)
 
 """ correct structure of mr_s129 by manual inspection
 29-31:231-229
@@ -320,3 +358,23 @@ if __name__ == '__main__':
 217-225:44-33
 229-231:31-29
 """
+
+from graph import enumerateRNATopology, RNAGraph
+graphs = enumerateRNATopology(3)
+
+for rna in graphs:
+    g = RNAGraph(rna)
+    three = RNAstructure()
+    three.stemListGetFromGraph(g)
+    print('Stemlist\n')
+    print(three.stemlistFormat())
+
+    edges = three.adjacencyGet()
+    print('\nAdjacency matrix\n')
+    print(three.adjacencyFormat())
+
+    print('\nEdgelist\n')
+    e = three.edgelist()
+    print(three.edgelistFormat())
+
+exit(0)
