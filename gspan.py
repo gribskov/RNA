@@ -21,10 +21,10 @@ class Edge(list):
         super(Edge, self).__init__(edge)
 
     def __eq__(self, other):
-        return ( self[0] == other[0] and self[1] == other[1] and self[2] == other[2] )
+        return (self[0] == other[0] and self[1] == other[1] and self[2] == other[2])
 
     def __ne__(self, other):
-        return not ( self[0] == other )
+        return not (self[0] == other)
 
     def __lt__(self, other):
         ia = Edge.g2d[self[0]]
@@ -129,25 +129,25 @@ class Gspan:
         init:
             sort G
             push G for all equal edges on unexplored
-            
+
         main loop:
             pop G from unexplored
             add to dfs
             test vs mindfs
-            
+
             update g2d (graph to dfs labelling) map
             sort G
             add all backward edges to dfs
             push equivalent forward extensions on unexplored
-            
+
     stack has G, d2g and ?
 
     much better
     all you need to save is g2d list and row of edgelist
     sorted edgelist is the dfs
-            
+
     Michael Gribskov     20 April 2018
-   
+
     ============================================================================================="""
 
     def __init__(self, graph=None):
@@ -183,6 +183,20 @@ class Gspan:
         self.vnum = v
         return v
 
+    def flip(self, row=0):
+        """-----------------------------------------------------------------------------------------
+        convert all j edges to i edges from row to end of graph
+        :param row: integer, beginning row
+        :return: integer, number flipped
+        -----------------------------------------------------------------------------------------"""
+        n = 0
+        for i in range(row,len(self.graph)):
+            if self.graph[i][2] == 1:
+                self.graph[i].reverse()
+                n += 1
+
+        return n
+
     def graph_normalize(self):
         """-----------------------------------------------------------------------------------------
         Count the number of vertices and, if necessary, renumber so they begin at zero
@@ -215,6 +229,44 @@ class Gspan:
 
         return self.vnum
 
+    def restore(self):
+        """-----------------------------------------------------------------------------------------
+        pop a saved dfs code from the unexplored stack
+        swap the edge with the current edge at the specified row
+        flip j edges in rows following the new edge
+        :return: integer, next available dfs vertex
+        -----------------------------------------------------------------------------------------"""
+        if len(self.unexplored) == 0:
+            return None, None
+
+        g2d, edge, row = self.unexplored.pop()
+        self.g2d = g2d
+
+        epos = self.graph.index(edge)
+        self.graph[row], self.graph[epos] = self.graph[epos], self.graph[row]
+        self.flip(row)
+
+        all_undef = True
+        for d in self.g2d:
+            if d is None:
+                continue
+            d_next = max(d, d_next)
+            all_undef = False
+        if all_undef:
+            d_next = 0
+        else:
+            d_next += 1
+
+        # update g2d, restore are always an extension
+        if self.g2d[edge[0]] is None:
+            self.g2d[edge[0]] = d_next
+            d_next += 1
+        if self.g2d[edge[1]] is None:
+            self.g2d[edge[1]] = d_next
+            d_next += 1
+
+        return d_next, row
+
     def order(self, row=0):
         """-----------------------------------------------------------------------------------------
         given the g2d map, orient the edges so that when only one vertex is defined it is v0 (i)
@@ -225,13 +277,29 @@ class Gspan:
         for edge in self.graph[row:]:
             if self.g2d[edge[0]] is None:
                 if self.g2d[edge[1]] is None:
+                    # both i and j are none, do nothing
                     continue
-                edge.reverse()
+                else:
+                    # i is none, j is known, reverse the edge
+                    edge.reverse()
 
             elif self.g2d[edge[1]] is None:
-                    continue
+                # edge 0 is not None, tested above
+                continue
 
             elif self.g2d[edge[0]] < self.g2d[edge[1]]:
+                # edge.reverse()
+                continue
+
+        return True
+
+    def set_i_edge(self):
+        """-----------------------------------------------------------------------------------------
+        When a new first edge is popped from the stack, flip all j edges back to i edges
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        for edge in self.graph:
+            if edge[2] == 1:
                 edge.reverse()
 
         return True
@@ -265,6 +333,56 @@ class Gspan:
 
         return dfs
 
+def s2(g2d, graph, begin=0):
+    # partition into three groups
+    # both vertices known: backward edges
+    # one vertex  known: forward extension
+    # both unknown
+    backward = []
+    forward = []
+    unknown = []
+    for edge in graph[begin:]:
+        if g2d[edge[0]] is None:
+            # vertex 0 undefined
+            if g2d[edge[1]] is None:
+                # both undefined: can be sorted by edgetype only
+                # should not need to flip, normalize does it
+                # if edge[2] == 1:
+                #     # j edge, flip to be i edge
+                #     edge.reverse()
+                unknown.append(edge)
+            else:
+                # vertex 0 undefined, vertex 1 defined: possible extension
+                # defined vertex should be v0
+                edge.reverse()
+                forward.append(edge)
+        else:
+            # vertex 0 defined
+            if g2d[edge[1]] is None:
+                # vertex 0 defined, vertex 1 undefined: possible extension
+                forward.append(edge)
+            else:
+                # both defined, backward edge
+                # v0 must be > v1
+                if g2d[edge[0]] < g2d[edge[1]]:
+                    edge.reverse()
+                backward.append(edge)
+
+    # copy edges into graph: backward, forward, unknown
+    neworder = []
+    for edge in sorted(backward, key=lambda v: g2d[v[1]]):
+        # backward edges should only come from the rightmost vertex and are sorted by v1
+        neworder.append(edge)
+
+    for edge in sorted(forward, key=lambda v: g2d[v[0]],reverse=True):
+        neworder.append(edge)
+
+    for edge in unknown:
+        neworder.append(edge)
+
+    graph[begin:] = neworder
+
+    return graph
 
 # ==================================================================================================
 # testing
@@ -297,61 +415,91 @@ if __name__ == '__main__':
     # graph normalization should be automatic
     # gspan.graph_normalize()
     print('    renormalized graph: {}'.format(gspan.graph))
-    if g == gspan.graph:
-        print('    passes test')
+    # these tests don't make sense
+    #  if g == gspan.graph:
+    #     print('      passes test')
+    # else:
+    #     print('      fails test')
+    # gspan.g2d = [1, 0, 2, 3]
+    # gspan.sort_by_edge()
+    # print('    sorted graph using g2d={}: {}\t{}'.format(gspan.g2d, gspan.graph,gspan.graph2dfs()))
 
+    print('\nEdge manipulation\n')
     e = Edge()
     e.set(2, 3, 0)
     e.g2d = [0, 1, 2]
-    print(e)
+    print('    edge', e)
     e.reverse()
-    print(e)
+    print('    edge reversed', e)
     e.set(1, 2, 1)
     e.g2d = [2, 1, 0]
-    print(e)
+    print('    dfs numbering using {}: {}'.format(e.g2d, e))
     e.reverse()
-    print(e)
+    print('    dfs numbering reversed', e)
 
+    print('Edge comparison\n')
     Edge.g2d = [1, 0, 2, None]
     e1 = Edge([0, 3, 0])
     e2 = Edge([2, 1, 1])
+    print('    edge 1', e1)
+    print('    edge 2', e2)
+
     if e1 < e2:
         print('e1 smaller')
     if e2 < e1:
         print('e2 smaller')
-    g=[ Edge([0,1,0]), Edge([2,0,1])]
-    Edge.g2d=[0, None, 2, 3]
-    g.sort()
-    print(g)
+    g = [Edge([0, 1, 0]), Edge([2, 0, 1])]
+    Edge.g2d = [0, None, 2, 3]
 
     # g = graphset[1]
     g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
-    print('input graph', g)
+    print('\ninput graph', g)
     gspan = Gspan(graph=g)
     glen = len(gspan.graph)
 
     # initialize first edge
-    gspan.sort_by_edge()
-    e = gspan.graph[0]
-    gspan.g2d[e[0]] = 0
-    gspan.g2d[e[1]] = 1
-    d = 2
-    i = 1
+    # gspan.sort_by_edge()
+    graph = gspan.graph
 
-    while i < glen - 1:
+    row = 0
+    first_e = graph[0][2]
+    for edge in graph:
+        if edge[2] == first_e:
+            g2d = copy.deepcopy(gspan.g2d)
+            gspan.unexplored.append((g2d,edge,row))
+
+    while gspan.unexplored:
+        d, row = gspan.restore()
+        g2d = gspan.g2d
+        if d is None:
+            break
+
+        row += 1
+
+        while row < glen:
+            s2(gspan.g2d, gspan.graph, begin=row)
+            print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+            edge = gspan.graph[row]
+            # add all backward edges, they are always unique and never require sorting
+            while row < glen and g2d[edge[1]] is not None:
+                row += 1
+                if row >= glen:
+                    break
+                edge = gspan.graph[row]
+
+            if row < glen and g2d[edge[1]] is None:
+                # forward extension
+                gspan.g2d[edge[1]] = d
+                d += 1
+                row += 1
+
+        # end of loop over rows of dfs code
+
         print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
-        gspan.order(i)
-        print('    order', gspan.graph)
-        gspan.sort_by_edge(i)
-        print('    sorted dfs', gspan.graph2dfs())
-        e = gspan.graph[i]
-        if gspan.g2d[e[1]] is None:
-            # forward extension
-            gspan.g2d[e[1]] = d
-            d += 1
+        print('----------------------------------------')
 
-        i += 1
+        # exit(0)
 
-    print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+    # end of loop over all starting vertices
 
 exit(0)
