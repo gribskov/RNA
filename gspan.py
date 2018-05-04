@@ -267,47 +267,10 @@ class Gspan:
 
         return d_next, row
 
-    def order(self, row=0):
-        """-----------------------------------------------------------------------------------------
-        given the g2d map, orient the edges so that when only one vertex is defined it is v0 (i)
-        or when unadded known edges have v0 < v1
-        :param row: int, beginning row for transformation
-        :return: True
-        -----------------------------------------------------------------------------------------"""
-        for edge in self.graph[row:]:
-            if self.g2d[edge[0]] is None:
-                if self.g2d[edge[1]] is None:
-                    # both i and j are none, do nothing
-                    continue
-                else:
-                    # i is none, j is known, reverse the edge
-                    edge.reverse()
-
-            elif self.g2d[edge[1]] is None:
-                # edge 0 is not None, tested above
-                continue
-
-            elif self.g2d[edge[0]] < self.g2d[edge[1]]:
-                # edge.reverse()
-                continue
-
-        return True
-
-    def set_i_edge(self):
-        """-----------------------------------------------------------------------------------------
-        When a new first edge is popped from the stack, flip all j edges back to i edges
-        :return: True
-        -----------------------------------------------------------------------------------------"""
-        for edge in self.graph:
-            if edge[2] == 1:
-                edge.reverse()
-
-        return True
-
     def sort_by_edge(self, row=0):
         """-----------------------------------------------------------------------------------------
         sort graph by edges, using current g2d map
-        :return:
+        :return: True
         -----------------------------------------------------------------------------------------"""
         Edge.g2d = self.g2d
         tmp = self.graph[row:]
@@ -328,7 +291,7 @@ class Gspan:
                 both unknown
             copy the groups back into the graph sorted by appropriate vertices (varies by group)
 
-        :return:
+        :return: graph
         -----------------------------------------------------------------------------------------"""
         graph = self.graph
         g2d = self.g2d
