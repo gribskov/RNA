@@ -267,19 +267,6 @@ class Gspan:
 
         return d_next, row
 
-    def sort_by_edge(self, row=0):
-        """-----------------------------------------------------------------------------------------
-        sort graph by edges, using current g2d map
-        :return: True
-        -----------------------------------------------------------------------------------------"""
-        Edge.g2d = self.g2d
-        tmp = self.graph[row:]
-        tmp.sort()
-        self.graph[row:] = tmp
-        print('    sorted:', self.graph)
-
-        return True
-
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
         At each step, the new minimumedge in the unordered part of the graph is added to the DFS.
@@ -390,14 +377,6 @@ if __name__ == '__main__':
     # graph normalization should be automatic
     # gspan.graph_normalize()
     print('    renormalized graph: {}'.format(gspan.graph))
-    # these tests don't make sense
-    #  if g == gspan.graph:
-    #     print('      passes test')
-    # else:
-    #     print('      fails test')
-    # gspan.g2d = [1, 0, 2, 3]
-    # gspan.sort_by_edge()
-    # print('    sorted graph using g2d={}: {}\t{}'.format(gspan.g2d, gspan.graph,gspan.graph2dfs()))
 
     print('\nEdge manipulation\n')
     e = Edge()
@@ -432,8 +411,9 @@ if __name__ == '__main__':
     gspan = Gspan(graph=g)
     glen = len(gspan.graph)
 
-    # initialize first edge
-    # gspan.sort_by_edge()
+    # initialize first edge after sorting by edgetype
+    # note i < j < o < s < x
+    gspan.graph = sorted(gspan.graph, key=lambda e: e[2])
     graph = gspan.graph
 
     row = 0
