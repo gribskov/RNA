@@ -118,6 +118,7 @@ class Edge(list):
 
         return True
 
+# end of class Edge
 
 class Gspan:
     """=============================================================================================
@@ -228,6 +229,18 @@ class Gspan:
         self.g2d = [None for _ in range(0, self.vnum)]
 
         return self.vnum
+
+    def save(self, edge, row):
+        """-----------------------------------------------------------------------------------------
+        push a partial solution onto the unexplored stack.
+        Stores copy of g2d, edge, row
+
+        :return: integer, length of stack
+        -----------------------------------------------------------------------------------------"""
+        g2d = copy.deepcopy(self.g2d)
+        self.unexplored.append((g2d, edge, row))
+
+        return len(self.unexplored)
 
     def restore(self):
         """-----------------------------------------------------------------------------------------
@@ -413,37 +426,37 @@ if __name__ == '__main__':
 
     # initialize first edge after sorting by edgetype
     # note i < j < o < s < x
-    gspan.graph = sorted(gspan.graph, key=lambda e: e[2])
     graph = gspan.graph
+    graph = sorted(graph, key=lambda e: e[2])
 
     row = 0
     first_e = graph[0][2]
     for edge in graph:
         if edge[2] == first_e:
-            g2d = copy.deepcopy(gspan.g2d)
-            gspan.unexplored.append((g2d, edge, row))
+            gspan.save(edge, row)
 
     while gspan.unexplored:
         d, row = gspan.restore()
-        g2d = gspan.g2d
         if d is None:
             break
 
+        g2d = gspan.g2d
         row += 1
 
         while row < glen:
             gspan.sort(begin=row)
-            print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
             edge = gspan.graph[row]
-            # add all backward edges, they are always unique and never require sorting
+            print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+
             while row < glen and g2d[edge[1]] is not None:
+                # add all backward edges, they are always unique and never require resorting
                 row += 1
                 if row >= glen:
                     break
                 edge = gspan.graph[row]
 
-            if row < glen and g2d[edge[1]] is None:
-                # forward extension
+            if row < glen:
+                # forward extension, there must be one or we are at the end of the graph
                 gspan.g2d[edge[1]] = d
                 d += 1
                 row += 1
