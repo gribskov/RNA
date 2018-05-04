@@ -13,12 +13,15 @@ class Edge(list):
     ============================================================================================="""
     g2d = []  # class variable for translation of edges to dfs numbering
 
-    def __init__(self, edge=[None, None, None]):
+    def __init__(self, edge=None):
         """-----------------------------------------------------------------------------------------
         An edge is list of vertex 0, vertex 1, and edge type; all ints.  No assumption is made that
         v0 is less than v1.
         -----------------------------------------------------------------------------------------"""
-        super(Edge, self).__init__(edge)
+        if edge is None:
+            super(Edge, self).__init__([None, None, None])
+        else:
+            super(Edge, self).__init__(edge)
 
     def __eq__(self, other):
         return (self[0] == other[0] and self[1] == other[1] and self[2] == other[2])
@@ -117,6 +120,7 @@ class Edge(list):
             self[2] ^= 1
 
         return True
+
 
 # end of class Edge
 
@@ -260,6 +264,7 @@ class Gspan:
         self.flip(row)
 
         all_undef = True
+        d_next = None
         for d in self.g2d:
             if d is None:
                 continue
@@ -415,8 +420,6 @@ if __name__ == '__main__':
         print('e1 smaller')
     if e2 < e1:
         print('e2 smaller')
-    g = [Edge([0, 1, 0]), Edge([2, 0, 1])]
-    Edge.g2d = [0, None, 2, 3]
 
     # g = graphset[1]
     g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
@@ -424,8 +427,7 @@ if __name__ == '__main__':
     gspan = Gspan(graph=g)
     glen = len(gspan.graph)
 
-    # initialize first edge after sorting by edgetype
-    # note i < j < o < s < x
+    # initialize first edge after sorting by edgetype = e[2]: i < j < o < s < x
     graph = gspan.graph
     graph = sorted(graph, key=lambda e: e[2])
 
