@@ -264,16 +264,13 @@ class Gspan:
         self.flip(row)
 
         all_undef = True
-        d_next = None
+        d_next = -1     # insures first edge is 0
         for d in self.g2d:
             if d is None:
                 continue
             d_next = max(d, d_next)
-            all_undef = False
-        if all_undef:
-            d_next = 0
-        else:
-            d_next += 1
+
+        d_next += 1
 
         # update g2d, restore are always an extension
         if self.g2d[edge[0]] is None:
@@ -428,17 +425,17 @@ if __name__ == '__main__':
     glen = len(gspan.graph)
 
     # initialize first edge after sorting by edgetype = e[2]: i < j < o < s < x
-    graph = gspan.graph
-    graph = sorted(graph, key=lambda e: e[2])
+    gspan.graph = sorted(gspan.graph, key=lambda e: e[2])
 
     row = 0
-    first_e = graph[0][2]
-    for edge in graph:
-        if edge[2] == first_e:
+    e_first = gspan.graph[0][2]
+    for edge in gspan.graph:
+        if edge[2] == e_first:
             gspan.save(edge, row)
 
     while gspan.unexplored:
         d, row = gspan.restore()
+        print('restored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
         if d is None:
             break
 
@@ -459,17 +456,27 @@ if __name__ == '__main__':
 
             if row < glen:
                 # forward extension, there must be one or we are at the end of the graph
+                # gspan.g2d[edge[1]] = d
+                e_first = edge[2]
+                v0_first = gspan.graph[row][0]
+
+                # if there are equivalent extensions, save them
+                # v0 defined, v1 undefined, edgetype = e_first edgetype
+                rr = row + 1
+                while rr < glen and gspan.graph[rr][0] == v0_first and gspan.graph[rr][2] == e_first:
+                    gspan.save(gspan.graph[rr], row)
+                    rr += 1
+
                 gspan.g2d[edge[1]] = d
                 d += 1
                 row += 1
 
+
         # end of loop over rows of dfs code
 
-        print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+        # print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
         print('----------------------------------------')
 
-        # exit(0)
-
-    # end of loop over all starting vertices
+     # end of loop over all starting vertices
 
 exit(0)
