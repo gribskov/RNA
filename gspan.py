@@ -190,7 +190,7 @@ class Gspan:
         :return: integer, number flipped
         -----------------------------------------------------------------------------------------"""
         n = 0
-        for i in range(row,len(self.graph)):
+        for i in range(row, len(self.graph)):
             if self.graph[i][2] == 1:
                 self.graph[i].reverse()
                 n += 1
@@ -317,6 +317,68 @@ class Gspan:
 
         return True
 
+    def sort(self, begin=0):
+        """-----------------------------------------------------------------------------------------
+        At each step, the new minimumedge in the unordered part of the graph is added to the DFS.
+        This method sorts the unordered portion of the graph, beginning at row=begin, in DFS order
+        Method:
+            partition into three groups
+                backward edges: both vertices known
+                forward extension: one vertex  known
+                both unknown
+            copy the groups back into the graph sorted by appropriate vertices (varies by group)
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        graph = self.graph
+        g2d = self.g2d
+
+        backward = []
+        forward = []
+        unknown = []
+        for edge in graph[begin:]:
+            if g2d[edge[0]] is None:
+                # vertex 0 undefined
+                if g2d[edge[1]] is None:
+                    # both undefined: can be sorted by edgetype only
+                    # should not need to flip, normalize does it
+                    unknown.append(edge)
+                else:
+                    # vertex 0 undefined, vertex 1 defined: possible extension
+                    # defined vertex should be v0, so reverse the edge
+                    edge.reverse()
+                    forward.append(edge)
+            else:
+                # vertex 0 defined
+                if g2d[edge[1]] is None:
+                    # vertex 0 defined, vertex 1 undefined: possible forward extension
+                    forward.append(edge)
+                else:
+                    # both defined, backward edge
+                    # v0 must be > v1, so reverse edge if needed
+                    if g2d[edge[0]] < g2d[edge[1]]:
+                        edge.reverse()
+                    backward.append(edge)
+
+        # copy edges into graph: backward, forward, unknown
+        neworder = []
+        for edge in sorted(backward, key=lambda v: g2d[v[1]]):
+            # backward edges should only come from the rightmost vertex and are sorted by v1
+            neworder.append(edge)
+
+        for edge in sorted(forward, key=lambda v: g2d[v[0]], reverse=True):
+            # forward extensions are made from the largest v0 first
+            neworder.append(edge)
+
+        for edge in unknown:
+            neworder.append(edge)
+
+        graph[begin:] = neworder
+
+        return graph
+
+    # end of sort
+
     def graph2dfs(self):
         """-----------------------------------------------------------------------------------------
         convert the node labels in the graph to dfs labels
@@ -333,56 +395,6 @@ class Gspan:
 
         return dfs
 
-def s2(g2d, graph, begin=0):
-    # partition into three groups
-    # both vertices known: backward edges
-    # one vertex  known: forward extension
-    # both unknown
-    backward = []
-    forward = []
-    unknown = []
-    for edge in graph[begin:]:
-        if g2d[edge[0]] is None:
-            # vertex 0 undefined
-            if g2d[edge[1]] is None:
-                # both undefined: can be sorted by edgetype only
-                # should not need to flip, normalize does it
-                # if edge[2] == 1:
-                #     # j edge, flip to be i edge
-                #     edge.reverse()
-                unknown.append(edge)
-            else:
-                # vertex 0 undefined, vertex 1 defined: possible extension
-                # defined vertex should be v0
-                edge.reverse()
-                forward.append(edge)
-        else:
-            # vertex 0 defined
-            if g2d[edge[1]] is None:
-                # vertex 0 defined, vertex 1 undefined: possible extension
-                forward.append(edge)
-            else:
-                # both defined, backward edge
-                # v0 must be > v1
-                if g2d[edge[0]] < g2d[edge[1]]:
-                    edge.reverse()
-                backward.append(edge)
-
-    # copy edges into graph: backward, forward, unknown
-    neworder = []
-    for edge in sorted(backward, key=lambda v: g2d[v[1]]):
-        # backward edges should only come from the rightmost vertex and are sorted by v1
-        neworder.append(edge)
-
-    for edge in sorted(forward, key=lambda v: g2d[v[0]],reverse=True):
-        neworder.append(edge)
-
-    for edge in unknown:
-        neworder.append(edge)
-
-    graph[begin:] = neworder
-
-    return graph
 
 # ==================================================================================================
 # testing
@@ -466,7 +478,7 @@ if __name__ == '__main__':
     for edge in graph:
         if edge[2] == first_e:
             g2d = copy.deepcopy(gspan.g2d)
-            gspan.unexplored.append((g2d,edge,row))
+            gspan.unexplored.append((g2d, edge, row))
 
     while gspan.unexplored:
         d, row = gspan.restore()
@@ -477,7 +489,7 @@ if __name__ == '__main__':
         row += 1
 
         while row < glen:
-            s2(gspan.g2d, gspan.graph, begin=row)
+            gspan.sort(begin=row)
             print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
             edge = gspan.graph[row]
             # add all backward edges, they are always unique and never require sorting
