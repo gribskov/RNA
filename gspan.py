@@ -170,6 +170,7 @@ class Gspan:
         if graph:
             self.graph_load(graph)
             self.graph_normalize()
+            self.mindfs = [Edge() for _ in self.graph]
 
     def graph_load(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -184,6 +185,8 @@ class Gspan:
             edge = Edge(edge_in)
             self.graph.append(edge)
             v += 1
+
+        self.mindfs = [Edge() for _ in self.graph]
 
         self.vnum = v
         return v
@@ -450,6 +453,7 @@ if __name__ == '__main__':
             while row < glen and g2d[edge[1]] is not None:
                 # add all backward edges, they are always unique and never require resorting
                 row += 1
+                # checkdfs
                 if row >= glen:
                     break
                 edge = gspan.graph[row]
@@ -470,6 +474,7 @@ if __name__ == '__main__':
                 gspan.g2d[edge[1]] = d
                 d += 1
                 row += 1
+                # check dfs
 
 
         # end of loop over rows of dfs code
