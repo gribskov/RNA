@@ -262,9 +262,12 @@ class Gspan:
 
         # new labels are sequential integers with randomized order, repeat until
         # an order different from the original is produced
+        # adding extra makes sure the new vertices will not be contiguous beginning at zero
+        extra = 4
         while True:
-            v_new = [x for x in range(len(vertex))]
+            v_new = [x for x in range(len(vertex)+extra)]
             random.shuffle(v_new)
+            v_new = v_new[:-2]
             if not v_original == v_new:
                 break
 
