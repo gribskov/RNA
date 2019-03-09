@@ -1,5 +1,6 @@
 import sys
 import copy
+import random
 from functools import total_ordering
 
 
@@ -237,6 +238,57 @@ class Gspan:
 
         return self.vnum
 
+    def graph_randomize(self):
+        """-----------------------------------------------------------------------------------------
+        randomly relaable the graph vertices.  this isw usful for generating graphs that have the
+        same canonical form.
+
+        :return: int, number of edges
+        -----------------------------------------------------------------------------------------"""
+
+        if self.graph is None:
+            sys.stderr.write('Gspan.graph_randomize - graph is undefined\n')
+
+        # make a dictionary of the vertex labels in the current graph
+        vertex = {}
+        v_original = []
+        for edge in self.graph:
+            for v in range(0, 2):
+                if edge[v] in vertex:
+                    vertex[edge[v]] += 1
+                else:
+                    vertex[edge[v]] = 1
+                    v_original.append(edge[v])
+
+        # new labels are sequential integers with randomized order, repeat until
+        # an order different from the original is produced
+        while True:
+            v_new = [x for x in range(len(vertex))]
+            random.shuffle(v_new)
+            if not v_original == v_new:
+                break
+
+        # replace old labels with new labels and return the old -> new map as a dict
+        i = 0
+        for v in vertex:
+            vertex[v] = v_new[i]
+            i += 1
+
+        for edge in self.graph:
+            for v in range(0, 2):
+                if edge[v] in vertex:
+                   edge[v] = vertex[edge[v]]
+
+            if edge[0] > edge[1]:
+                # make i always less than j, flipping edgetype 0/1 if necessary
+                edge[0], edge[1] = edge[1], edge[0]
+                if edge[2] < 2:
+                    edge[2] += 1
+                    edge[2] = edge[2] % 2
+
+
+        return vertex
+
     def save(self, edge, row):
         """-----------------------------------------------------------------------------------------
         push a partial solution onto the unexplored stack.
@@ -267,7 +319,7 @@ class Gspan:
         self.flip(row)
 
         all_undef = True
-        d_next = -1     # insures first edge is 0
+        d_next = -1  # insures first edge is 0
         for d in self.g2d:
             if d is None:
                 continue
@@ -387,14 +439,16 @@ if __name__ == '__main__':
         print('\nGraph normalization')
         g = copy.deepcopy(graph)
         print('    original graph: {}'.format(g))
-        for edge in g:
-            for i in range(0, 2):
-                edge[i] *= 2
-        print('    un-normalized graph: {}'.format(g))
+
+        # for edge in g:
+        #     for i in range(0, 2):
+        #         edge[i] *= 2
+        # print('    un-normalized graph: {}'.format(g))
 
         gspan = Gspan(graph=g)
-        # graph normalization should be automatic
-        # gspan.graph_normalize()
+        map = gspan.graph_randomize()
+        # print('    map', map)
+        print('    randomized graph: {}'.format(gspan.graph))
         print('    renormalized graph: {}'.format(gspan.graph))
 
     exit(1)
@@ -469,7 +523,8 @@ if __name__ == '__main__':
                 # if there are equivalent extensions, save them
                 # v0 defined, v1 undefined, edgetype = e_first edgetype
                 rr = row + 1
-                while rr < glen and gspan.graph[rr][0] == v0_first and gspan.graph[rr][2] == e_first:
+                while rr < glen and gspan.graph[rr][0] == v0_first and gspan.graph[rr][
+                    2] == e_first:
                     gspan.save(gspan.graph[rr], row)
                     rr += 1
 
@@ -477,12 +532,11 @@ if __name__ == '__main__':
                 d += 1
                 row += 1
 
-
         # end of loop over rows of dfs code
 
         # print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
         print('----------------------------------------')
 
-     # end of loop over all starting vertices
+    # end of loop over all starting vertices
 
 exit(0)
