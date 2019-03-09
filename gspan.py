@@ -7,9 +7,12 @@ from functools import total_ordering
 class Edge(list):
     """=============================================================================================
     Edge class is necessary to implement lexicographic sorting
-    e1 < e2 if i1==i2 and j1<j2
-               i1<j1 and j1=i2
-               e1 <(E,T) and e2 <(E,T) e3 then e1 < e3
+    for two edges a = (i1, j1, e1) and b = (i1, i2, e2), a < eb if
+        i1 == i2 and j1 < j2        backward edge < forward edge
+        i1 < j1  and j1 == i2       a is forward edge, b is an extension of j1
+
+        edge ordering is transitive so if a < b and b < c, a < c
+
     ============================================================================================="""
     g2d = []  # class variable for translation of edges to dfs numbering
 
@@ -132,7 +135,7 @@ class Gspan:
 
     for a list of edges G
         init:
-            sort G
+            sort G buy edgetype
             push G for all equal edges on unexplored
 
         main loop:
@@ -372,7 +375,7 @@ if __name__ == '__main__':
     s = 3
 
     '''
-    graphset(0:2) have the canonical representation graphset[0]
+    graphset(0:2) have the same canonical representation as graphset[0]
     '''
     graphset = [[[0, 1, i], [1, 2, i], [2, 0, j]],
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
@@ -380,18 +383,21 @@ if __name__ == '__main__':
                 [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
-    print('Graph normalization')
-    g = copy.deepcopy(graphset[1])
-    print('    original graph: {}'.format(g))
-    for edge in g:
-        for i in range(0, 2):
-            edge[i] *= 2
-    print('    un-normalized graph: {}'.format(g))
+    for graph in graphset:
+        print('\nGraph normalization')
+        g = copy.deepcopy(graph)
+        print('    original graph: {}'.format(g))
+        for edge in g:
+            for i in range(0, 2):
+                edge[i] *= 2
+        print('    un-normalized graph: {}'.format(g))
 
-    gspan = Gspan(graph=g)
-    # graph normalization should be automatic
-    # gspan.graph_normalize()
-    print('    renormalized graph: {}'.format(gspan.graph))
+        gspan = Gspan(graph=g)
+        # graph normalization should be automatic
+        # gspan.graph_normalize()
+        print('    renormalized graph: {}'.format(gspan.graph))
+
+    exit(1)
 
     print('\nEdge manipulation\n')
     e = Edge()
