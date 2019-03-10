@@ -265,7 +265,7 @@ class Gspan:
         # adding extra makes sure the new vertices will not be contiguous beginning at zero
         extra = 4
         while True:
-            v_new = [x for x in range(len(vertex)+extra)]
+            v_new = [x for x in range(len(vertex) + extra)]
             random.shuffle(v_new)
             v_new = v_new[:-2]
             if not v_original == v_new:
@@ -280,7 +280,7 @@ class Gspan:
         for edge in self.graph:
             for v in range(0, 2):
                 if edge[v] in vertex:
-                   edge[v] = vertex[edge[v]]
+                    edge[v] = vertex[edge[v]]
 
             if edge[0] > edge[1]:
                 # make i always less than j, flipping edgetype 0/1 if necessary
@@ -288,7 +288,6 @@ class Gspan:
                 if edge[2] < 2:
                     edge[2] += 1
                     edge[2] = edge[2] % 2
-
 
         return vertex
 
@@ -309,6 +308,7 @@ class Gspan:
         pop a saved dfs code from the unexplored stack
         swap the edge with the current edge at the specified row
         flip j edges in rows following the new edge
+
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
         if len(self.unexplored) == 0:
@@ -330,7 +330,7 @@ class Gspan:
 
         d_next += 1
 
-        # update g2d, restore are always an extension
+        # update g2d, a restore is always an extension
         if self.g2d[edge[0]] is None:
             self.g2d[edge[0]] = d_next
             d_next += 1
@@ -342,7 +342,7 @@ class Gspan:
 
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
-        At each step, the new minimumedge in the unordered part of the graph is added to the DFS.
+        At each step, the new minimum edge in the unordered part of the graph is added to the DFS.
         This method sorts the unordered portion of the graph, beginning at row=begin, in DFS order
         Method:
             partition into three groups
@@ -383,18 +383,14 @@ class Gspan:
                         edge.reverse()
                     backward.append(edge)
 
-        # copy edges into graph: backward, forward, unknown
-        neworder = []
-        for edge in sorted(backward, key=lambda v: g2d[v[1]]):
-            # backward edges should only come from the rightmost vertex and are sorted by v1
-            neworder.append(edge)
+        # sort backward, forward, unknown and unknow edges and add to new order
+        neworder = sorted(backward, key=lambda v: g2d[v[1]])
 
-        for edge in sorted(forward, key=lambda v: g2d[v[0]], reverse=True):
-            # forward extensions are made from the largest v0 first
-            neworder.append(edge)
+        forward.sort(key=lambda v: v[2])
+        forward.sort(key=lambda v: g2d[v[0]], reverse=True)
+        neworder += forward
 
-        for edge in unknown:
-            neworder.append(edge)
+        neworder += unknown
 
         graph[begin:] = neworder
 
@@ -435,26 +431,11 @@ if __name__ == '__main__':
     graphset = [[[0, 1, i], [1, 2, i], [2, 0, j]],
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
                 [[0, 1, j], [0, 2, j], [1, 2, j]],
-                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]]
+                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
+                [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
+                 [3, 4, 2]]]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
-    for graph in graphset:
-        print('\nGraph normalization')
-        g = copy.deepcopy(graph)
-        print('    original graph: {}'.format(g))
-
-        # for edge in g:
-        #     for i in range(0, 2):
-        #         edge[i] *= 2
-        # print('    un-normalized graph: {}'.format(g))
-
-        gspan = Gspan(graph=g)
-        map = gspan.graph_randomize()
-        # print('    map', map)
-        print('    randomized graph: {}'.format(gspan.graph))
-        print('    renormalized graph: {}'.format(gspan.graph))
-
-    exit(1)
 
     print('\nEdge manipulation\n')
     e = Edge()
@@ -481,10 +462,32 @@ if __name__ == '__main__':
     if e2 < e1:
         print('e2 smaller')
 
+    for graph in graphset:
+        print('\nGraph normalization')
+        g = copy.deepcopy(graph)
+        print('    original graph: {}'.format(g))
+
+        # for edge in g:
+        #     for i in range(0, 2):
+        #         edge[i] *= 2
+        # print('    un-normalized graph: {}'.format(g))
+
+        gspan = Gspan(graph=g)
+        map = gspan.graph_randomize()
+        # print('    map', map)
+        print('    randomized graph: {}'.format(gspan.graph))
+        gspan.graph_normalize()
+        print('    renormalized graph: {}'.format(gspan.graph))
+
     # g = graphset[1]
-    g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
-    print('\ninput graph', g)
+    # g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
+    print('\nGspan canonical graph')
+    g = graphset[4]
+    print('\n\tinput graph', g)
     gspan = Gspan(graph=g)
+    # map = gspan.graph_randomize()
+    gspan.graph_normalize()
+    print('\trenormalized graph: {}'.format(gspan.graph))
     glen = len(gspan.graph)
 
     # initialize first edge after sorting by edgetype = e[2]: i < j < o < s < x
@@ -498,7 +501,7 @@ if __name__ == '__main__':
 
     while gspan.unexplored:
         d, row = gspan.restore()
-        print('restored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
+        print('\n\trestored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
         if d is None:
             break
 
@@ -508,7 +511,8 @@ if __name__ == '__main__':
         while row < glen:
             gspan.sort(begin=row)
             edge = gspan.graph[row]
-            print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
+            print('\n\tb graph', gspan.graph, '\n\t\tdfs', gspan.graph2dfs(), '\n\t\tg2d',
+                  gspan.g2d)
 
             while row < glen and g2d[edge[1]] is not None:
                 # add all backward edges, they are always unique and never require resorting
@@ -538,7 +542,7 @@ if __name__ == '__main__':
         # end of loop over rows of dfs code
 
         # print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
-        print('----------------------------------------')
+        print('\t----------------------------------------')
 
     # end of loop over all starting vertices
 
