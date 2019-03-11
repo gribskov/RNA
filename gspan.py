@@ -499,6 +499,8 @@ if __name__ == '__main__':
         if edge[2] == e_first:
             gspan.save(edge, row)
 
+    # TODO add to min DFS
+
     while gspan.unexplored:
         d, row = gspan.restore()
         print('\n\trestored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
@@ -509,8 +511,11 @@ if __name__ == '__main__':
         row += 1
 
         while row < glen:
+            # sort the possible extension by backward, forward, unknown, the current row is the
+            # best extension (sorted first in list
             gspan.sort(begin=row)
             edge = gspan.graph[row]
+
             print('\n\tb graph', gspan.graph, '\n\t\tdfs', gspan.graph2dfs(), '\n\t\tg2d',
                   gspan.g2d)
 
