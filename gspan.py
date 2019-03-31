@@ -131,8 +131,10 @@ class Edge(list):
 class Gspan:
     """=============================================================================================
     Yan and Han algorithm for canonical graph labeling
-    for now, assume a graph list of edges [v0, v1, e] where v0 and v1 are graph labels (arbitrary
-    int) and e is the edge type (ordered: i, j, o, s )
+
+    The input graph G can have any arbitrary labels (strings).
+        First it must be converted to a normalized graph where the vertices are sequential integers
+        for testing, a graph may be entered as a python array of arrays (see from_list)
 
     for a list of edges G
         init:
@@ -163,23 +165,32 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = None
+        self.graph = []
         self.map = None
         self.vnum = 0
         self.mindfs = []
-        self.g2d = None
-        self.d2g = None
+        self.g2G = []         # list to convert g indices to original labels
+        self.g2d = []         # list to covert g labels do dfs labels
+        self.d2g = []         # list to conver dfs labels to g labels
         self.unexplored = []
 
         if graph:
-            self.graph_load(graph)
-            self.graph_normalize()
+            if type(graph) is list:
+                self.from_list(graph)
+                self.graph_normalize()
 
-    def graph_load(self, graph):
+            elif type(graph) is str:
+                self.from_string(graph)
+
+            else:
+                sys.stderr.write('Gspan::__init__ - unknown graph type ({})\n'.format(graph))
+
+
+    def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
         load a graph in the form of a list, into a graph object composed of Edge()
 
-        :param graph: list of lists
+        :param graph: list of lists:
         :return: int, number of vertices
         -----------------------------------------------------------------------------------------"""
         self.graph = list()
@@ -191,6 +202,45 @@ class Gspan:
 
         self.vnum = v
         return v
+
+    def from_string(self, graphstr):
+        """-----------------------------------------------------------------------------------------
+        Reads a graph from a string and converts to non_normalized integers.  For now graphs are
+        a list of edges, each edge is a triple of vertex0 vertex1 edge_type.  All are abritrary
+        strings without quotation marks. square brackets and commas are ignored so a python list of
+        lists is OK
+
+        :param graphstr:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        translation = str.maketrans('[],', '   ')
+        graphstr = graphstr.translate(translation)
+        elist = graphstr.split()
+        G2g = {}  # hash showing translation of original labels to ints
+        g2G = []  # back translate from g index to original labels
+        g = []  # transformed graph
+        v = 0
+        for i in range(0, len(elist), 3):
+            if elist[i] not in G2g:
+                G2g[elist[i]] = v
+                g2G.append(elist[i])
+                v += 1
+
+            if elist[i + 1] not in G2g:
+                G2g[elist[i + 1]] = v
+                g2G.append(elist[i+1])
+                v += 1
+
+            v0 = G2g[elist[i]]
+            v1 = G2g[elist[i + 1]]
+            etype = int(elist[i + 2])
+            self.graph.append([v0, v1, etype])
+
+        self.g2G = g2G
+        self.vnum = v
+
+        return v
+
 
     def flip(self, row=0):
         """-----------------------------------------------------------------------------------------
@@ -205,6 +255,7 @@ class Gspan:
                 n += 1
 
         return n
+
 
     def graph_normalize(self):
         """-----------------------------------------------------------------------------------------
@@ -237,6 +288,7 @@ class Gspan:
         self.g2d = [None for _ in range(0, self.vnum)]
 
         return self.vnum
+
 
     def graph_randomize(self):
         """-----------------------------------------------------------------------------------------
@@ -291,6 +343,7 @@ class Gspan:
 
         return vertex
 
+
     def save(self, edge, row):
         """-----------------------------------------------------------------------------------------
         push a partial solution onto the unexplored stack.
@@ -302,6 +355,7 @@ class Gspan:
         self.unexplored.append((g2d, edge, row))
 
         return len(self.unexplored)
+
 
     def restore(self):
         """-----------------------------------------------------------------------------------------
@@ -339,6 +393,7 @@ class Gspan:
             d_next += 1
 
         return d_next, row
+
 
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
@@ -402,6 +457,7 @@ class Gspan:
         graph[begin:] = neworder
 
         return graph
+
 
     # end of sort
 
@@ -469,6 +525,13 @@ if __name__ == '__main__':
     if e2 < e1:
         print('e2 smaller')
 
+    # testing reading graphs from string
+    gstr = '[[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]'
+    g = Gspan(gstr)
+    gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
+    g = Gspan(gstr)
+    exit(1)
+
     for graph in graphset:
         print('\nGraph normalization')
         g = copy.deepcopy(graph)
@@ -488,6 +551,7 @@ if __name__ == '__main__':
 
     # g = graphset[1]
     # g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
+
     print('\nGspan canonical graph')
     g = graphset[4]
     print('\n\tinput graph', g)
