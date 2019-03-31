@@ -165,14 +165,15 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = []
+        self.graph = []       # graph in normalized labelling
         self.map = None
-        self.vnum = 0
+        self.vnum = 0         # number of vertices in graph
         self.mindfs = []
         self.g2G = []         # list to convert g indices to original labels
         self.g2d = []         # list to covert g labels do dfs labels
         self.d2g = []         # list to conver dfs labels to g labels
-        self.unexplored = []
+        self.unexplored = []  # stack of partial solutions that need to be searched
+                              # [d2g, edge, row_num]
 
         if graph:
             if type(graph) is list:
@@ -352,7 +353,7 @@ class Gspan:
         :return: integer, length of stack
         -----------------------------------------------------------------------------------------"""
         g2d = copy.deepcopy(self.g2d)
-        self.unexplored.append((g2d, edge, row))
+        self.unexplored.append([g2d, edge, row])
 
         return len(self.unexplored)
 
@@ -568,12 +569,11 @@ if __name__ == '__main__':
     gspan.sort()
     row = 0
 
-    e_first = gspan.graph[0][2]
+    # add all edges that are the sames type as the first edge to the stack
+    first_edge_type = gspan.graph[0][2]
     for edge in gspan.graph:
-        if edge[2] == e_first:
+        if edge[2] == first_edge_type:
             gspan.save(edge, row)
-
-    # TODO add to min DFS
 
     while gspan.unexplored:
         d, row = gspan.restore()
@@ -603,15 +603,15 @@ if __name__ == '__main__':
             if row < glen:
                 # forward extension, there must be one or we are at the end of the graph
                 # gspan.g2d[edge[1]] = d
-                e_first = edge[2]
+                first_edge_type = edge[2]
                 v0_first = gspan.graph[row][0]
 
                 # if there are equivalent extensions, save them
-                # v0 defined, v1 undefined, edgetype = e_first edgetype
+                # v0 defined, v1 undefined, edgetype = first_edge_type edgetype
                 rr = row + 1
                 while rr < glen \
                         and gspan.graph[rr][0] == v0_first \
-                        and gspan.graph[rr][2] == e_first:
+                        and gspan.graph[rr][2] == first_edge_type:
                     gspan.save(gspan.graph[rr], row)
                     rr += 1
 
