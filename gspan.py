@@ -356,10 +356,17 @@ class Gspan:
         graph = self.graph
         g2d = self.g2d
 
+        # make separate lists of possible forward, backward, and unknown edges.  Makes sorting
+        # easier
+
         backward = []
         forward = []
         unknown = []
+
         for edge in graph[begin:]:
+            # the labels in the input graph, g, can be anything so they are treated as
+            # the labels in the DFS code are integers or None
+
             if g2d[edge[0]] is None:
                 # vertex 0 undefined
                 if g2d[edge[1]] is None:
@@ -535,8 +542,9 @@ if __name__ == '__main__':
                 # if there are equivalent extensions, save them
                 # v0 defined, v1 undefined, edgetype = e_first edgetype
                 rr = row + 1
-                while rr < glen and gspan.graph[rr][0] == v0_first and gspan.graph[rr][
-                    2] == e_first:
+                while rr < glen \
+                        and gspan.graph[rr][0] == v0_first \
+                        and gspan.graph[rr][2] == e_first:
                     gspan.save(gspan.graph[rr], row)
                     rr += 1
 
