@@ -452,6 +452,8 @@ class Gspan:
         forward.sort(key=lambda v: g2d[v[0]], reverse=True)
         neworder += forward
 
+        unknown.sort(key=lambda v: v[2])
+
         neworder += unknown
 
         graph[begin:] = neworder
@@ -530,7 +532,7 @@ if __name__ == '__main__':
     g = Gspan(gstr)
     gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
     g = Gspan(gstr)
-    exit(1)
+
 
     for graph in graphset:
         print('\nGraph normalization')
@@ -561,10 +563,11 @@ if __name__ == '__main__':
     print('\trenormalized graph: {}'.format(gspan.graph))
     glen = len(gspan.graph)
 
-    # initialize first edge after sorting by edgetype = e[2]: i < j < o < s < x
-    gspan.graph = sorted(gspan.graph, key=lambda e: e[2])
+    # beginning of Gspan algorithm
 
+    gspan.sort()
     row = 0
+
     e_first = gspan.graph[0][2]
     for edge in gspan.graph:
         if edge[2] == e_first:
