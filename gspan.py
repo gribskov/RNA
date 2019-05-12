@@ -201,6 +201,8 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
+        self.mindfs = [Edge() for _ in self.graph]
+
         self.vnum = v
         return v
 
@@ -491,13 +493,20 @@ class Gspan:
     def isbackward(self, row):
         """-----------------------------------------------------------------------------------------
         True if the edge specified by row is backward. for backward edges, v0 > v1 in dfs labeling
+        for a forward edge, only one vertex is defined. if both are defined, it should be a backward
+        edge
+        TODO: if this is true the test can be simpler
+
 
         :param row: int, row of the dfs code
         :return: logical
         -----------------------------------------------------------------------------------------"""
-        edge = self.graph[row]
-        if self.g2d[edge[0]] > self.g2d[edge[1]]:
-            return True
+        # edge = self.graph[row]
+        g2d0= self.g2d[self.graph[row][0]]
+        g2d1 = self.g2d[self.graph[row][1]]
+        if g2d0 and g2d1:
+            if g2d0 > g2d1:
+                return True
 
         return False
 
@@ -620,8 +629,10 @@ if __name__ == '__main__':
             # disjoint graphs are present
             edge = gspan.graph[row]
 
+
             print('\n\tb graph', gspan.graph, '\n\t\tdfs', gspan.graph2dfs(), '\n\t\tg2d',
                   gspan.g2d)
+
 
             # forward extension:
             # the next sorted edge is a forward extension, d2g and g2d need update
@@ -643,6 +654,9 @@ if __name__ == '__main__':
             while gspan.isbackward(row):
                 edge = gspan.graph[row]
                 row += 1
+                if row >= len(gspan.graph):
+                    break
+            # check dfs
 
             # should now be at the non-backward edge, there are threee possibilities
             #   another forward edge on rightmost path
