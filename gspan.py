@@ -1,5 +1,6 @@
 import sys
 import copy
+import random
 from functools import total_ordering
 
 
@@ -7,9 +8,12 @@ from functools import total_ordering
 class Edge(list):
     """=============================================================================================
     Edge class is necessary to implement lexicographic sorting
-    e1 < e2 if i1==i2 and j1<j2
-               i1<j1 and j1=i2
-               e1 <(E,T) and e2 <(E,T) e3 then e1 < e3
+    for two edges a = (i1, j1, e1) and b = (i1, i2, e2), a < eb if
+        i1 == i2 and j1 < j2        backward edge < forward edge
+        i1 < j1  and j1 == i2       a is forward edge, b is an extension of j1
+
+        edge ordering is transitive so if a < b and b < c, a < c
+
     ============================================================================================="""
     g2d = []  # class variable for translation of edges to dfs numbering
 
@@ -127,12 +131,14 @@ class Edge(list):
 class Gspan:
     """=============================================================================================
     Yan and Han algorithm for canonical graph labeling
-    for now, assume a graph list of edges [v0, v1, e] where v0 and v1 are graph labels (arbitrary
-    int) and e is the edge type (ordered: i, j, o, s )
+
+    The input graph G can have any arbitrary labels (strings).
+        First it must be converted to a normalized graph where the vertices are sequential integers
+        for testing, a graph may be entered as a python array of arrays (see from_list)
 
     for a list of edges G
         init:
-            sort G
+            sort G buy edgetype
             push G for all equal edges on unexplored
 
         main loop:
@@ -159,24 +165,33 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = None
+        self.graph = []         # graph in normalized labelling
         self.map = None
-        self.vnum = 0
+        self.vnum = 0           # number of vertices in graph
+        self.vnext = 0          # next dfs vertex available to use
         self.mindfs = []
-        self.g2d = None
-        self.d2g = None
-        self.unexplored = []
+        self.g2G = []           # list to convert g indices to original labels
+        self.g2d = []           # list to covert g labels do dfs labels
+        self.d2g = []           # list to conver dfs labels to g labels
+        self.unexplored = []    # stack of partial solutions that need to be searched
+                                # [d2g, edge, row_num]
 
         if graph:
-            self.graph_load(graph)
-            self.graph_normalize()
-            self.mindfs = [Edge() for _ in self.graph]
+            if type(graph) is list:
+                self.from_list(graph)
+                self.graph_normalize()
 
-    def graph_load(self, graph):
+            elif type(graph) is str:
+                self.from_string(graph)
+
+            else:
+                sys.stderr.write('Gspan::__init__ - unknown graph type ({})\n'.format(graph))
+
+    def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
         load a graph in the form of a list, into a graph object composed of Edge()
 
-        :param graph: list of lists
+        :param graph: list of lists:
         :return: int, number of vertices
         -----------------------------------------------------------------------------------------"""
         self.graph = list()
@@ -186,9 +201,45 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
-        self.mindfs = [Edge() for _ in self.graph]
-
         self.vnum = v
+        return v
+
+    def from_string(self, graphstr):
+        """-----------------------------------------------------------------------------------------
+        Reads a graph from a string and converts to non_normalized integers.  For now graphs are
+        a list of edges, each edge is a triple of vertex0 vertex1 edge_type.  All are abritrary
+        strings without quotation marks. square brackets and commas are ignored so a python list of
+        lists is OK
+
+        :param graphstr:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        translation = str.maketrans('[],', '   ')
+        graphstr = graphstr.translate(translation)
+        elist = graphstr.split()
+        G2g = {}  # hash showing translation of original labels to ints
+        g2G = []  # back translate from g index to original labels
+        g = []  # transformed graph
+        v = 0
+        for i in range(0, len(elist), 3):
+            if elist[i] not in G2g:
+                G2g[elist[i]] = v
+                g2G.append(elist[i])
+                v += 1
+
+            if elist[i + 1] not in G2g:
+                G2g[elist[i + 1]] = v
+                g2G.append(elist[i + 1])
+                v += 1
+
+            v0 = G2g[elist[i]]
+            v1 = G2g[elist[i + 1]]
+            etype = int(elist[i + 2])
+            self.graph.append([v0, v1, etype])
+
+        self.g2G = g2G
+        self.vnum = v
+
         return v
 
     def flip(self, row=0):
@@ -237,6 +288,59 @@ class Gspan:
 
         return self.vnum
 
+    def graph_randomize(self):
+        """-----------------------------------------------------------------------------------------
+        randomly relaable the graph vertices.  this isw usful for generating graphs that have the
+        same canonical form.
+
+        :return: int, number of edges
+        -----------------------------------------------------------------------------------------"""
+
+        if self.graph is None:
+            sys.stderr.write('Gspan.graph_randomize - graph is undefined\n')
+
+        # make a dictionary of the vertex labels in the current graph
+        vertex = {}
+        v_original = []
+        for edge in self.graph:
+            for v in range(0, 2):
+                if edge[v] in vertex:
+                    vertex[edge[v]] += 1
+                else:
+                    vertex[edge[v]] = 1
+                    v_original.append(edge[v])
+
+        # new labels are sequential integers with randomized order, repeat until
+        # an order different from the original is produced
+        # adding extra makes sure the new vertices will not be contiguous beginning at zero
+        extra = 4
+        while True:
+            v_new = [x for x in range(len(vertex) + extra)]
+            random.shuffle(v_new)
+            v_new = v_new[:-2]
+            if not v_original == v_new:
+                break
+
+        # replace old labels with new labels and return the old -> new map as a dict
+        i = 0
+        for v in vertex:
+            vertex[v] = v_new[i]
+            i += 1
+
+        for edge in self.graph:
+            for v in range(0, 2):
+                if edge[v] in vertex:
+                    edge[v] = vertex[edge[v]]
+
+            if edge[0] > edge[1]:
+                # make i always less than j, flipping edgetype 0/1 if necessary
+                edge[0], edge[1] = edge[1], edge[0]
+                if edge[2] < 2:
+                    edge[2] += 1
+                    edge[2] = edge[2] % 2
+
+        return vertex
+
     def save(self, edge, row):
         """-----------------------------------------------------------------------------------------
         push a partial solution onto the unexplored stack.
@@ -245,7 +349,7 @@ class Gspan:
         :return: integer, length of stack
         -----------------------------------------------------------------------------------------"""
         g2d = copy.deepcopy(self.g2d)
-        self.unexplored.append((g2d, edge, row))
+        self.unexplored.append([g2d, edge, row])
 
         return len(self.unexplored)
 
@@ -254,6 +358,7 @@ class Gspan:
         pop a saved dfs code from the unexplored stack
         swap the edge with the current edge at the specified row
         flip j edges in rows following the new edge
+
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
         if len(self.unexplored) == 0:
@@ -267,7 +372,7 @@ class Gspan:
         self.flip(row)
 
         all_undef = True
-        d_next = -1     # insures first edge is 0
+        d_next = -1  # insures first edge is 0
         for d in self.g2d:
             if d is None:
                 continue
@@ -275,7 +380,7 @@ class Gspan:
 
         d_next += 1
 
-        # update g2d, restore are always an extension
+        # update g2d, a restore is always an extension
         if self.g2d[edge[0]] is None:
             self.g2d[edge[0]] = d_next
             d_next += 1
@@ -287,7 +392,7 @@ class Gspan:
 
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
-        At each step, the new minimumedge in the unordered part of the graph is added to the DFS.
+        At each step, the new minimum edge in the unordered part of the graph is added to the DFS.
         This method sorts the unordered portion of the graph, beginning at row=begin, in DFS order
         Method:
             partition into three groups
@@ -301,10 +406,17 @@ class Gspan:
         graph = self.graph
         g2d = self.g2d
 
+        # make separate lists of possible forward, backward, and unknown edges.  Makes sorting
+        # easier
+
         backward = []
         forward = []
         unknown = []
+
         for edge in graph[begin:]:
+            # the labels in the input graph, g, can be anything so they are treated as
+            # the labels in the DFS code are integers or None
+
             if g2d[edge[0]] is None:
                 # vertex 0 undefined
                 if g2d[edge[1]] is None:
@@ -328,18 +440,16 @@ class Gspan:
                         edge.reverse()
                     backward.append(edge)
 
-        # copy edges into graph: backward, forward, unknown
-        neworder = []
-        for edge in sorted(backward, key=lambda v: g2d[v[1]]):
-            # backward edges should only come from the rightmost vertex and are sorted by v1
-            neworder.append(edge)
+        # sort backward, forward, unknown and unknow edges and add to new order
+        neworder = sorted(backward, key=lambda v: g2d[v[1]])
 
-        for edge in sorted(forward, key=lambda v: g2d[v[0]], reverse=True):
-            # forward extensions are made from the largest v0 first
-            neworder.append(edge)
+        forward.sort(key=lambda v: v[2])
+        forward.sort(key=lambda v: g2d[v[0]], reverse=True)
+        neworder += forward
 
-        for edge in unknown:
-            neworder.append(edge)
+        unknown.sort(key=lambda v: v[2])
+
+        neworder += unknown
 
         graph[begin:] = neworder
 
@@ -363,6 +473,34 @@ class Gspan:
 
         return dfs
 
+    def add_forward(self, row):
+        """-----------------------------------------------------------------------------------------
+        Add forward edge. should work also for first edge
+            update g2d
+            update d2g
+            update highest used v
+
+        :param row:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        # TODO need to implement
+        pass
+
+        return True
+
+    def isbackward(self, row):
+        """-----------------------------------------------------------------------------------------
+        True if the edge specified by row is backward. for backward edges, v0 > v1 in dfs labeling
+
+        :param row: int, row of the dfs code
+        :return: logical
+        -----------------------------------------------------------------------------------------"""
+        edge = self.graph[row]
+        if self.g2d[edge[0]] > self.g2d[edge[1]]:
+            return True
+
+        return False
+
 
 # ==================================================================================================
 # testing
@@ -375,26 +513,16 @@ if __name__ == '__main__':
     s = 3
 
     '''
-    graphset(0:2) have the canonical representation graphset[0]
+    graphset(0:2) have the same canonical representation as graphset[0]
     '''
     graphset = [[[0, 1, i], [1, 2, i], [2, 0, j]],
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
                 [[0, 1, j], [0, 2, j], [1, 2, j]],
-                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]]
+                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
+                [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
+                 [3, 4, 2]]]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
-    print('Graph normalization')
-    g = copy.deepcopy(graphset[1])
-    print('    original graph: {}'.format(g))
-    for edge in g:
-        for i in range(0, 2):
-            edge[i] *= 2
-    print('    un-normalized graph: {}'.format(g))
-
-    gspan = Gspan(graph=g)
-    # graph normalization should be automatic
-    # gspan.graph_normalize()
-    print('    renormalized graph: {}'.format(gspan.graph))
 
     print('\nEdge manipulation\n')
     e = Edge()
@@ -421,67 +549,117 @@ if __name__ == '__main__':
     if e2 < e1:
         print('e2 smaller')
 
+    # testing reading graphs from string
+    gstr = '[[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]'
+    g = Gspan(gstr)
+    gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
+    g = Gspan(gstr)
+
+    for graph in graphset:
+        print('\nGraph normalization')
+        g = copy.deepcopy(graph)
+        print('    original graph: {}'.format(g))
+
+        # for edge in g:
+        #     for i in range(0, 2):
+        #         edge[i] *= 2
+        # print('    un-normalized graph: {}'.format(g))
+
+        gspan = Gspan(graph=g)
+        map = gspan.graph_randomize()
+        # print('    map', map)
+        print('    randomized graph: {}'.format(gspan.graph))
+        gspan.graph_normalize()
+        print('    renormalized graph: {}'.format(gspan.graph))
+
     # g = graphset[1]
-    g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
-    print('\ninput graph', g)
+    # g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
+
+    print('\nGspan canonical graph')
+    g = graphset[4]
+    print('\n\tinput graph', g)
     gspan = Gspan(graph=g)
+    # map = gspan.graph_randomize()
+    gspan.graph_normalize()
+    print('\trenormalized graph: {}'.format(gspan.graph))
     glen = len(gspan.graph)
 
-    # initialize first edge after sorting by edgetype = e[2]: i < j < o < s < x
-    gspan.graph = sorted(gspan.graph, key=lambda e: e[2])
+    # beginning of Gspan algorithm
 
+    gspan.sort()
     row = 0
-    e_first = gspan.graph[0][2]
+
+    # add all edges that are the sames type as the first edge to the stack
+    first_edge_type = gspan.graph[0][2]
     for edge in gspan.graph:
-        if edge[2] == e_first:
+        if edge[2] == first_edge_type:
             gspan.save(edge, row)
 
     while gspan.unexplored:
         d, row = gspan.restore()
-        print('restored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
+        print('\n\trestored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
         if d is None:
+            # not sure when this is supposed to happen?
             break
 
         g2d = gspan.g2d
         row += 1
 
+        # sort the possible extension by backward, forward, unknown, the current row is the
+        # best extension (sorted first in list)
+        # TODO check that backward edges don't need to be added when restoring
+        # i think they do
+        gspan.sort(begin=row)
+
         while row < glen:
-            gspan.sort(begin=row)
+
+            # the first edge should always be a forward extension because we add any backward
+            # extensions at the bottom of this loop.  backwards edges never need resorting
+            # because no new vertices are added
+            # The next edge should never be an unknown edge because that would indicate two
+            # disjoint graphs are present
             edge = gspan.graph[row]
-            print('\nb graph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
 
-            while row < glen and g2d[edge[1]] is not None:
-                # add all backward edges, they are always unique and never require resorting
-                row += 1
-                # checkdfs
-                if row >= glen:
-                    break
+            print('\n\tb graph', gspan.graph, '\n\t\tdfs', gspan.graph2dfs(), '\n\t\tg2d',
+                  gspan.g2d)
+
+            # forward extension:
+            # the next sorted edge is a forward extension, d2g and g2d need update
+            # any equivalent forward extensions (same v0, seme edge tpe, have to go on stack)
+            edge_type = edge[2]
+            v0_first = gspan.graph[row][0]
+            gspan.add_forward(row)
+
+            rr = row + 1
+            while rr < glen \
+                    and gspan.graph[rr][0] == v0_first \
+                    and gspan.graph[rr][2] == edge_type:
+                gspan.save(gspan.graph[rr], row)
+                rr += 1
+
+            # add all backward edges, no new sorting is required
+
+            row += 1
+            while gspan.isbackward(row):
                 edge = gspan.graph[row]
-
-            if row < glen:
-                # forward extension, there must be one or we are at the end of the graph
-                # gspan.g2d[edge[1]] = d
-                e_first = edge[2]
-                v0_first = gspan.graph[row][0]
-
-                # if there are equivalent extensions, save them
-                # v0 defined, v1 undefined, edgetype = e_first edgetype
-                rr = row + 1
-                while rr < glen and gspan.graph[rr][0] == v0_first and gspan.graph[rr][2] == e_first:
-                    gspan.save(gspan.graph[rr], row)
-                    rr += 1
-
-                gspan.g2d[edge[1]] = d
-                d += 1
                 row += 1
-                # check dfs
 
+            # should now be at the non-backward edge, there are threee possibilities
+            #   another forward edge on rightmost path
+            #   and unknown edge (needs resort)
+            #   or the end of the list
+
+            if row == glen:
+                # graph is done
+                break
+
+            gspan.sort(begin=row)
 
         # end of loop over rows of dfs code
 
         # print('\ngraph', gspan.graph, '\n    dfs', gspan.graph2dfs(), '\n    g2d', gspan.g2d)
-        print('----------------------------------------')
+        print('\t----------------------------------------')
 
-     # end of loop over all starting vertices
+    # end of loop over all starting vertices
 
 exit(0)
