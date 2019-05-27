@@ -658,7 +658,7 @@ if __name__ == '__main__':
                     break
             # check dfs
 
-            # should now be at the non-backward edge, there are threee possibilities
+            # should now be at the non-backward edge, there are three possibilities
             #   another forward edge on rightmost path
             #   and unknown edge (needs resort)
             #   or the end of the list
