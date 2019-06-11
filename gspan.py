@@ -151,7 +151,7 @@ class Gspan:
             add all backward edges to dfs
             push equivalent forward extensions on unexplored
 
-    stack has G, d2g and ?
+    TODO: stack has G, d2g and ?
 
     much better
     all you need to save is g2d list and row of edgelist
@@ -170,8 +170,8 @@ class Gspan:
         self.vnum = 0           # number of vertices in graph
         self.vnext = 0          # next dfs vertex available to use
         self.mindfs = []
-        self.g2G = []           # list to convert g indices to original labels
-        self.g2d = []           # list to covert g labels do dfs labels
+        self.g2G = []           # list to convert g laberls (indices) to original labels
+        self.g2d = []           # list to covert g labels to dfs labels
         self.d2g = []           # list to conver dfs labels to g labels
         self.unexplored = []    # stack of partial solutions that need to be searched
                                 # [d2g, edge, row_num]
@@ -369,11 +369,12 @@ class Gspan:
         g2d, edge, row = self.unexplored.pop()
         self.g2d = g2d
 
+        # this makes the popped edge the next to be added
         epos = self.graph.index(edge)
         self.graph[row], self.graph[epos] = self.graph[epos], self.graph[row]
         self.flip(row)
 
-        # all_undef = True
+        # dnext is the next available dfs label
         d_next = -1  # insures first edge is 0
         for d in self.g2d:
             if d is None:
@@ -382,11 +383,11 @@ class Gspan:
 
         d_next += 1
 
-        # update g2d, a restore is always an extension
+        # update g2d, a restore is always an extension so only one vertex is defined
         if self.g2d[edge[0]] is None:
             self.g2d[edge[0]] = d_next
             d_next += 1
-        if self.g2d[edge[1]] is None:
+        elif self.g2d[edge[1]] is None:
             self.g2d[edge[1]] = d_next
             d_next += 1
 
@@ -442,13 +443,18 @@ class Gspan:
                         edge.reverse()
                     backward.append(edge)
 
-        # sort backward, forward, unknown and unknow edges and add to new order
+        # sort backward, forward, unknown and unknown edges and add to new order
+
+        # backward edges are sorted by v1.  v0 should all be the same
         neworder = sorted(backward, key=lambda v: g2d[v[1]])
 
+        # forward edges have defined v0, and undefined v1.  sort by edge type (v2)
+        # the largest v0 is the rightmost edge, smaller v0 are extensions on the rightmost path
         forward.sort(key=lambda v: v[2])
         forward.sort(key=lambda v: g2d[v[0]], reverse=True)
         neworder += forward
 
+        # edges with neither vertex defined are sorted by edge type(v2)
         unknown.sort(key=lambda v: v[2])
 
         neworder += unknown
@@ -593,7 +599,9 @@ if __name__ == '__main__':
     print('\trenormalized graph: {}'.format(gspan.graph))
     glen = len(gspan.graph)
 
+    #-----------------------------------------------------------------------------------------------
     # beginning of Gspan algorithm
+    # -----------------------------------------------------------------------------------------------
 
     gspan.sort()
     row = 0
@@ -607,9 +615,9 @@ if __name__ == '__main__':
     while gspan.unexplored:
         d, row = gspan.restore()
         print('\n\trestored d={} row={} edge={}'.format(d, row, gspan.graph[row]))
-        if d is None:
-            # not sure when this is supposed to happen?
-            break
+        # if d is None:
+        #     # not sure when this is supposed to happen?
+        #     break
 
         g2d = gspan.g2d
         row += 1
