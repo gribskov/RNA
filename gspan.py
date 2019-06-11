@@ -28,7 +28,7 @@ class Edge(list):
             super(Edge, self).__init__(edge)
 
     def __eq__(self, other):
-        return (self[0] == other[0] and self[1] == other[1] and self[2] == other[2])
+        return self[0] == other[0] and self[1] == other[1] and self[2] == other[2]
 
     def __ne__(self, other):
         return not (self[0] == other)
@@ -373,7 +373,7 @@ class Gspan:
         self.graph[row], self.graph[epos] = self.graph[epos], self.graph[row]
         self.flip(row)
 
-        all_undef = True
+        # all_undef = True
         d_next = -1  # insures first edge is 0
         for d in self.g2d:
             if d is None:
@@ -629,10 +629,8 @@ if __name__ == '__main__':
             # disjoint graphs are present
             edge = gspan.graph[row]
 
-
             print('\n\tb graph', gspan.graph, '\n\t\tdfs', gspan.graph2dfs(), '\n\t\tg2d',
                   gspan.g2d)
-
 
             # forward extension:
             # the next sorted edge is a forward extension, d2g and g2d need update
