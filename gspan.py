@@ -165,16 +165,19 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = []         # graph in normalized labelling
+        self.graph = []  # graph in normalized labelling
+        self.nforward = 0  # number of forward edges in sorted graph
+        self.nbackward = 0  # number of backward edges in sorted graph
+        self.nunknown = 0  # number of unknown edges in sorted graph
         self.map = None
-        self.vnum = 0           # number of vertices in graph
-        self.vnext = 0          # next dfs vertex available to use
+        self.vnum = 0  # number of vertices in graph
+        self.vnext = 0  # next dfs vertex available to use
         self.mindfs = []
-        self.g2G = []           # list to convert g laberls (indices) to original labels
-        self.g2d = []           # list to covert g labels to dfs labels
-        self.d2g = []           # list to conver dfs labels to g labels
-        self.unexplored = []    # stack of partial solutions that need to be searched
-                                # [d2g, edge, row_num]
+        self.g2G = []  # list to convert g laberls (indices) to original labels
+        self.g2d = []  # list to covert g labels to dfs labels
+        self.d2g = []  # list to conver dfs labels to g labels
+        self.unexplored = []  # stack of partial solutions that need to be searched
+        # [d2g, edge, row_num]
 
         if graph:
             if type(graph) is list:
@@ -493,7 +496,6 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         # TODO need to implement
         pass
-
         return True
 
     def isbackward(self, row):
@@ -508,13 +510,65 @@ class Gspan:
         :return: logical
         -----------------------------------------------------------------------------------------"""
         # edge = self.graph[row]
-        g2d0= self.g2d[self.graph[row][0]]
+        g2d0 = self.g2d[self.graph[row][0]]
         g2d1 = self.g2d[self.graph[row][1]]
         if g2d0 and g2d1:
             if g2d0 > g2d1:
                 return True
 
         return False
+
+    def minDFS(self):
+        """-----------------------------------------------------------------------------------------
+        reimplement gspan
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        mindfs = []
+        row = 0
+
+        # sort
+        gspan.sort(begin=row)
+
+        # add backward edges, since the graph is sorted, all this requires is updating the begin point
+        # in the graph array
+        row += gspan.nbackward
+
+        # save equivalent forward edges.  We know the number of forward edges from the sort, the
+        # edges are equivalent if the have the same v0 and edge type
+        # in the case where there are zero forward edges, which should only occur for the first
+        # edge, the equivalent unknown edges should be added since v0 = None and edge=minedge
+        first_edge_type = gspan.graph[row][2]
+        v0 = gspan.g2d[gspan.graph[row][0]]
+        for edge in gspan.graph[row:]:
+            if edge[2] != first_edge_type:
+                break
+            if gspan.g2d[edge[0]] != v0:
+                break
+                # if you pass these tests, fall though to saving this edge on stack
+                gspan.save(edge, row)
+
+        # add forward edges, won't run if number of forward edges = 0
+        for edge in gspan.graph[row:row+forward]:
+            if edge[2] != first_edge_type:
+                break
+            if gspan.g2d[edge[0]] != v0:
+                break
+                # if you pass these tests, fall though to saving this edge on stack
+                gspan.save(edge, row)
+
+            row += gspan.nforward
+
+        # check len == edges
+
+        # check for minimum dfs
+        #
+
+        # restore
+
+        # done
+
+        return mindfs
 
 
 # ==================================================================================================
@@ -599,7 +653,9 @@ if __name__ == '__main__':
     print('\trenormalized graph: {}'.format(gspan.graph))
     glen = len(gspan.graph)
 
-    #-----------------------------------------------------------------------------------------------
+    gspan.minDFS()
+
+    # -----------------------------------------------------------------------------------------------
     # beginning of Gspan algorithm
     # -----------------------------------------------------------------------------------------------
 
