@@ -173,6 +173,7 @@ class Gspan:
         self.vnum = 0  # number of vertices in graph
         self.vnext = 0  # next dfs vertex available to use
         self.mindfs = []
+        self.mindfslen = 0
         self.g2G = []  # list to convert g laberls (indices) to original labels
         self.g2d = []  # list to covert g labels to dfs labels
         self.d2g = []  # list to conver dfs labels to g labels
@@ -205,9 +206,9 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
-        # self.mindfs = [Edge() for _ in self.graph]
-
+        self.mindfs = [Edge() for _ in self.graph]
         self.vnum = v
+
         return v
 
     def from_string(self, graphstr):
@@ -349,8 +350,7 @@ class Gspan:
 
     def save(self, edge, row):
         """-----------------------------------------------------------------------------------------
-        push a partial solution onto the unexplored stack.
-        Stores copy of g2d, edge, row
+        push a partial solution onto the unexplored stack. Stores copy of g2d, edge, row
 
         :return: integer, length of stack
         -----------------------------------------------------------------------------------------"""
@@ -373,9 +373,16 @@ class Gspan:
         g2d, edge, row = self.unexplored.pop()
         self.g2d = g2d
 
+        if g2d[edge[0]] is None:
+            # if v0 is not defined in g2d, flip edge
+            edge[0], edge[1] = edge[1], edge[0]
+            if edge[2] < 2:
+                edge[2] ^= 1
+
         # this makes the popped edge the next to be added
         epos = self.graph.index(edge)
-        self.graph[row], self.graph[epos] = self.graph[epos], self.graph[row]
+        self.graph[epos] = self.graph[row]
+        self.graph[row] = edge
         self.flip(row)
 
         # rebuild d2g from g2d
@@ -391,9 +398,15 @@ class Gspan:
             # edge is backward, v0 always defined for an extension
             edge.reverse()
 
+        if self.vnext == 0:
+            self.g2d[edge[0]] = 0
+            self.d2g[0] = edge[0]
+            self.vnext = 1
+
         self.g2d[edge[1]] = self.vnext
         self.d2g[self.vnext] = edge[1]
         self.vnext += 1
+
         self.row = row + 1
         return True
 
@@ -473,19 +486,19 @@ class Gspan:
 
     # end of sort
 
-    def graph2dfs(self):
+    def graph2dfs(self, last):
         """-----------------------------------------------------------------------------------------
         convert the node labels in the graph to dfs labels
+
+        :last: integer, last row to copy
         :return: list of edges
         -----------------------------------------------------------------------------------------"""
         g2d = self.g2d
         dfs = []
-        for edge in self.graph:
-            row = []
-            dfs.append(row)
-            for i in range(0, 2):
-                row.append(g2d[edge[i]])
-            row.append(edge[2])
+        for i in range(last):
+            self.mindfs[i] = [ g2d[self.graph[i][0]], g2d[self.graph[i][1]], self.graph[i][2]]
+
+        self.mindfslen = last
 
         return dfs
 
@@ -557,6 +570,8 @@ class Gspan:
                         break
 
                     # if you pass these tests, fall though to saving this edge on stack
+                    # TODO save should update g2d as it would look after adding this edge, this
+                    # makes restore easier
                     self.save(edge, row)
 
                 if row == 0:
@@ -575,6 +590,7 @@ class Gspan:
 
             # check for minimum dfs
             if not self.minimum(row) or row == len(self.graph):
+                print('current minDFS', self.mindfs)
                 searching = self.restore()
                 row = self.row
 
@@ -584,18 +600,21 @@ class Gspan:
     def minimum(self, row):
         """-----------------------------------------------------------------------------------------
         check if the current dfs is <= the min dfs.
-        dfs must be compared in d space
+        mindfs is stored in d space, current dfs must be compared in d space
 
         :return: logical
         -----------------------------------------------------------------------------------------"""
-        if row > len(self.mindfs):
-            self.mindfs = self.graph[:row]
+
+        g2d = self.g2d
+
+        if row > self.mindfslen:
+            self.graph2dfs(row)
             return True
 
         cmp = None
         for i in range(row):
             cedge = self.edge_g2d(self.graph[i])
-            medge = self.edge_g2d(self.mindfs[i])
+            medge = self.mindfs[i]
 
             cdir = self.edge_dir(cedge)
             mdir = self.edge_dir(medge)
@@ -669,7 +688,7 @@ class Gspan:
 
         if cmp is 'lt':
             # current is definitively less than minimum, save as new minimum
-            self.mindfs = self.graph[:row + 1]
+            self.graph2dfs(row+1)
             return True
 
         elif cmp is 'eq':
