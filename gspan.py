@@ -176,6 +176,7 @@ class Gspan:
         self.g2G = []  # list to convert g laberls (indices) to original labels
         self.g2d = []  # list to covert g labels to dfs labels
         self.d2g = []  # list to conver dfs labels to g labels
+        self.row = 0  # row in current dfs
         self.unexplored = []  # stack of partial solutions that need to be searched
         # [d2g, edge, row_num]
 
@@ -204,7 +205,7 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
-        self.mindfs = [Edge() for _ in self.graph]
+        # self.mindfs = [Edge() for _ in self.graph]
 
         self.vnum = v
         return v
@@ -367,7 +368,7 @@ class Gspan:
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
         if len(self.unexplored) == 0:
-            return None, None
+            return False
 
         g2d, edge, row = self.unexplored.pop()
         self.g2d = g2d
@@ -377,24 +378,24 @@ class Gspan:
         self.graph[row], self.graph[epos] = self.graph[epos], self.graph[row]
         self.flip(row)
 
-        # dnext is the next available dfs label
-        d_next = -1  # insures first edge is 0
-        for d in self.g2d:
-            if d is None:
-                continue
-            d_next = max(d, d_next)
+        # rebuild d2g from g2d
+        self.d2g = [None for i in self.d2g]
+        self.vnext = 0
+        for i in range(len(self.g2d)):
+            if self.g2d[i] is not None:
+                self.d2g[self.vnext] = i
+                self.vnext += 1
 
-        d_next += 1
-
-        # update g2d, a restore is always an extension so only one vertex is defined
+        # add the saved edge
         if self.g2d[edge[0]] is None:
-            self.g2d[edge[0]] = d_next
-            d_next += 1
-        elif self.g2d[edge[1]] is None:
-            self.g2d[edge[1]] = d_next
-            d_next += 1
+            # edge is backward, v0 always defined for an extension
+            edge.reverse()
 
-        return d_next, row
+        self.g2d[edge[1]] = self.vnext
+        self.d2g[self.vnext] = edge[1]
+        self.vnext += 1
+        self.row = row + 1
+        return True
 
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
@@ -445,6 +446,10 @@ class Gspan:
                     if g2d[edge[0]] < g2d[edge[1]]:
                         edge.reverse()
                     backward.append(edge)
+
+        self.nforward = len(forward)
+        self.nbackward = len(backward)
+        self.nunknown = len(unknown)
 
         # sort backward, forward, unknown and unknown edges and add to new order
 
@@ -526,49 +531,176 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         mindfs = []
         row = 0
+        searching = True
 
-        # sort
-        gspan.sort(begin=row)
+        while searching:
+            # sort
+            self.sort(begin=row)
 
-        # add backward edges, since the graph is sorted, all this requires is updating the begin point
-        # in the graph array
-        row += gspan.nbackward
+            # add backward edges, since the graph is sorted, all this requires is updating the
+            # begin point in the graph array
+            row += self.nbackward
 
-        # save equivalent forward edges.  We know the number of forward edges from the sort, the
-        # edges are equivalent if the have the same v0 and edge type
-        # in the case where there are zero forward edges, which should only occur for the first
-        # edge, the equivalent unknown edges should be added since v0 = None and edge=minedge
-        first_edge_type = gspan.graph[row][2]
-        v0 = gspan.g2d[gspan.graph[row][0]]
-        for edge in gspan.graph[row:]:
-            if edge[2] != first_edge_type:
-                break
-            if gspan.g2d[edge[0]] != v0:
-                break
-                # if you pass these tests, fall though to saving this edge on stack
-                gspan.save(edge, row)
+            if row < len(self.graph):
+                # skip adding forward edges if done
 
-        # add forward edges, won't run if number of forward edges = 0
-        for edge in gspan.graph[row:row+forward]:
-            if edge[2] != first_edge_type:
-                break
-            if gspan.g2d[edge[0]] != v0:
-                break
-                # if you pass these tests, fall though to saving this edge on stack
-                gspan.save(edge, row)
+                # save equivalent forward edges.  We know the number of forward edges from the sort, the
+                # edges are equivalent if they have the same v0 and edge type
+                # in the case where there are zero forward edges, which should only occur for the first
+                # edge, the equivalent unknown edges should be added since v0 = None and edge=minedge
+                first_edge_type = self.graph[row][2]
+                v0 = self.g2d[self.graph[row][0]]
+                for edge in self.graph[row + 1:]:
+                    if edge[2] != first_edge_type:
+                        break
+                    if self.g2d[edge[0]] != v0:
+                        break
 
-            row += gspan.nforward
+                    # if you pass these tests, fall though to saving this edge on stack
+                    self.save(edge, row)
 
-        # check len == edges
+                if row == 0:
+                    # add the first edge
+                    self.d2g[0] = self.graph[0][0]
+                    self.d2g[1] = self.graph[0][1]
+                    self.vnext = 2
+                    self.g2d[self.d2g[0]] = 0
+                    self.g2d[self.d2g[1]] = 1
+                else:
+                    self.d2g[self.vnext] = self.graph[row][1]
+                    self.g2d[self.graph[row][1]] = self.vnext
+                    self.vnext += 1
 
-        # check for minimum dfs
-        #
+                row += 1
 
-        # restore
+            # check for minimum dfs
+            if not self.minimum(row) or row == len(self.graph):
+                searching = self.restore()
+                row = self.row
 
-        # done
-
+        print(row)
         return mindfs
+
+    def minimum(self, row):
+        """-----------------------------------------------------------------------------------------
+        check if the current dfs is <= the min dfs.
+        dfs must be compared in d space
+
+        :return: logical
+        -----------------------------------------------------------------------------------------"""
+        if row > len(self.mindfs):
+            self.mindfs = self.graph[:row]
+            return True
+
+        cmp = None
+        for i in range(row):
+            cedge = self.edge_g2d(self.graph[i])
+            medge = self.edge_g2d(self.mindfs[i])
+
+            cdir = self.edge_dir(cedge)
+            mdir = self.edge_dir(medge)
+
+            cmp = 'eq'
+            if cdir < mdir:
+                # c backward, m forward, current is lt
+                cmp = 'lt'
+                break
+
+            if cdir > mdir:
+                # c forward, m backward, min is lt
+                cmp = 'gt'
+                break
+
+            # directions are equal
+            if cdir is 'f':
+                # forward edges
+                if cedge[0] > medge[0]:
+                    # c is lt
+                    cmp = 'lt'
+                    break
+                elif cedge[0] < medge[0]:
+                    # m is lt
+                    cmp = 'gt'
+                    break
+                else:
+                    # equal v0, v1 must always be the same
+                    if cedge[1] != medge[1]:
+                        sys.stderr.write('gspan::minimum - forward v1 not equal')
+                    if cedge[2] < medge[2]:
+                        # c is lt
+                        cmp = 'lt'
+                        break
+                    elif cedge[2] > medge[2]:
+                        # m is lt
+                        cmp = 'gt'
+                        break
+                    else:
+                        # edges are equal
+                        continue
+
+            if cdir is 'b':
+                # backward edges, v0 must be the same
+                if cedge[0] != medge[0]:
+                    sys.stderr.write('gspan::minimum - backward v0 not equal')
+
+                if cedge[1] < medge[1]:
+                    # c is lt
+                    cmp = 'lt'
+                    break
+                elif cedge[0] > medge[0]:
+                    # m is lt
+                    cmp = 'gt'
+                    break
+                else:
+                    # equal v0, check edge type
+                    if cedge[2] < medge[2]:
+                        # c is lt
+                        cmp = 'lt'
+                        break
+                    elif cedge[2] > medge[2]:
+                        # m is lt
+                        cmp = 'gt'
+                        break
+                    else:
+                        # edges are equal
+                        continue
+
+            # end of loop over edges
+
+        if cmp is 'lt':
+            # current is definitively less than minimum, save as new minimum
+            self.mindfs = self.graph[:row + 1]
+            return True
+
+        elif cmp is 'eq':
+            return True
+
+        # gt, fall through
+        return False
+
+    def edge_dir(self, edge):
+        """-----------------------------------------------------------------------------------------
+        determine whether edge is forward or backward. edge should be in d space, use edge_g2d() to
+        convert if necessary.
+
+        :param edge: Edge
+        :return: string, 'f' or 'b'
+        -----------------------------------------------------------------------------------------"""
+        dir = 'b'
+        if edge[0] < edge[1]:
+            dir = 'f'
+
+        return dir
+
+    def edge_g2d(self, edge):
+        """-----------------------------------------------------------------------------------------
+        convert edge from g space to d space
+        
+        :param edge: Edge (g space)
+        :return: Edge (d space)
+        -----------------------------------------------------------------------------------------"""
+        g2d = self.g2d
+        return Edge([g2d[edge[0]], g2d[edge[1]], edge[2]])
 
 
 # ==================================================================================================
