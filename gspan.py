@@ -373,8 +373,11 @@ class Gspan:
         g2d, edge, row = self.unexplored.pop()
         self.g2d = g2d
 
-        if g2d[edge[0]] is None:
-            # if v0 is not defined in g2d, flip edge
+        if row == 0:
+            if edge[2] == 1:
+                edge.reverse()
+        elif g2d[edge[0]] is None:
+            # next edge is always a forward extension. if v0 is not defined in g2d, flip edge
             edge[0], edge[1] = edge[1], edge[0]
             if edge[2] < 2:
                 edge[2] ^= 1
@@ -394,9 +397,9 @@ class Gspan:
                 self.vnext += 1
 
         # add the saved edge
-        if self.g2d[edge[0]] is None:
-            # edge is backward, v0 always defined for an extension
-            edge.reverse()
+        # if self.g2d[edge[0]] is None:
+        #     # edge is backward, v0 always defined for an extension
+        #     edge.reverse()
 
         if self.vnext == 0:
             self.g2d[edge[0]] = 0
@@ -496,7 +499,7 @@ class Gspan:
         g2d = self.g2d
         dfs = []
         for i in range(last):
-            self.mindfs[i] = [ g2d[self.graph[i][0]], g2d[self.graph[i][1]], self.graph[i][2]]
+            self.mindfs[i] = [g2d[self.graph[i][0]], g2d[self.graph[i][1]], self.graph[i][2]]
 
         self.mindfslen = last
 
@@ -591,10 +594,11 @@ class Gspan:
             # check for minimum dfs
             if not self.minimum(row) or row == len(self.graph):
                 print('current minDFS', self.mindfs)
+                print('         graph', self.graph, '\n')
                 searching = self.restore()
                 row = self.row
 
-        print(row)
+
         return mindfs
 
     def minimum(self, row):
@@ -688,13 +692,15 @@ class Gspan:
 
         if cmp is 'lt':
             # current is definitively less than minimum, save as new minimum
-            self.graph2dfs(row+1)
+            self.graph2dfs(row)
             return True
 
         elif cmp is 'eq':
             return True
 
         # gt, fall through
+        print('not minimal\ncurrent minDFS', self.mindfs[:row-1], self.edge_g2d(self.graph[row-1]))
+        print('         graph', self.graph[:row],'\n')
         return False
 
     def edge_dir(self, edge):
@@ -801,11 +807,11 @@ if __name__ == '__main__':
     gspan = Gspan(graph=g)
     # map = gspan.graph_randomize()
     gspan.graph_normalize()
-    print('\trenormalized graph: {}'.format(gspan.graph))
+    print('\trenormalized graph: {}\n'.format(gspan.graph))
     glen = len(gspan.graph)
 
     gspan.minDFS()
-
+    exit(1)
     # -----------------------------------------------------------------------------------------------
     # beginning of Gspan algorithm
     # -----------------------------------------------------------------------------------------------
