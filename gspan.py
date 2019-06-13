@@ -284,7 +284,7 @@ class Gspan:
                 edge.reverse()
 
         self.vnum = len(v)
-#        self.map = v
+        #        self.map = v
 
         # initialize d2g and g2d
         self.d2g = [None for _ in range(0, self.vnum)]
@@ -501,40 +501,6 @@ class Gspan:
         self.mindfslen = last
 
         return dfs
-
-    # def add_forward(self, row):
-    #     """-----------------------------------------------------------------------------------------
-    #     Add forward edge. should work also for first edge
-    #         update g2d
-    #         update d2g
-    #         update highest used v
-    #
-    #     :param row:
-    #     :return:
-    #     -----------------------------------------------------------------------------------------"""
-    #     # TODO delete
-    #     pass
-    #     return True
-    #
-    # def isbackward(self, row):
-    #     """-----------------------------------------------------------------------------------------
-    #     True if the edge specified by row is backward. for backward edges, v0 > v1 in dfs labeling
-    #     for a forward edge, only one vertex is defined. if both are defined, it should be a
-    #     backward edge
-    #     TODO: if this is true the test can be simpler
-    #
-    #
-    #     :param row: int, row of the dfs code
-    #     :return: logical
-    #     -----------------------------------------------------------------------------------------"""
-    #     # edge = self.graph[row]
-    #     g2d0 = self.g2d[self.graph[row][0]]
-    #     g2d1 = self.g2d[self.graph[row][1]]
-    #     if g2d0 and g2d1:
-    #         if g2d0 > g2d1:
-    #             return True
-    #
-    #     return False
 
     def minDFS(self):
         """-----------------------------------------------------------------------------------------
