@@ -385,7 +385,7 @@ class Gspan:
         epos = self.graph.index(edge)
         self.graph[epos] = self.graph[row]
         self.graph[row] = edge
-        self.flip(row)
+        # self.flip(row)
 
         # rebuild d2g from g2d
         self.d2g = [None for _ in self.d2g]
@@ -608,7 +608,7 @@ class Gspan:
                 else:
                     # equal v0, v1 must always be the same
                     if cedge[1] != medge[1]:
-                        sys.stderr.write('gspan::minimum - forward v1 not equal')
+                        sys.stdout.write('gspan::minimum - forward v1 not equal\n')
                     if cedge[2] < medge[2]:
                         # c is lt
                         cmp = 'lt'
@@ -624,7 +624,7 @@ class Gspan:
             if cdir is 'b':
                 # backward edges, v0 must be the same
                 if cedge[0] != medge[0]:
-                    sys.stderr.write('gspan::minimum - backward v0 not equal')
+                    sys.stdout.write('gspan::minimum - backward v0 not equal\n')
 
                 if cedge[1] < medge[1]:
                     # c is lt
@@ -702,18 +702,49 @@ if __name__ == '__main__':
     '''
     graphset(0:2) have the same canonical representation as graphset[0]
     '''
-    graphset = [[[0, 1, i], [1, 2, i], [2, 0, j]],
-                [[0, 1, i], [0, 2, j], [1, 2, j]],
-                [[0, 1, j], [0, 2, j], [1, 2, j]],
-                [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
-                [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
-                [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
-                 [3, 4, 2]]]
+    graphset = [
+        # [[0,1,0], [0,2,0], [1,2,0], [0,3,2], [1,3,2], [2,3,0], [3,4,0]],
+        # [[0,1,0], [0,2,2], [0,4,2], [1,2,2], [2,3,2], [2,4,0], [2,5,2], [4,5,2], [5,3,0]],
+        # [[0,1,0], [0,2,0], [0,3,0], [0,4,0], [0,5,0], [1,2,0], [4,5,0]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0], [1,6,2], [4,6,2]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0, 6, 0],
+        # [1, 6, 2], [4, 6, 2], [0,7,0], [1,7,2], [2,7,2], [4,7,2], [5,7,2]],
+        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
+         [0, 6, 0], [5, 6, 2], [0, 7, 2], [7, 8, 0], [7, 9, 0], [8, 9, 0]],
+        [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 8, 0],
+         [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+         [3, 4, 0], [3, 5, 0], [3, 6, 0],
+         [4, 5, 0], [4, 6, 0]],
+        [[2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+         [3, 4, 0], [3, 5, 0], [3, 6, 0],
+         [4, 5, 0], [4, 6, 0]],
+        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 0]],
+        # [[2, 3, 0], [2, 4, 0], [2, 6, 0],
+        #  [3, 4, 0], [3, 6, 0],
+        #  [4, 6, 0]]
 
-    # graph normalization create an unnormalized graph by doubling the vertex numbers
+        # [[0, 1, i], [1, 2, i], [2, 0, j]],
+        # [[0, 1, i], [0, 2, j], [1, 2, j]],
+        # [[0, 1, j], [0, 2, j], [1, 2, j]],
+        # [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
+        # [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
+        #  [3, 4, 2]],
+        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 6, 0], [0, 7, 0],
+         [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
+         [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
+        [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
+         [1, 9, 0,
+          [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
+          [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
+          [4, 5, 0], [4, 6, 0],
+          [7, 8, 0], [7, 9, 2]]
+         ]
 
-    print('\nEdge manipulation\n')
-    e = Edge()
+        # graph normalization create an unnormalized graph by doubling the vertex numbers
+
+        print('\nEdge manipulation\n')
+        e = Edge()
     e.set(2, 3, 0)
     e.g2d = [0, 1, 2]
     print('    edge', e)
@@ -743,35 +774,32 @@ if __name__ == '__main__':
 
     for graph in graphset:
         print('\nGraph normalization')
-        g = copy.deepcopy(graph)
-        print('    original graph: {}'.format(g))
+    g = copy.deepcopy(graph)
+    print('    original graph: {}'.format(g))
 
-        # for edge in g:
-        #     for i in range(0, 2):
-        #         edge[i] *= 2
-        # print('    un-normalized graph: {}'.format(g))
+    # for edge in g:
+    #     for i in range(0, 2):
+    #         edge[i] *= 2
+    # print('    un-normalized graph: {}'.format(g))
 
-        gspan = Gspan(graph=g)
-        map = gspan.graph_randomize()
-        # print('    map', map)
-        print('    randomized graph: {}'.format(gspan.graph))
-        gspan.graph_normalize()
-        print('    renormalized graph: {}'.format(gspan.graph))
-
-    # g = graphset[1]
-    # g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
+    gspan = Gspan(graph=g)
+    map = gspan.graph_randomize()
+    # print('    map', map)
+    print('    randomized graph: {}'.format(gspan.graph))
+    gspan.graph_normalize()
+    print('    renormalized graph: {}'.format(gspan.graph))
 
     print('\nGspan canonical graph')
     for g in graphset:
-        # g = graphset[4]
+    # g = graphset[4]
         print('\n\tinput graph', g)
-        gspan = Gspan(graph=g)
-        for _ in range(10):
-            map = gspan.graph_randomize()
-            gspan.graph_normalize()
-            glen = len(gspan.graph)
-            gspan.minDFS()
-            print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+    gspan = Gspan(graph=g)
+    for _ in range(10):
+        map = gspan.graph_randomize()
+    gspan.graph_normalize()
+    # print('    renormalized graph: {}'.format(gspan.graph))
+    glen = len(gspan.graph)
+    gspan.minDFS()
+    print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
 
-
-exit(0)
+    exit(0)
