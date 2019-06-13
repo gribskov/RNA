@@ -249,6 +249,8 @@ class Gspan:
     def flip(self, row=0):
         """-----------------------------------------------------------------------------------------
         convert all j edges to i edges from row to end of graph
+        TODO check if this is the same as Edge.reverse()
+
         :param row: integer, beginning row
         :return: integer, number flipped
         -----------------------------------------------------------------------------------------"""
@@ -554,8 +556,8 @@ class Gspan:
 
             # check for minimum dfs
             if not self.minimum(row) or row == len(self.graph):
-                print('current minDFS', self.mindfs)
-                print('         graph', self.graph, '\n')
+                # print('current minDFS', self.mindfs)
+                # print('         graph', self.graph, '\n')
                 searching = self.restore()
                 row = self.row
 
@@ -657,9 +659,9 @@ class Gspan:
             return True
 
         # gt, fall through
-        print('not minimal\ncurrent minDFS', self.mindfs[:row - 1],
-              self.edge_g2d(self.graph[row - 1]))
-        print('         graph', self.graph[:row], '\n')
+        # print('not minimal\ncurrent minDFS', self.mindfs[:row - 1],
+        #       self.edge_g2d(self.graph[row - 1]))
+        # print('         graph', self.graph[:row], '\n')
         return False
 
     def edge_dir(self, edge):
@@ -704,6 +706,7 @@ if __name__ == '__main__':
                 [[0, 1, i], [0, 2, j], [1, 2, j]],
                 [[0, 1, j], [0, 2, j], [1, 2, j]],
                 [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
+                [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
                 [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
                  [3, 4, 2]]]
 
@@ -735,8 +738,6 @@ if __name__ == '__main__':
         print('e2 smaller')
 
     # testing reading graphs from string
-    # gstr = '[[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]'
-    # g = Gspan(gstr)
     gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
     g = Gspan(gstr)
 
@@ -761,14 +762,16 @@ if __name__ == '__main__':
     # g = [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]]
 
     print('\nGspan canonical graph')
-    g = graphset[4]
-    print('\n\tinput graph', g)
-    gspan = Gspan(graph=g)
-    # map = gspan.graph_randomize()
-    gspan.graph_normalize()
-    print('\trenormalized graph: {}\n'.format(gspan.graph))
-    glen = len(gspan.graph)
+    for g in graphset:
+        # g = graphset[4]
+        print('\n\tinput graph', g)
+        gspan = Gspan(graph=g)
+        for _ in range(10):
+            map = gspan.graph_randomize()
+            gspan.graph_normalize()
+            glen = len(gspan.graph)
+            gspan.minDFS()
+            print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
 
-    gspan.minDFS()
 
 exit(0)
