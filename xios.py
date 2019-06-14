@@ -119,7 +119,7 @@ class Xios(list):
         n = 0
         map = []
         for edge in self:
-            for v in (0,1):
+            for v in (0, 1):
                 if edge[v] not in map:
                     map.append(edge[v])
                     n += 1
@@ -133,41 +133,50 @@ class Xios(list):
 
         return map
 
+    def hex_encode(self):
+        """-----------------------------------------------------------------------------------------
+        endcode the entire graph as a hexadecimal string.  Each row is encoded  in eight bits so it
+        Can only be used with graphs that have seven or fewer vertices.
 
-"""
-# Encode and look up a DFS code represented as an array or DFS rows, where each row is an
-# array of (v1,v2,e).  Each row is encoded  in eight bits, and the entire DFS
-# encoded as a hexadecimanl string.  Can only be used with graphs that have seven
-# or fewer vertices.
-#
-# Encoding
-#   bit 0 - 1   edge type, i=0, j=1, o=2, x=3
-#   bit 2 - 4   to vertex number (0-7)
-#   bit 5 - 8   from vertex number (0-7)
-#
-# USAGE
-#    $hex_string = $motif->encodeDfsRowArray( @@dfs );
-#------------------------------------------------------------------------------
-sub encodeDfsRowArray{
-    my ( $motif, @@dfs ) = @@_;
-    my $hexstring = "";
+        Encoding
+          bit 0 - 1   edge type, i=0, j=1, o=2, x=3
+          bit 2 - 4   to vertex number (0-7)
+          bit 5 - 8   from vertex number (0-7)
 
-    foreach my $dfsrow ( @@dfs ) {
-        my $byte;
-        my ( $v1, $v2, $e ) = @@{$dfsrow};
-        $byte += $v1 << 5;
-        $byte += $v2 << 2;
-        $byte += $e;
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        hexstring = ''
+        for edge in self:
+            byte = 0
+            byte += edge[0] << 5
+            byte += edge[1] << 2
+            byte += edge[2]
 
-        $hexstring .= sprintf "%02x", $byte;
-    }
+            hexstring += '{:02x}'.format(byte)
 
-    return $hexstring;
-}
+        return hexstring
 
-# End of encodeDfsRowArray
+    def hex_decode(self, hex):
+        """-----------------------------------------------------------------------------------------
+        Decode the hexadecimal encoded graph produced by hex_encode()
 
-"""
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        self.clear()
+        n = 0
+        for i in range(0, len(hex), 2):
+            n += 1
+            dec = int(hex[i:i + 2], 16)
+            v0 = (dec & 224) >> 5
+            v1 = (dec & 28) >> 2
+            e = (dec & 3)
+
+            # print('[{}, {}, {}]'.format(v0, v1, e))
+            edge = XiosEdge([v0,v1,e])
+            self.append(edge)
+
+        return n
+
 
 if __name__ == '__main__':
     # test that edges are behave properly
@@ -232,3 +241,8 @@ if __name__ == '__main__':
     print('x=', x2)
     map = x2.normalize()
     print('normalized=', x2, map)
+
+    print('\nhex encoding x1')
+    hex = x1.hex_encode()
+    print(x1, hex)
+    print('decoded', x1)
