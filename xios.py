@@ -135,8 +135,8 @@ class Xios(list):
 
     def hex_encode(self):
         """-----------------------------------------------------------------------------------------
-        endcode the entire graph as a hexadecimal string.  Each row is encoded  in eight bits so it
-        Can only be used with graphs that have seven or fewer vertices.
+        endcode the entire graph as a hexadecimal string.  Each row is encoded  in eight bits, using
+        3 bits for each vertex, so it can only be used with graphs that have seven or fewer vertices.
 
         Encoding
           bit 0 - 1   edge type, i=0, j=1, o=2, x=3
@@ -158,9 +158,11 @@ class Xios(list):
 
     def hex_decode(self, hex):
         """-----------------------------------------------------------------------------------------
-        Decode the hexadecimal encoded graph produced by hex_encode()
+        Decode the hexadecimal encoded graph produced by hex_encode(). The current graph is
+        overwritten by the new graph coming from the hex code so this is like reading in a hex
+        encoded graph.
 
-        :return:
+        :return: int, number of rows
         -----------------------------------------------------------------------------------------"""
         self.clear()
         n = 0
@@ -172,10 +174,62 @@ class Xios(list):
             e = (dec & 3)
 
             # print('[{}, {}, {}]'.format(v0, v1, e))
-            edge = XiosEdge([v0,v1,e])
+            edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
         return n
+
+    def hex2_encode(self):
+        """-----------------------------------------------------------------------------------------
+        endcode the entire graph as a hexadecimal string using two bytes.  Each vertex is encoded as
+        7 bits so it can only be used with graphs that have 127 or fewer vertices.
+
+        Encoding
+          bit 0       edge type part 1, i=0, j=1, o=2, x=3
+          bit 1 - 7   v0 (0-128)
+          bit 0       edge type part 2, i=0, j=1, o=2, x=3
+          bit 1 - 7   v1 (0-128)
+
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        hexstring = ''
+        for edge in self:
+            byte1 = 0
+            byte1 += (edge[2] & 2) << 7  # edge high order bit (o or s edge)
+            byte1 += (edge[0] & 127)
+
+            byte2 = 0
+            byte2 += (edge[2] & 1) << 7  # low order bit (j or s edge)
+            byte2 += (edge[1] & 127)
+
+            hexstring += '{:02x}{:02x}'.format(byte1, byte2)
+
+        return hexstring
+
+    def hex2_decode(self, hex):
+        """-----------------------------------------------------------------------------------------
+        Decode the hexadecimal encoded graph produced by hex2_encode(). The current graph is
+        overwritten by the new graph coming from the hex code so this is like reading in a hex
+        encoded graph.
+
+        :return: int, number of rows
+        -----------------------------------------------------------------------------------------"""
+        self.clear()
+        n = 0
+        for i in range(0, len(hex), 4):
+            n += 1
+            dec1 = int(hex[i:i + 2], 16)
+            dec2 = int(hex[i+2:i + 4], 16)
+            v0 = (dec1 & 127)
+            e = (dec1 & 128) >> 6
+            v1 = (dec2 & 127)
+            e += (dec2 & 128) >> 7
+
+            print('[{}, {}, {}]'.format(v0, v1, e))
+            edge = XiosEdge([v0, v1, e])
+            self.append(edge)
+
 
 
 if __name__ == '__main__':
@@ -243,6 +297,12 @@ if __name__ == '__main__':
     print('normalized=', x2, map)
 
     print('\nhex encoding x1')
-    hex = x1.hex_encode()
+    hex = x1.hex2_encode()
     print(x1, hex)
+    x1.hex2_decode(hex)
     print('decoded', x1)
+    print('\nhex encoding x2')
+    hex = x2.hex2_encode()
+    print(x2, hex)
+    x2.hex2_decode(hex)
+    print('decoded', x2)
