@@ -52,6 +52,18 @@ class XiosEdge(list):
 
         return True
 
+    def int(self):
+        """-----------------------------------------------------------------------------------------
+        convert the edge type to integer encoding
+
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        if not isinstance(self[2], int):
+            self[2] = XiosEdge.a2i[self[2]]
+
+        return
+
+
 class Xios(list):
     """=============================================================================================
     A XIOS graph is a description of an RNA topology.
@@ -67,60 +79,59 @@ class Xios(list):
 
     def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
-        load a graph in the form of a list, into a graph object composed of Edge()
+        load a graph in the form of a list, into a graph object composed of Edge(). Examples
+        [ [0,1,0], [1,2,0], [2,0,1] ]
+        [ ['a', 1, 'i'], [1, 2, 'j'], [2, 0, 'j'] ]
 
         :param graph: list of lists:
         :return: int, number of vertices
         -----------------------------------------------------------------------------------------"""
-        self.graph = list()
-        v = 0
-        for edge_in in graph:
-            edge = Edge(edge_in)
-            self.graph.append(edge)
-            v += 1
-
-        self.mindfs = [Edge() for _ in self.graph]
-        self.vnum = v
-
-        return v
+        for edge in graph:
+            edge = XiosEdge(edge)
+            self.append(edge)
+        return len(self)
 
     def from_string(self, graphstr):
         """-----------------------------------------------------------------------------------------
-        Reads a graph from a string and converts to non_normalized integers.  For now graphs are
-        a list of edges, each edge is a triple of vertex0 vertex1 edge_type.  All are abritrary
-        strings without quotation marks. square brackets and commas are ignored so a python list of
+        Reads a graph from a string and converts to non_normalized integers.  all non alphanumerica
+        characters are converted to spaces and the strin is split.  Values are then taken as triples
+        to make the XIOS graph. square brackets and commas are ignored so a python list of
         lists is OK
 
         :param graphstr:
         :return:
         -----------------------------------------------------------------------------------------"""
-        translation = str.maketrans('[],', '   ')
-        graphstr = graphstr.translate(translation)
-        elist = graphstr.split()
-        G2g = {}  # hash showing translation of original labels to ints
-        g2G = []  # back translate from g index to original labels
-        # g = []  # transformed graph
-        v = 0
-        for i in range(0, len(elist), 3):
-            if elist[i] not in G2g:
-                G2g[elist[i]] = v
-                g2G.append(elist[i])
-                v += 1
+        simple = ''.join([c if c.isalnum() else " " for c in graphstr])
+        simple = simple.strip()
+        graph = simple.split()
+        for i in range(0, len(graph), 3):
+            edge = XiosEdge([graph[1], graph[i + 2], graph[i + 2]])
+            self.append(edge)
 
-            if elist[i + 1] not in G2g:
-                G2g[elist[i + 1]] = v
-                g2G.append(elist[i + 1])
-                v += 1
+        return len(self)
 
-            v0 = G2g[elist[i]]
-            v1 = G2g[elist[i + 1]]
-            etype = int(elist[i + 2])
-            self.graph.append([v0, v1, etype])
+    def normalize(self):
+        """-----------------------------------------------------------------------------------------
+        renumber the vertices to be sequential integers.  Convert edge types to integer encoding
 
-        self.g2G = g2G
-        self.vnum = v
+        :return: list, map[i] is original vertex name
+        -----------------------------------------------------------------------------------------"""
+        n = 0
+        map = []
+        for edge in self:
+            for v in (0,1):
+                if edge[v] not in map:
+                    map.append(edge[v])
+                    n += 1
 
-        return v
+                edge[v] = map.index(edge[v])
+
+            if edge[2].isdigit():
+                edge[2] = int(edge[2])
+            else:
+                edge.int()
+
+        return map
 
 
 """
@@ -192,4 +203,32 @@ if __name__ == '__main__':
     x.append(XiosEdge([0, 1, 0]))
     x.append(XiosEdge([1, 2, 0]))
     x.append(XiosEdge([2, 0, 1]))
+    print('x=', x)
 
+    graph = [[0, 1, 0], [1, 2, 0], [2, 0, 1]]
+    print('\nx1 read from list', graph)
+    x1 = Xios()
+    x1.from_list(graph)
+    print('x1=', x1)
+
+    graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
+    print('\nx2 read from list', graph)
+    x2 = Xios()
+    x2.from_list(graph)
+    print('x2=', x2)
+
+    graph = '[[0, 1, 0], [1, 2, 0], [2, 0, 1]]'
+    print('\nx3 read from string', graph)
+    x3 = Xios()
+    x3.from_string(graph)
+    print('x3=', x3)
+
+    print('\nrnormalize x3')
+    print('x=', x3)
+    map = x3.normalize()
+    print('normalized=', x3, map)
+
+    print('\nrnormalize x2')
+    print('x=', x2)
+    map = x2.normalize()
+    print('normalized=', x2, map)
