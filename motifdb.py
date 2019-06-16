@@ -46,7 +46,7 @@ class MotifDB(list):
 
 class SerialRNA(list):
     """=============================================================================================
-    for working with RNAS encoded as 001212 meaning ( ) ( [ ) ]
+    for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
     ============================================================================================="""
 
     def connected(self):
@@ -59,19 +59,42 @@ class SerialRNA(list):
         component = []
         open = []
         begin = 0
-        for pos in range(len(rna)):
-            if rna[pos] in open:
-                open.remove(rna[pos])
+        for pos in range(len(self)):
+            if self[pos] in open:
+                open.remove(self[pos])
                 if len(open) == 0:
-                    component.append(SerialRNA(rna[begin:pos + 1]))
+                    component.append(SerialRNA(self[begin:pos + 1]))
                     begin = pos + 1
             else:
-                open.append(rna[pos])
+                open.append(self[pos])
 
         if len(component) == 1:
             return [self]
         else:
             return component
+
+    def addstem(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem added at all possible position
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        base = []
+        children = []
+        for pos in self:
+            base.append(pos + 1)
+
+        for end in range(0, len(base)):
+            extended_rna = [0]
+            for pos in range(end):
+                extended_rna.append(base[pos])
+            extended_rna.append(0)
+            for pos in range(end, len(base)):
+                extended_rna.append(base[pos])
+            children.append(SerialRNA(extended_rna))
+
+        return children
 
 
 # --------------------------------------------------------------------------------------------------
@@ -84,6 +107,7 @@ if __name__ == '__main__':
             [0, 1, 2, 1, 2, 0]
             ]
 
+    print('\nConnected components')
     for testcase in rnas:
         rna = SerialRNA(testcase)
         print('RNA {}'.format(rna))
@@ -91,5 +115,12 @@ if __name__ == '__main__':
         if len(connected) > 1:
             for i in range(len(connected)):
                 print('\tcomponent {}: {}'.format(i, connected[i]))
+
+    print('\nExtension')
+    for testcase in rnas:
+        rna = SerialRNA(testcase)
+        print('RNA {}'.format(rna))
+        for new in rna.addstem():
+            print('\t{} {}'.format(new, len(new.connected())))
 
 exit(0)
