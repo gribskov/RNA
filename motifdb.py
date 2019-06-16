@@ -38,11 +38,11 @@ class MotifDB(list):
 
     ============================================================================================="""
 
-
-# __init__ inherited from list
+    # __init__ inherited from list
     def dummy(self):
         pass
         return
+
 
 class SerialRNA(list):
     """=============================================================================================
@@ -56,17 +56,24 @@ class SerialRNA(list):
 
         :return: list of SerialRNA
         -----------------------------------------------------------------------------------------"""
+        component = []
         open = []
-        print('\nrna', rna)
         begin = 0
         for pos in range(len(rna)):
             if rna[pos] in open:
                 open.remove(rna[pos])
                 if len(open) == 0:
-                    print('connected', rna[begin:pos + 1])
+                    component.append(SerialRNA(rna[begin:pos + 1]))
                     begin = pos + 1
             else:
                 open.append(rna[pos])
+
+        if len(component) == 1:
+            return [self]
+        else:
+            return component
+
+
 # --------------------------------------------------------------------------------------------------
 # testing
 # --------------------------------------------------------------------------------------------------
@@ -77,9 +84,12 @@ if __name__ == '__main__':
             [0, 1, 2, 1, 2, 0]
             ]
 
-
     for testcase in rnas:
         rna = SerialRNA(testcase)
-        print(rna)
+        print('RNA {}'.format(rna))
+        connected = rna.connected()
+        if len(connected) > 1:
+            for i in range(len(connected)):
+                print('\tcomponent {}: {}'.format(i, connected[i]))
 
 exit(0)
