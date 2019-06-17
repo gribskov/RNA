@@ -94,12 +94,12 @@ class Xios(list):
     def from_string(self, graphstr):
         """-----------------------------------------------------------------------------------------
         Reads a graph from a string and converts to non_normalized integers.  all non alphanumerica
-        characters are converted to spaces and the strin is split.  Values are then taken as triples
-        to make the XIOS graph. square brackets and commas are ignored so a python list of
-        lists is OK
+        characters are converted to spaces and the string is split.  Values are then taken as
+        triples to make the XIOS graph. square brackets and commas are ignored so a python list of
+        lists is OK.
 
         :param graphstr:
-        :return:
+        :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
         simple = ''.join([c if c.isalnum() else " " for c in graphstr])
         simple = simple.strip()
@@ -107,6 +107,42 @@ class Xios(list):
         for i in range(0, len(graph), 3):
             edge = XiosEdge([graph[1], graph[i + 2], graph[i + 2]])
             self.append(edge)
+
+            return len(self)
+
+    def from_graph(self, graph):
+        """-----------------------------------------------------------------------------------------
+        Converts a Graph object to Xios. This requires determining the nesting relationships between
+        each pair of stems.
+
+        TODO should have a switch to add serial or exclusive edges if desired
+
+        :param graph: Graph object from RNA/graph.py
+        :return: int, number of edges
+        -----------------------------------------------------------------------------------------"""
+        self.clear()
+        for stem1 in range(len(graph)):
+            for stem2 in range(stem1 + 1, len(graph)):
+                if graph[stem1][0] < graph[stem2][0]:
+                    if graph[stem1][1] < graph[stem2][0]:
+                        # serial edge
+                        pass
+                    elif graph[stem1][1] > graph[stem2][1]:
+                        # stem 2 is nested in stem 1
+                        self.append(XiosEdge([stem1, stem2, 0]))
+                    else:
+                        # pseudoknot
+                        self.append(XiosEdge([stem1, stem2, 2]))
+                else:
+                    if graph[stem2][1] < graph[stem1][0]:
+                        # serial edge
+                        pass
+                    elif graph[stem2][1] > graph[stem1][1]:
+                        # stem 1 is nested in stem 2
+                        self.append(XiosEdge([stem2, stem1, 0]))
+                    else:
+                        # pseudoknot
+                        self.append(XiosEdge([stem1, stem2, 2]))
 
         return len(self)
 
@@ -220,7 +256,7 @@ class Xios(list):
         for i in range(0, len(hex), 4):
             n += 1
             dec1 = int(hex[i:i + 2], 16)
-            dec2 = int(hex[i+2:i + 4], 16)
+            dec2 = int(hex[i + 2:i + 4], 16)
             v0 = (dec1 & 127)
             e = (dec1 & 128) >> 6
             v1 = (dec2 & 127)
@@ -229,7 +265,6 @@ class Xios(list):
             print('[{}, {}, {}]'.format(v0, v1, e))
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
-
 
 
 if __name__ == '__main__':
@@ -268,11 +303,16 @@ if __name__ == '__main__':
     x.append(XiosEdge([2, 0, 1]))
     print('x=', x)
 
-    graph = [[0, 1, 0], [1, 2, 0], [2, 0, 1]]
-    print('\nx1 read from list', graph)
-    x1 = Xios()
-    x1.from_list(graph)
-    print('x1=', x1)
+    print('\nread from graph format')
+    rnas = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]], [[0, 5], [1, 2], [3, 4]],
+            [[1, 7], [1, 3], [2, 5], [4, 7]]]
+    for graph in rnas:
+        print('\nx1 read from graph', graph)
+        xg = Xios()
+        xg.from_graph(graph)
+        print('xg=', xg)
+
+    print('\nRead XIOS list and string formats')
 
     graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
     print('\nx2 read from list', graph)
