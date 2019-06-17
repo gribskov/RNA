@@ -179,15 +179,16 @@ class Gspan:
         # [d2g, edge, row_num]
 
         if graph:
-            if type(graph) is list:
+            if isinstance(graph, list):
                 self.from_list(graph)
-                self.graph_normalize()
 
-            elif type(graph) is str:
+            elif isinstance(graph, str):
                 self.from_string(graph)
 
             else:
                 sys.stderr.write('Gspan::__init__ - unknown graph type ({})\n'.format(graph))
+
+            self.graph_normalize()
 
     def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -561,7 +562,7 @@ class Gspan:
                 searching = self.restore()
                 row = self.row
 
-        return mindfs
+        return self.mindfs
 
     def minimum(self, row):
         """-----------------------------------------------------------------------------------------
@@ -734,17 +735,17 @@ if __name__ == '__main__':
          [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
          [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
         [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
-         [1, 9, 0,
+         [1, 9, 0],
           [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
           [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
           [4, 5, 0], [4, 6, 0],
           [7, 8, 0], [7, 9, 2]]
          ]
 
-        # graph normalization create an unnormalized graph by doubling the vertex numbers
+    # graph normalization create an unnormalized graph by doubling the vertex numbers
 
-        print('\nEdge manipulation\n')
-        e = Edge()
+    print('\nEdge manipulation\n')
+    e = Edge()
     e.set(2, 3, 0)
     e.g2d = [0, 1, 2]
     print('    edge', e)
