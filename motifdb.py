@@ -146,6 +146,14 @@ class SerialRNA(list):
 
         return changed
 
+    def tostring(self):
+        """-----------------------------------------------------------------------------------------
+        return a string representing the stucture.  the string is the concatenation of the digits.
+
+        :return: string
+        -----------------------------------------------------------------------------------------"""
+        return ''.join(str(x) for x in self)
+
 
 # --------------------------------------------------------------------------------------------------
 # testing
@@ -159,7 +167,7 @@ if __name__ == '__main__':
             ]
 
     print('canonical form')
-    noncanonical = [[3,3,0,0,1,1], [1,1,2,2,3,3], [1,1,2,2,4,4], [3,2,0,2,0,3]]
+    noncanonical = [[3, 3, 0, 0, 1, 1], [1, 1, 2, 2, 3, 3], [1, 1, 2, 2, 4, 4], [3, 2, 0, 2, 0, 3]]
     for testcase in noncanonical:
         rna = SerialRNA(testcase)
         print('RNA {}'.format(rna))
@@ -182,4 +190,38 @@ if __name__ == '__main__':
         for new in rna.addstemzero():
             print('\t{} {}'.format(new, len(new.connected())))
 
-exit(0)
+    from xios import Xios
+    from graph import RNAGraph
+    from gspan import Gspan
+
+    rna = SerialRNA([0, 0])
+    graph = RNAGraph(rna)
+    print(graph.toList())
+    gg = graph.toList()
+    xios = Xios()
+    xios.from_graph(graph.pairs)
+    gspan = Gspan(xios)
+
+    # unique = {'string': rna.tostring(), 'structure': rna, 'mindfs': gspan.minDFS()}
+    current = [rna]
+    candidate = []
+    while True:
+        for thisrna in current:
+            candidate += thisrna.addstemzero()
+        break
+
+    print('\ncandidate', candidate)
+    for thisrna in candidate:
+        print('\n{}'.format(thisrna))
+        if len(thisrna.connected()) == 1:
+            print('\tconnected')
+            graph = RNAGraph(thisrna)
+            xios = Xios()
+            xios.from_graph(graph.pairs)
+            gspan = Gspan(xios)
+            dfs = gspan.minDFS()
+            print('\tminDFS {}'.format(gspan.minDFS()))
+        else:
+            print('\tnot connected')
+
+    exit(0)
