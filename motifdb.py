@@ -73,7 +73,7 @@ class SerialRNA(list):
         else:
             return component
 
-    def addstem(self):
+    def addstemleft(self):
         """-----------------------------------------------------------------------------------------
         return the set of structures with one additional stem added at all possible position
 
@@ -96,6 +96,56 @@ class SerialRNA(list):
 
         return children
 
+    def addstemzero(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem duvh that the beginning of the stem
+        is at position zero
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        base = []
+        children = []
+        newlen = len(self) + 2
+        for pos in self:
+            base.append(pos + 1)
+
+        for end in range(1, newlen):
+            extended_rna = [None for _ in range(newlen)]
+            extended_rna[0] = 0
+            extended_rna[end] = 0
+            basepos = 0
+            for pos in range(1, newlen):
+                if extended_rna[pos] is None:
+                    extended_rna[pos] = base[basepos]
+                    basepos += 1
+
+            children.append(SerialRNA(extended_rna))
+
+        return children
+
+    def canonical(self):
+        """-----------------------------------------------------------------------------------------
+        convert graph to canonical form.  In canonical form the stems occur in increasing numerical
+        order beginning at zero
+
+        :return: True if graph is changed, otherwise False
+        -----------------------------------------------------------------------------------------"""
+        stem = 0
+        changed = False
+        map = {}
+        for pos in self:
+            if pos not in map:
+                map[pos] = stem
+                if pos != stem:
+                    changed = True
+                stem += 1
+        if changed:
+            for pos in range(len(self)):
+                self[pos] = map[self[pos]]
+
+        return changed
+
 
 # --------------------------------------------------------------------------------------------------
 # testing
@@ -104,8 +154,17 @@ if __name__ == '__main__':
     rnas = [[0, 0, 1, 1, 2, 2],
             [0, 1, 0, 1, 2, 2],
             [0, 1, 1, 2, 2, 0],
-            [0, 1, 2, 1, 2, 0]
+            [0, 1, 2, 1, 2, 0],
+            [0, 0], []
             ]
+
+    print('canonical form')
+    noncanonical = [[3,3,0,0,1,1], [1,1,2,2,3,3], [1,1,2,2,4,4], [3,2,0,2,0,3]]
+    for testcase in noncanonical:
+        rna = SerialRNA(testcase)
+        print('RNA {}'.format(rna))
+        rna.canonical()
+        print('\tcanonical {}'.format(rna))
 
     print('\nConnected components')
     for testcase in rnas:
@@ -120,7 +179,7 @@ if __name__ == '__main__':
     for testcase in rnas:
         rna = SerialRNA(testcase)
         print('RNA {}'.format(rna))
-        for new in rna.addstem():
+        for new in rna.addstemzero():
             print('\t{} {}'.format(new, len(new.connected())))
 
 exit(0)
