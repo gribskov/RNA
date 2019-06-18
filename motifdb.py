@@ -205,23 +205,51 @@ if __name__ == '__main__':
     # unique = {'string': rna.tostring(), 'structure': rna, 'mindfs': gspan.minDFS()}
     current = [rna]
     candidate = []
-    while True:
-        for thisrna in current:
-            candidate += thisrna.addstemzero()
-        break
+    motif = {}
+    maxgraph = 14
 
-    print('\ncandidate', candidate)
-    for thisrna in candidate:
-        print('\n{}'.format(thisrna))
-        if len(thisrna.connected()) == 1:
-            print('\tconnected')
-            graph = RNAGraph(thisrna)
-            xios = Xios()
-            xios.from_graph(graph.pairs)
-            gspan = Gspan(xios)
-            dfs = gspan.minDFS()
-            print('\tminDFS {}'.format(gspan.minDFS()))
-        else:
-            print('\tnot connected')
+    while True:
+        thisrna = current[0]
+        if len(thisrna) >= maxgraph:
+            break
+
+        candidate = thisrna.addstemzero()
+        current.remove(thisrna)
+
+        # print('\nrna {}     candidate {}'.format(thisrna, candidate))
+
+        for thisrna in candidate:
+            print('{}'.format(thisrna))
+            graphstr = thisrna.tostring()
+            if len(thisrna.connected()) == 1:
+                # print('\tconnected')
+                graph = RNAGraph(thisrna)
+                xios = Xios()
+                xios.from_graph(graph.pairs)
+                gspan = Gspan(xios)
+                dfs = gspan.minDFS()
+                dfsxios = Xios()
+                dfsxios.from_list(dfs)
+                dfshex = dfsxios.hex2_encode()
+                if dfshex not in motif:
+                    motif[dfshex] = {'str': graphstr, 'min': dfs}
+                    # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
+
+                else:
+                    # this is a duplicate, remove from candidate, do not save on current
+                    # print('\tduplicate')
+                    candidate.remove(thisrna)
+                    continue
+            else:
+                # print('\tnot connected')
+                pass
+
+            # save unconnected and unique connected
+            current.append(thisrna)
+
+    print( 'motifs {}'.format(len(motif)))
+    for m in motif:
+        print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
+    print('motifs {}'.format(len(motif)))
 
     exit(0)
