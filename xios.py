@@ -266,6 +266,53 @@ class Xios(list):
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
+            return True
+
+    def ascii_encode(self):
+        """-----------------------------------------------------------------------------------------
+        encode a dfs row as two ascii characters, similar to sequence quality in fastq encoding.
+        suitable characters are in range 33 (!=21) to 126 (~=7E).  Reserving 4 bits for edge types
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        string = ''
+        for edge in self:
+            byte1 = 0
+            byte1 += (edge[2] & 2) << 5  # edge high order bit (o or s edge)
+            byte1 += ((edge[0] + 33) & 63)
+
+            byte2 = 0
+            byte2 += (edge[2] & 1) << 6  # low order bit (j or s edge)
+            byte2 += (edge[1] + 33 & 63)
+
+            string += '{}{}'.format(chr(byte1), chr(byte2))
+
+        return string
+
+    def ascii_decode(self, string):
+        """-----------------------------------------------------------------------------------------
+        Decode the ascii encoded graph produced by ascii_encode(). The current graph is
+        overwritten by the new graph coming from the hex code so this is like reading in a hex
+        encoded graph.
+
+        :return: int, number of rows
+        -----------------------------------------------------------------------------------------"""
+        self.clear()
+        n = 0
+        for i in range(0, len(string), 2):
+            n += 1
+            dec1 = ord(string[i])
+            dec2 = ord(string[i + 1])
+            v0 = (dec1 & 63) - 33
+            e = (dec1 & 64) >> 5
+            v1 = (dec2 & 63) - 33
+            e += (dec2 & 64) >> 6
+
+            print('[{}, {}, {}]'.format(v0, v1, e))
+            edge = XiosEdge([v0, v1, e])
+            self.append(edge)
+
+            return True
+
 
 if __name__ == '__main__':
     # test that edges are behave properly
@@ -345,4 +392,18 @@ if __name__ == '__main__':
     hex = x3.hex2_encode()
     print(x3, hex)
     x3.hex2_decode(hex)
+    print('decoded', x3)
+
+
+    print('\nascii encoding x2')
+    x4 = Xios()
+    x4.from_graph(rnas[4])
+    ascii = x4.ascii_encode()
+    print(x4, ascii)
+    x2.ascii_decode(ascii)
+    print('decoded', x4)
+    print('\nascii encoding x3')
+    ascii = x3.ascii_encode()
+    print(x3, ascii)
+    x3.ascii_decode(ascii)
     print('decoded', x3)
