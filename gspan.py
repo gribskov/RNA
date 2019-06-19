@@ -125,6 +125,8 @@ class Edge(list):
 
         return True
 
+    def copy(self):
+        return Edge(self[:])
 
 # end of class Edge
 
@@ -383,7 +385,10 @@ class Gspan:
                 edge[2] ^= 1
 
         # this makes the popped edge the next to be added
-        epos = self.graph.index(edge)
+        try:
+            epos = self.graph.index(edge)
+        except ValueError:
+            epos = self.graph.index([edge[1],edge[0],edge[2]])
         self.graph[epos] = self.graph[row]
         self.graph[row] = edge
         # self.flip(row)
@@ -526,6 +531,11 @@ class Gspan:
             if row < len(self.graph):
                 # skip adding forward edges if done
 
+                if row == 0 and self.graph[0][2] == 2:
+                    # special case when all edges are undirected
+                    edge = self.graph[0].copy()
+                    edge.reverse()
+                    self.save(edge, row)
                 # save equivalent forward edges.  We know the number of forward edges from the sort,
                 # the edges are equivalent if they have the same v0 and edge type (v2)
                 # when there are zero forward edges, which should only occur for the first edge,
@@ -540,6 +550,11 @@ class Gspan:
 
                     # if you pass these tests, fall though to saving this edge on stack
                     self.save(edge, row)
+                    if row == 0 and edge[2] == 2:
+                        # special case when all edges are undirected
+                        erev = edge.copy()
+                        erev.reverse()
+                        self.save(erev, row)
 
                 if row == 0:
                     # add the first edge
@@ -710,16 +725,16 @@ if __name__ == '__main__':
         # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0], [1,6,2], [4,6,2]],
         # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0, 6, 0],
         # [1, 6, 2], [4, 6, 2], [0,7,0], [1,7,2], [2,7,2], [4,7,2], [5,7,2]],
-        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
-         [0, 6, 0], [5, 6, 2], [0, 7, 2], [7, 8, 0], [7, 9, 0], [8, 9, 0]],
-        [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 8, 0],
-         [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
-         [3, 4, 0], [3, 5, 0], [3, 6, 0],
-         [4, 5, 0], [4, 6, 0]],
-        [[2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
-         [3, 4, 0], [3, 5, 0], [3, 6, 0],
-         [4, 5, 0], [4, 6, 0]],
-        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 0]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
+        #  [0, 6, 0], [5, 6, 2], [0, 7, 2], [7, 8, 0], [7, 9, 0], [8, 9, 0]],
+        # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 8, 0],
+        #  [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+        #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
+        #  [4, 5, 0], [4, 6, 0]],
+        # [[2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+        #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
+        #  [4, 5, 0], [4, 6, 0]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 0]],
         # [[2, 3, 0], [2, 4, 0], [2, 6, 0],
         #  [3, 4, 0], [3, 6, 0],
         #  [4, 6, 0]]
@@ -731,15 +746,16 @@ if __name__ == '__main__':
         # [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
         # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
         #  [3, 4, 2]],
-        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 6, 0], [0, 7, 0],
-         [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
-         [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
-        [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
-         [1, 9, 0],
-          [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
-          [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
-          [4, 5, 0], [4, 6, 0],
-          [7, 8, 0], [7, 9, 2]]
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 6, 0], [0, 7, 0],
+        #  [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
+        #  [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
+        # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
+        #  [1, 9, 0],
+        #   [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
+        #   [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
+        #   [4, 5, 0], [4, 6, 0],
+        #   [7, 8, 0], [7, 9, 2]]
+        [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
          ]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
@@ -792,15 +808,15 @@ if __name__ == '__main__':
 
     print('\nGspan canonical graph')
     for g in graphset:
-    # g = graphset[4]
+        # g = graphset[4]
         print('\n\tinput graph', g)
-    gspan = Gspan(graph=g)
-    for _ in range(10):
-        map = gspan.graph_randomize()
-    gspan.graph_normalize()
-    # print('    renormalized graph: {}'.format(gspan.graph))
-    glen = len(gspan.graph)
-    gspan.minDFS()
-    print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+        gspan = Gspan(graph=g)
+        for _ in range(30):
+            map = gspan.graph_randomize()
+            gspan.graph_normalize()
+            # print('    renormalized graph: {}'.format(gspan.graph))
+            glen = len(gspan.graph)
+            gspan.minDFS()
+            print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
 
     exit(0)
