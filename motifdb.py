@@ -81,23 +81,19 @@ class SerialRNA(list):
         :return: list of SerialRNA
         -----------------------------------------------------------------------------------------"""
         # make a new structure with the stem number incremented by 1
-        base = []
         newlen = len(self) + 2
-
         children = []
-        for pos in self:
-            base.append(pos + 1)
 
         for begin in range(0, newlen - 1):
             for end in range(begin + 1, newlen):
-                extended_rna = [None for _ in range(len(self) + 2)]
+                extended_rna = [None for _ in range(newlen)]
                 extended_rna[begin] = 0
                 extended_rna[end] = 0
                 newpos = 0
-                for pos in base:
+                for pos in self:
                     while extended_rna[newpos] is not None:
                         newpos += 1
-                    extended_rna[newpos] = pos
+                    extended_rna[newpos] = pos + 1
 
                 children.append(SerialRNA(extended_rna))
 
@@ -166,22 +162,19 @@ class SerialRNA(list):
         convert graph to canonical form.  In canonical form the stems occur in increasing numerical
         order beginning at zero
 
-        :return: True if graph is changed, otherwise False
+        :return: True
         -----------------------------------------------------------------------------------------"""
         stem = 0
-        changed = False
         map = {}
         for pos in self:
             if pos not in map:
                 map[pos] = stem
-                if pos != stem:
-                    changed = True
                 stem += 1
-        if changed:
-            for pos in range(len(self)):
-                self[pos] = map[self[pos]]
 
-        return changed
+        for pos in range(len(self)):
+            self[pos] = map[self[pos]]
+
+        return True
 
     def reverse(self):
         """-----------------------------------------------------------------------------------------
@@ -274,61 +267,67 @@ if __name__ == '__main__':
     current = [rna]
     candidate = []
     motif = {}
-    allstr = []
+    allstr = {}
     maxgraph = 14
 
     start = time.time()
     while True:
         thisrna = current[0]
         if len(thisrna) >= maxgraph:
+            # print(current)
             break
 
-        for _ in range(2):
-            # add stems in forward and reverse orientation
-            thisrna.reverse()
+        candidate = thisrna.addstemall()
+        try:
+            current.remove(thisrna)
+        except ValueError:
+            #typically the reversed structure is absent
+            pass
 
-            candidate = thisrna.addstemzero()
-            try:
-                current.remove(thisrna)
-            except ValueError:
-                #typically the reversed structure is absent
-                pass
+        # print('rna {}     candidate {}'.format(thisrna, candidate))
+        for rna in candidate:
 
-            # print('rna {}     candidate {}'.format(thisrna, candidate))
+            # print('{}'.format(thisrna))
+            # rna.canonical()
+            # graphstr = rna.tostring()
+            # if graphstr in allstr:
+            #     # print('skipping {}'.format(graphstr))
+            #     continue
+            #
+            # allstr.append(graphstr)
+            fstr, bstr = rna.canonical_fbstr()
+            if fstr in allstr or bstr in allstr:
+                continue
 
-            for rna in candidate:
+            allstr[fstr] = 1
+            allstr[bstr] = 1
 
-                # print('{}'.format(thisrna))
-                rna.canonical()
-                graphstr = rna.tostring()
-                if graphstr in allstr:
-                    continue
-                allstr.append(graphstr)
-                if len(rna.connected()) == 1:
-                    graph = RNAGraph(rna)
-                    xios = Xios()
-                    xios.from_graph(graph.pairs)
-                    gspan = Gspan(xios)
-                    dfs = gspan.minDFS()
-                    dfsxios = Xios()
-                    dfsxios.from_list(dfs)
-                    dfshex = dfsxios.ascii_encode()
-                    if dfshex not in motif:
-                        motif[dfshex] = {'str': graphstr, 'min': dfs}
-                        # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
-
-                    else:
-                        # this is a duplicate, remove from candidate, do not save on current
-                        # print('\tduplicate {}'.format(rna))
-                        # candidate.remove(rna)
-                        continue
+            graphstr = fstr
+            if len(rna.connected()) == 1:
+                graph = RNAGraph(rna)
+                xios = Xios()
+                xios.from_graph(graph.pairs)
+                gspan = Gspan(xios)
+                dfs = gspan.minDFS()
+                dfsxios = Xios()
+                dfsxios.from_list(dfs)
+                dfshex = dfsxios.ascii_encode()
+                if dfshex not in motif:
+                    motif[dfshex] = {'str': graphstr, 'min': dfs}
+                    # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
 
                 else:
-                    # print('\tnot connected')
-                    pass
+                    # this is a duplicate, remove from candidate, do not save on current
+                    # print('\tduplicate {}'.format(rna))
+                    # candidate.remove(rna)
+                    continue
 
-                # save unconnected and unique connected
-                current.append(rna)
+            else:
+                # print('\tnot connected')
+                pass
+
+            # save unconnected and unique connected
+            current.append(rna)
 
     stop = time.time()
     print('motifs {}'.format(len(motif)))
