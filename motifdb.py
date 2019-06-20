@@ -73,6 +73,36 @@ class SerialRNA(list):
         else:
             return component
 
+    def addstemall(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem explicitly added at all possible
+        positions. This is just to check the other enumeration approaches.
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        base = []
+        newlen = len(self) + 2
+
+        children = []
+        for pos in self:
+            base.append(pos + 1)
+
+        for begin in range(0, newlen - 1):
+            for end in range(begin + 1, newlen):
+                extended_rna = [None for _ in range(len(self) + 2)]
+                extended_rna[begin] = 0
+                extended_rna[end] = 0
+                newpos = 0
+                for pos in base:
+                    while extended_rna[newpos] is not None:
+                        newpos += 1
+                    extended_rna[newpos] = pos
+
+                children.append(SerialRNA(extended_rna))
+
+        return children
+
     def addstemleft(self):
         """-----------------------------------------------------------------------------------------
         return the set of structures with one additional stem added at all possible position
@@ -81,24 +111,31 @@ class SerialRNA(list):
         -----------------------------------------------------------------------------------------"""
         # make a new structure with the stem number incremented by 1
         base = []
+        newlen = len(self) + 2
+        half = newlen // 2
+
         children = []
         for pos in self:
             base.append(pos + 1)
 
-        for end in range(0, len(base)):
-            extended_rna = [0]
-            for pos in range(end):
-                extended_rna.append(base[pos])
-            extended_rna.append(0)
-            for pos in range(end, len(base)):
-                extended_rna.append(base[pos])
-            children.append(SerialRNA(extended_rna))
+        for begin in range(0, half + 1):
+            for end in range(begin + 1, newlen):
+                extended_rna = [None for _ in range(len(self) + 2)]
+                extended_rna[begin] = 0
+                extended_rna[end] = 0
+                newpos = 0
+                for pos in base:
+                    while extended_rna[newpos] is not None:
+                        newpos += 1
+                    extended_rna[newpos] = pos
+
+                children.append(SerialRNA(extended_rna))
 
         return children
 
     def addstemzero(self):
         """-----------------------------------------------------------------------------------------
-        return the set of structures with one additional stem duvh that the beginning of the stem
+        return the set of structures with one additional stem such that the beginning of the stem
         is at position zero
 
         :return: list of SerialRNA
@@ -146,6 +183,36 @@ class SerialRNA(list):
 
         return changed
 
+    def reverse(self):
+        """-----------------------------------------------------------------------------------------
+        reverse the rna structure, numbering is not converted to canonical
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        begin = 0
+        end = len(self) - 1
+        while begin < end:
+            self[begin], self[end] = self[end], self[begin]
+            begin += 1
+            end -= 1
+
+        return True
+
+    def canonical_fbstr(self):
+        """-----------------------------------------------------------------------------------------
+        return the graph and its reverse as strings in canonical form
+
+        :return: str, str, forward and backward canonical strings
+        -----------------------------------------------------------------------------------------"""
+        self.canonical()
+        forward = self.tostring()
+
+        self.reverse()
+
+        self.canonical()
+        backward = self.tostring()
+
+        return forward, backward
+
     def tostring(self):
         """-----------------------------------------------------------------------------------------
         return a string representing the stucture.  the string is the concatenation of the digits.
@@ -190,6 +257,7 @@ if __name__ == '__main__':
         for new in rna.addstemzero():
             print('\t{} {}'.format(new, len(new.connected())))
 
+    import time
     from xios import Xios
     from graph import RNAGraph
     from gspan import Gspan
@@ -206,50 +274,67 @@ if __name__ == '__main__':
     current = [rna]
     candidate = []
     motif = {}
+    allstr = []
     maxgraph = 14
 
+    start = time.time()
     while True:
         thisrna = current[0]
         if len(thisrna) >= maxgraph:
             break
 
-        candidate = thisrna.addstemzero()
-        current.remove(thisrna)
+        for _ in range(2):
+            # add stems in forward and reverse orientation
+            thisrna.reverse()
 
-        # print('\nrna {}     candidate {}'.format(thisrna, candidate))
-
-        for thisrna in candidate:
-            print('{}'.format(thisrna))
-            graphstr = thisrna.tostring()
-            if len(thisrna.connected()) == 1:
-                # print('\tconnected')
-                graph = RNAGraph(thisrna)
-                xios = Xios()
-                xios.from_graph(graph.pairs)
-                gspan = Gspan(xios)
-                dfs = gspan.minDFS()
-                dfsxios = Xios()
-                dfsxios.from_list(dfs)
-                dfshex = dfsxios.hex2_encode()
-                if dfshex not in motif:
-                    motif[dfshex] = {'str': graphstr, 'min': dfs}
-                    # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
-
-                else:
-                    # this is a duplicate, remove from candidate, do not save on current
-                    # print('\tduplicate')
-                    candidate.remove(thisrna)
-                    continue
-            else:
-                # print('\tnot connected')
+            candidate = thisrna.addstemzero()
+            try:
+                current.remove(thisrna)
+            except ValueError:
+                #typically the reversed structure is absent
                 pass
 
-            # save unconnected and unique connected
-            current.append(thisrna)
+            # print('rna {}     candidate {}'.format(thisrna, candidate))
 
-    print( 'motifs {}'.format(len(motif)))
+            for rna in candidate:
+
+                # print('{}'.format(thisrna))
+                rna.canonical()
+                graphstr = rna.tostring()
+                if graphstr in allstr:
+                    continue
+                allstr.append(graphstr)
+                if len(rna.connected()) == 1:
+                    graph = RNAGraph(rna)
+                    xios = Xios()
+                    xios.from_graph(graph.pairs)
+                    gspan = Gspan(xios)
+                    dfs = gspan.minDFS()
+                    dfsxios = Xios()
+                    dfsxios.from_list(dfs)
+                    dfshex = dfsxios.ascii_encode()
+                    if dfshex not in motif:
+                        motif[dfshex] = {'str': graphstr, 'min': dfs}
+                        # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
+
+                    else:
+                        # this is a duplicate, remove from candidate, do not save on current
+                        # print('\tduplicate {}'.format(rna))
+                        # candidate.remove(rna)
+                        continue
+
+                else:
+                    # print('\tnot connected')
+                    pass
+
+                # save unconnected and unique connected
+                current.append(rna)
+
+    stop = time.time()
+    print('motifs {}'.format(len(motif)))
     for m in motif:
         print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
     print('motifs {}'.format(len(motif)))
+    print('elapsed time {:.4f}'.format(stop-start))
 
     exit(0)
