@@ -2,6 +2,7 @@ import sys
 import copy
 import random
 from functools import total_ordering
+from xios import XiosEdge, Xios
 
 
 @total_ordering
@@ -128,6 +129,7 @@ class Edge(list):
     def copy(self):
         return Edge(self[:])
 
+
 # end of class Edge
 
 class Gspan:
@@ -164,14 +166,14 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         gspan constructor
         -----------------------------------------------------------------------------------------"""
-        self.graph = []  # graph in normalized labelling
+        self.graph = Xios()  # graph in normalized labelling
         self.nforward = 0  # number of forward edges in sorted graph
         self.nbackward = 0  # number of backward edges in sorted graph
         self.nunknown = 0  # number of unknown edges in sorted graph
         # self.map = None
         self.vnum = 0  # number of vertices in graph
         self.vnext = 0  # next dfs vertex available to use
-        self.mindfs = []
+        self.mindfs = Xios()
         self.mindfslen = 0
         self.g2G = []  # list to convert g laberls (indices) to original labels
         self.g2d = []  # list to covert g labels to dfs labels
@@ -206,7 +208,9 @@ class Gspan:
             self.graph.append(edge)
             v += 1
 
-        self.mindfs = [Edge() for _ in self.graph]
+        for _ in self.graph:
+            self.mindfs.append(XiosEdge())
+
         self.vnum = v
 
         return v
@@ -388,7 +392,7 @@ class Gspan:
         try:
             epos = self.graph.index(edge)
         except ValueError:
-            epos = self.graph.index([edge[1],edge[0],edge[2]])
+            epos = self.graph.index([edge[1], edge[0], edge[2]])
         self.graph[epos] = self.graph[row]
         self.graph[row] = edge
         # self.flip(row)
@@ -516,7 +520,6 @@ class Gspan:
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        mindfs = []
         row = 0
         searching = True
 
@@ -756,7 +759,7 @@ if __name__ == '__main__':
         #   [4, 5, 0], [4, 6, 0],
         #   [7, 8, 0], [7, 9, 2]]
         [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
-         ]
+    ]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
 
