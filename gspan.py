@@ -528,7 +528,8 @@ class Gspan:
             self.sort(begin=row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
-            # begin point in the graph array
+            # begin point in the graph array. backward edges never add a new vertex so d2g and g2d
+            # are untouched
             row += self.nbackward
 
             if row < len(self.graph):
@@ -649,7 +650,7 @@ class Gspan:
                     # c is lt
                     cmp = 'lt'
                     break
-                elif cedge[0] > medge[0]:
+                elif cedge[1] > medge[1]:
                     # m is lt
                     cmp = 'gt'
                     break
@@ -741,7 +742,6 @@ if __name__ == '__main__':
         # [[2, 3, 0], [2, 4, 0], [2, 6, 0],
         #  [3, 4, 0], [3, 6, 0],
         #  [4, 6, 0]]
-
         # [[0, 1, i], [1, 2, i], [2, 0, j]],
         # [[0, 1, i], [0, 2, j], [1, 2, j]],
         # [[0, 1, j], [0, 2, j], [1, 2, j]],
@@ -758,7 +758,11 @@ if __name__ == '__main__':
         #   [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
         #   [4, 5, 0], [4, 6, 0],
         #   [7, 8, 0], [7, 9, 2]]
-        [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
+        # [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
+        [[0, 1, 2], [0, 2, 0], [0, 3, 2], [0, 4, 2], [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0],
+         [3, 4, 2], [4, 5, 2]],
+        [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 2], [0, 5, 0], [1, 2, 2], [2, 3, 2], [2, 4, 2],
+         [3, 4, 2], [4, 5, 0]]
     ]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
@@ -790,7 +794,7 @@ if __name__ == '__main__':
 
     # testing reading graphs from string
     gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
-    g = Gspan(gstr)
+    # g = Gspan(gstr)
 
     for graph in graphset:
         print('\nGraph normalization')
@@ -802,24 +806,17 @@ if __name__ == '__main__':
     #         edge[i] *= 2
     # print('    un-normalized graph: {}'.format(g))
 
-    gspan = Gspan(graph=g)
-    map = gspan.graph_randomize()
-    # print('    map', map)
-    print('    randomized graph: {}'.format(gspan.graph))
-    gspan.graph_normalize()
-    print('    renormalized graph: {}'.format(gspan.graph))
-
     print('\nGspan canonical graph')
     for g in graphset:
         # g = graphset[4]
         print('\n\tinput graph', g)
         gspan = Gspan(graph=g)
-        for _ in range(30):
-            map = gspan.graph_randomize()
+        for _ in range(1):
+            # map = gspan.graph_randomize()
             gspan.graph_normalize()
             # print('    renormalized graph: {}'.format(gspan.graph))
             glen = len(gspan.graph)
             gspan.minDFS()
-            print('\trandomized{}\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+            print('\trandomized{}\n\tminDFS {}'.format(gspan.graph, gspan.mindfs))
 
     exit(0)
