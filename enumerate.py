@@ -81,14 +81,10 @@ while True:
         current.append(rna)
 
         if len(rna.connected()) == 1:
-            graph = RNAGraph(rna)
-            xios = Xios()
-            xios.from_graph(graph.pairs)
+            xios = Xios(serial=rna)
             gspan = Gspan(xios)
             dfs = gspan.minDFS()
-            dfsxios = Xios()
-            dfsxios.from_list(dfs)
-            dfshex = dfsxios.ascii_encode()
+            dfshex = dfs.ascii_encode()
             if dfshex not in motif:
                 # save unique minimum DFS codes
                 motif[dfshex] = {'str': fstr, 'min': dfs}
