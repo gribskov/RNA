@@ -1,60 +1,85 @@
 """=================================================================================================
 Enumerate all possible XIOS motifs
 
+biological structures are enumerated by adding new edges to previousl enumerated structures at all
+possible positions.  Many of the structures generated in this way are duplicates or inversions of
+previously processed structures (inverted structures should have the same minimum DFS code).
+
+Points to consider:
+Unique minimum DFS identifies the unique motifs, but is expensive to calculate using gspan
+
+The string form of the the SerialRNA form can be used to detect many duplicates and inversions, but
+some isomorphs can only be identified with gspan.
+
+Unconnected structures can be joined together by wrapping them in a single new stem.  This means that
+all structures, connected and unconnected, with n stems must be saved for generating structures with
+n+1 stems.
+
+work with three lists:
+current: structures that can be extended to generate larger strucutres (includes unconnected)
+allstr: string format of canonically numbered structures that have been processed.  Used to identify
+        structures that have alreayd been processed.  Both forward and backward orientations are
+        included.  This is implemented as a hash to keep only unique strings
+motif: structures with unique minimum DFS codes
+
+push starting graph on current
+
+while current
+    pop rna from beginning of current
+    generate extensions of rna -> candidate list
+    remove rna from current
+
+    for each rna in candidate
+        check forward and backward canonical SerialRNA strings against allstr list
+        if  fstr or bstr present, break
+
+        add fstr and bstr to allstr
+        add rna to end of current
+        if rna is connected
+            find minimum DFS code with gspan
+            if unique add to motifs
+
 ================================================================================================="""
 import time
+from motifdb import SerialRNA
 from xios import Xios
 from graph import RNAGraph
 from gspan import Gspan
 
-rna = SerialRNA([0, 0])
-graph = RNAGraph(rna)
-print(graph.toList())
-gg = graph.toList()
-xios = Xios()
-xios.from_graph(graph.pairs)
-gspan = Gspan(xios)
-
-# unique = {'string': rna.tostring(), 'structure': rna, 'mindfs': gspan.minDFS()}
-current = [rna]
+maxgraph = 12
+current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
 allstr = {}
-maxgraph = 14
 
 start = time.time()
 while True:
+    # pop a structure from the list of RNAs to be extended
     thisrna = current[0]
+    print('rna {}     candidate {}'.format(thisrna, candidate))
+
     if len(thisrna) >= maxgraph:
         # print(current)
         break
 
+    # generate extended structures, and remove current structure from list of RNAs to be extended
     candidate = thisrna.addstemall()
-    try:
-        current.remove(thisrna)
-    except ValueError:
-        # typically the reversed structure is absent
-        pass
+    current.remove(thisrna)
 
-    # print('rna {}     candidate {}'.format(thisrna, candidate))
     for rna in candidate:
 
-        # print('{}'.format(thisrna))
-        # rna.canonical()
-        # graphstr = rna.tostring()
-        # if graphstr in allstr:
-        #     # print('skipping {}'.format(graphstr))
-        #     continue
-        #
-        # allstr.append(graphstr)
         fstr, bstr = rna.canonical_fbstr()
         if fstr in allstr or bstr in allstr:
+            # skip this structure if it has been seen before
             continue
 
+        # update list of previously processed structures
         allstr[fstr] = 1
         allstr[bstr] = 1
 
-        graphstr = fstr
+        # save both unconnected and unique connected for the next round of extension
+        current.append(rna)
+
         if len(rna.connected()) == 1:
             graph = RNAGraph(rna)
             xios = Xios()
@@ -65,21 +90,9 @@ while True:
             dfsxios.from_list(dfs)
             dfshex = dfsxios.ascii_encode()
             if dfshex not in motif:
-                motif[dfshex] = {'str': graphstr, 'min': dfs}
-                # print('\tmotif {}\t{}'.format(graphstr, motif[dfshex]))
-
-            else:
-                # this is a duplicate, remove from candidate, do not save on current
-                # print('\tduplicate {}'.format(rna))
-                # candidate.remove(rna)
-                continue
-
-        else:
-            # print('\tnot connected')
-            pass
-
-        # save unconnected and unique connected
-        current.append(rna)
+                # save unique minimum DFS codes
+                motif[dfshex] = {'str': fstr, 'min': dfs}
+                # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
 
 stop = time.time()
 print('motifs {}'.format(len(motif)))
