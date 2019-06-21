@@ -45,7 +45,7 @@ from motifdb import SerialRNA
 from xios import Xios
 from gspan import Gspan
 
-maxgraph = 12
+maxgraph = 14
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
@@ -55,14 +55,14 @@ start = time.time()
 while True:
     # pop a structure from the list of RNAs to be extended
     thisrna = current[0]
-    print('rna {}     candidate {}'.format(thisrna, candidate))
+    # print('rna {}     candidate {}'.format(thisrna, candidate))
 
     if len(thisrna) >= maxgraph:
         # print(current)
         break
 
     # generate extended structures, and remove current structure from list of RNAs to be extended
-    candidate = thisrna.addstemall()
+    candidate = thisrna.addstemleft()
     current.remove(thisrna)
 
     for rna in candidate:
