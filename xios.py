@@ -1,3 +1,4 @@
+import sys
 class XiosEdge(list):
     """=============================================================================================
     Edge class
@@ -75,7 +76,24 @@ class Xios(list):
     
     ============================================================================================="""
 
-    #  __init__ is inherited from list
+    def __init__(self,**kwargs):
+        """-----------------------------------------------------------------------------------------
+        Xios graph is a list of XiosEdge
+
+        -----------------------------------------------------------------------------------------"""
+        super().__init__()
+
+        for arg in kwargs:
+            if arg == 'list':
+                self.len = self.from_list(kwargw['list'])
+            elif arg == 'string':
+                self.len = self.from_string(kwargs['string'])
+            elif arg == 'graph':
+                self.len = self.from_graph(kwargs['graph'])
+            elif arg == 'serial':
+                self.len = self.from_serial(kwargs['serial'])
+            else:
+                sys.stderr.write('Xios::__init__ - unknown keyword argument {}'.format(arg))
 
     def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -145,6 +163,33 @@ class Xios(list):
                         self.append(XiosEdge([stem1, stem2, 2]))
 
         return len(self)
+
+    def from_serial(self, graph):
+        """-----------------------------------------------------------------------------------------
+        creates a Xios graph from a SerialRNA.  SerialRNA is defined in motifdb.py.  In serial
+        format, the positions in a list indicate the left to right positions in the RNA and the
+        values indicate which string begins or ends at that position, e.g., [0,1,0,1] for a
+        pseudoknot.
+
+        nesting of edges must be determined
+
+        :param graph:
+        :return: Xios graph
+        -----------------------------------------------------------------------------------------"""
+        # convert to pair form
+        pos = 0
+        pair = [[None, None] for _ in range(len(graph) // 2)]
+
+        for s in graph:
+            if pair[s][0] is None:
+                pair[s][0] = pos
+            else:
+                pair[s][1] = pos
+
+            pos += 1
+
+        self.from_graph(pair)
+        return self
 
     def normalize(self):
         """-----------------------------------------------------------------------------------------
@@ -393,7 +438,6 @@ if __name__ == '__main__':
     print(x3, hex)
     x3.hex2_decode(hex)
     print('decoded', x3)
-
 
     print('\nascii encoding x2')
     x4 = Xios()
