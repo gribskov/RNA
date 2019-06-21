@@ -106,24 +106,24 @@ class SerialRNA(list):
         :return: list of SerialRNA
         -----------------------------------------------------------------------------------------"""
         # make a new structure with the stem number incremented by 1
-        base = []
+        # base = []
         newlen = len(self) + 2
         half = newlen // 2
 
         children = []
-        for pos in self:
-            base.append(pos + 1)
+        # for pos in self:
+        #     base.append(pos + 1)
 
-        for begin in range(0, half + 1):
+        for begin in range(0, half-1):
             for end in range(begin + 1, newlen):
                 extended_rna = [None for _ in range(len(self) + 2)]
                 extended_rna[begin] = 0
                 extended_rna[end] = 0
                 newpos = 0
-                for pos in base:
+                for pos in self:
                     while extended_rna[newpos] is not None:
                         newpos += 1
-                    extended_rna[newpos] = pos
+                    extended_rna[newpos] = pos + 1
 
                 children.append(SerialRNA(extended_rna))
 
