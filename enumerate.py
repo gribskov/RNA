@@ -11,9 +11,9 @@ Unique minimum DFS identifies the unique motifs, but is expensive to calculate u
 The string form of the the SerialRNA form can be used to detect many duplicates and inversions, but
 some isomorphs can only be identified with gspan.
 
-Unconnected structures can be joined together by wrapping them in a single new stem.  This means that
-all structures, connected and unconnected, with n stems must be saved for generating structures with
-n+1 stems.
+Unconnected structures can be joined together by wrapping them in a single new stem.  This means
+that all structures, connected and unconnected, with n stems must be saved for generating
+structures withn+1 stems.
 
 work with three lists:
 current: structures that can be extended to generate larger strucutres (includes unconnected)
@@ -43,7 +43,6 @@ while current
 import time
 from motifdb import SerialRNA
 from xios import Xios
-from graph import RNAGraph
 from gspan import Gspan
 
 maxgraph = 12
