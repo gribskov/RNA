@@ -127,7 +127,8 @@ class Edge(list):
         return True
 
     def copy(self):
-        return Edge(self[:])
+        # return Edge(self[:])
+        return Edge(self)
 
 
 # end of class Edge
@@ -170,15 +171,15 @@ class Gspan:
         self.nforward = 0  # number of forward edges in sorted graph
         self.nbackward = 0  # number of backward edges in sorted graph
         self.nunknown = 0  # number of unknown edges in sorted graph
-        # self.map = None
         self.vnum = 0  # number of vertices in graph
         self.vnext = 0  # next dfs vertex available to use
+        self.row = 0
         self.mindfs = Xios()
         self.mindfslen = 0
+        self.mindfsg2d = []
         self.g2G = []  # list to convert g laberls (indices) to original labels
         self.g2d = []  # list to covert g labels to dfs labels
         self.d2g = []  # list to conver dfs labels to g labels
-        self.row = 0  # row in current dfs
         self.unexplored = []  # stack of partial solutions that need to be searched
         # [d2g, edge, row_num]
 
@@ -392,7 +393,10 @@ class Gspan:
         try:
             epos = self.graph.index(edge)
         except ValueError:
-            epos = self.graph.index([edge[1], edge[0], edge[2]])
+            t = edge[2]
+            if t < 2:
+                t ^= 1
+            epos = self.graph.index([edge[1], edge[0], t])
         self.graph[epos] = self.graph[row]
         self.graph[row] = edge
         # self.flip(row)
@@ -553,7 +557,7 @@ class Gspan:
                         break
 
                     # if you pass these tests, fall though to saving this edge on stack
-                    self.save(edge, row)
+                    self.save(edge.copy(), row)
                     if row == 0 and edge[2] == 2:
                         # special case when all edges are undirected
                         erev = edge.copy()
@@ -765,8 +769,10 @@ if __name__ == '__main__':
         #  [3, 4, 2], [4, 5, 0]],
         # [[0, 1, 2], [0, 2, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
         # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2]],
-        [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [4, 5, 2]],
-        [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]]
+        # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [4, 5, 2]],
+        # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
+        [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
+        [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]]
     ]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
@@ -790,6 +796,11 @@ if __name__ == '__main__':
     e2 = Edge([2, 1, 1])
     print('    edge 1', e1)
     print('    edge 2', e2)
+
+    e3 = e2.copy()
+    e3[0], e3[1] = e3[1], e3[0]
+    e3[0] = 5
+    print('copy {} | {}'.format(e2, e3))
 
     if e1 < e2:
         print('e1 smaller')
