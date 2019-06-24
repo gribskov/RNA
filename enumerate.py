@@ -45,7 +45,7 @@ from motifdb import SerialRNA
 from xios import Xios
 from gspan import Gspan
 
-maxgraph = 14
+maxgraph = 12
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
@@ -89,11 +89,13 @@ while True:
                 motif[dfshex] = {'str': fstr, 'min': dfs}
                 # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
 
+# o = open('data/12stem.list.txt', 'w')
 stop = time.time()
 print('motifs {}'.format(len(motif)))
 for m in motif:
-    if len(motif[m]['str'])>12:
-        print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
+    # if len(motif[m]['str'])>12:
+    #     o.write('{}\t{}\t{}\n'.format(m, motif[m]['str'], motif[m]['min']))
+    print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
 print('motifs {}'.format(len(motif)))
 print('elapsed time {:.4f}'.format(stop - start))
 
