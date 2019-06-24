@@ -17,7 +17,7 @@ motif = open('data/12stem.list.txt')
 for line in motif:
     n += 1
     field = line.split()
-    # print('{} {}'.format(n, field[1]))
+    print('{} {}'.format(n, field[1]))
 
     forward = SerialRNA(field[1])
     forward.canonical()
