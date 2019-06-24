@@ -166,6 +166,8 @@ class Gspan:
     def __init__(self, graph=None):
         """-----------------------------------------------------------------------------------------
         gspan constructor
+
+        unexplored, the stack of partial solutions stores [g2d, edge, row], see save()/restore()
         -----------------------------------------------------------------------------------------"""
         self.graph = Xios()  # graph in normalized labelling
         self.nforward = 0  # number of forward edges in sorted graph
@@ -181,7 +183,6 @@ class Gspan:
         self.g2d = []  # list to covert g labels to dfs labels
         self.d2g = []  # list to conver dfs labels to g labels
         self.unexplored = []  # stack of partial solutions that need to be searched
-        # [d2g, edge, row_num]
 
         if graph:
             if isinstance(graph, list):
@@ -399,7 +400,6 @@ class Gspan:
             epos = self.graph.index([edge[1], edge[0], t])
         self.graph[epos] = self.graph[row]
         self.graph[row] = edge
-        # self.flip(row)
 
         # rebuild d2g from g2d
         self.d2g = [None for _ in self.d2g]
@@ -408,11 +408,6 @@ class Gspan:
             if self.g2d[i] is not None:
                 self.d2g[self.vnext] = i
                 self.vnext += 1
-
-        # add the saved edge
-        # if self.g2d[edge[0]] is None:
-        #     # edge is backward, v0 always defined for an extension
-        #     edge.reverse()
 
         if self.vnext == 0:
             self.g2d[edge[0]] = 0
