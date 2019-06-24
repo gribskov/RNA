@@ -45,7 +45,7 @@ from motifdb import SerialRNA
 from xios import Xios
 from gspan import Gspan
 
-maxgraph = 12
+maxgraph = 14
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
@@ -92,8 +92,8 @@ while True:
 stop = time.time()
 print('motifs {}'.format(len(motif)))
 for m in motif:
-    # if len(motif[m]['str'])>10:
-    print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
+    if len(motif[m]['str'])>12:
+        print('{}\t{}\t{}'.format(m, motif[m]['str'], motif[m]['min']))
 print('motifs {}'.format(len(motif)))
 print('elapsed time {:.4f}'.format(stop - start))
 
