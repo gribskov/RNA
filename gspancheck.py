@@ -11,11 +11,11 @@ from gspan import Gspan
 
 field = []
 n = 0
-motif = open('data/stem12.list')
+motif = open('data/12stem.list.txt')
+# motif = open('data/14.partiallist.txt')
 
 for line in motif:
     n += 1
-    line = motif.readline()
     field = line.split()
     # print('{} {}'.format(n, field[1]))
 
@@ -41,3 +41,5 @@ for line in motif:
         print('{}\t {}\t{}'.format(n, fxios, bxios))
         print('\t\tforward {}    backward{}'.format(forward, backward))
         print('\t\t{}\t{}\n\t\t{}\t{}'.format(fdfs, fgspan.g2d, bdfs, bgspan.g2d))
+
+print( '{} motifs checked'.format(n))
