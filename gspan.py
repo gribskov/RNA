@@ -377,7 +377,6 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         while len(self.unexplored) > 0:
             edge, self.row = self.unexplored.pop()
-            # self.row = row
 
             # this makes the popped edge the next to be added
             try:
@@ -408,7 +407,7 @@ class Gspan:
             self.vnext = v
 
             # check to see if the graph could be minimum, if not, go on to the next one
-            if not self.minimum(0, self.row):
+            if not self.minimum(0):
                 continue
 
             # restored graph could be minimum
@@ -579,14 +578,14 @@ class Gspan:
                 self.vnext += 1
                 self.row += 1
 
-            # while not self.minimum(first,self.row) or self.row == len(self.graph):
-            if not self.minimum(first, self.row) or self.row == len(self.graph):
+            # check to see if the graph is a possible minimum, or if this graph is done
+            if not self.minimum(first) or self.row == len(self.graph):
                 searching = self.restore()
                 # self.row = self.row
 
         return self.mindfs
 
-    def minimum(self, first, row):
+    def minimum(self, first ):
         """-----------------------------------------------------------------------------------------
         check if the current dfs is <= the min dfs (returns True). otherwise, returns False.
         mindfs is stored in d space, current dfs must be compared in d space
@@ -594,6 +593,7 @@ class Gspan:
         :return: logical
         -----------------------------------------------------------------------------------------"""
 
+        row = self.row
         if row > self.mindfslen:
             self.graph2dfs(row)
             return True
