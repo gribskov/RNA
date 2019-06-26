@@ -62,7 +62,7 @@ while True:
         break
 
     # generate extended structures, and remove current structure from list of RNAs to be extended
-    candidate = thisrna.addstemleft()
+    candidate = thisrna.addstemall()
     current.remove(thisrna)
 
     for rna in candidate:
