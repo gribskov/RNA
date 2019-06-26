@@ -524,7 +524,8 @@ class Gspan:
 
         while searching:
             # sort
-            first = row
+            # first = row
+            first = 0
             self.sort(begin=row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
@@ -577,12 +578,13 @@ class Gspan:
             # TODO check for minimum dfsored graph shoul move into restore(), i think
             # checking for min dfs in rest
             #
-            while not self.minimum(first,row) or row == len(self.graph):
+            # while not self.minimum(first,row) or row == len(self.graph):
+            if not self.minimum(first, row) or row == len(self.graph):
                 # print('current minDFS', self.mindfs)
                 # print('         graph', self.graph, '\n')
                 searching = self.restore()
-                if not searching:
-                    break
+                # if not searching:
+                #     break
                 first = 0
                 row = self.row
 
