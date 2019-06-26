@@ -363,7 +363,7 @@ class Gspan:
         :return: integer, length of stack
         -----------------------------------------------------------------------------------------"""
         g2d = copy.deepcopy(self.g2d)
-        self.unexplored.append([g2d, edge, row])
+        self.unexplored.append([edge, row])
 
         return len(self.unexplored)
 
@@ -376,29 +376,22 @@ class Gspan:
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
         while len(self.unexplored) > 0:
-            g2d, edge, row = self.unexplored.pop()
-            self.g2d = g2d
-            self.row = row
-
-            if row == 0:
-                if edge[2] == 1:
-                    edge.reverse()
-            elif g2d[edge[0]] is None:
-                # next edge is always a forward extension. if v0 is not defined in g2d, flip edge
-                edge[0], edge[1] = edge[1], edge[0]
-                if edge[2] < 2:
-                    edge[2] ^= 1
+            edge, self.row = self.unexplored.pop()
+            # self.row = row
 
             # this makes the popped edge the next to be added
             try:
+                # if the popped edge can't be found it must be in the reverse orientation
                 epos = self.graph.index(edge)
             except ValueError:
                 t = edge[2]
                 if t < 2:
                     t ^= 1
                 epos = self.graph.index([edge[1], edge[0], t])
-            self.graph[epos] = self.graph[row]
-            self.graph[row] = edge
+
+            # move the popped edge to the desired row in the graph
+            self.graph[epos] = self.graph[self.row]
+            self.graph[self.row] = edge
             self.row += 1
 
             # rebuild g2d and d2g from scratch
@@ -406,10 +399,7 @@ class Gspan:
             self.d2g = [None for _ in self.d2g]
             self.g2d = [None for _ in self.g2d]
             for i in range(self.row):
-                try:
-                    edge = self.graph[i]
-                except IndexError:
-                    print('row {} \t {}'.format(self.row, self.graph))
+                edge = self.graph[i]
                 for e in range(0, 2):
                     if edge[e] not in self.d2g:
                         self.g2d[edge[e]] = v
@@ -549,50 +539,50 @@ class Gspan:
 
     def minDFS(self):
         """-----------------------------------------------------------------------------------------
-        reimplement gspan
+        Find the minimum DFS code by exhaustive search from all possible initial edges.
 
         :return:
         -----------------------------------------------------------------------------------------"""
         self.initDFS()
         searching = self.restore()
-        row = self.row
+        # row = self.row
 
         while searching:
             # sort
-            first = row
-            self.sort(begin=row)
+            first = self.row
+            self.sort(begin=self.row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
             # begin point in the graph array. backward edges never add a new vertex so d2g and g2d
             # are untouched
-            row += self.nbackward
+            self.row += self.nbackward
 
-            if row < len(self.graph):
+            if self.row < len(self.graph):
                 # skip adding forward edges if done
 
                 # save equivalent forward edges.  We know the number of forward edges from the sort,
                 # the edges are equivalent if they have the same v0 and edge type (v2)
-                first_edge_type = self.graph[row][2]
-                v0 = self.g2d[self.graph[row][0]]
-                for edge in self.graph[row + 1:]:
+                first_edge_type = self.graph[self.row][2]
+                v0 = self.g2d[self.graph[self.row][0]]
+                for edge in self.graph[self.row + 1:]:
                     if edge[2] != first_edge_type:
                         break
                     if self.g2d[edge[0]] != v0:
                         break
 
                     # if you pass these tests, fall though to saving this edge on stack
-                    self.save(edge.copy(), row)
+                    self.save(edge.copy(), self.row)
 
                 # add the forward extension to g2d and d2g
-                self.d2g[self.vnext] = self.graph[row][1]
-                self.g2d[self.graph[row][1]] = self.vnext
+                self.d2g[self.vnext] = self.graph[self.row][1]
+                self.g2d[self.graph[self.row][1]] = self.vnext
                 self.vnext += 1
-                row += 1
+                self.row += 1
 
-            # while not self.minimum(first,row) or row == len(self.graph):
-            if not self.minimum(first, row) or row == len(self.graph):
+            # while not self.minimum(first,self.row) or self.row == len(self.graph):
+            if not self.minimum(first, self.row) or self.row == len(self.graph):
                 searching = self.restore()
-                row = self.row
+                # self.row = self.row
 
         return self.mindfs
 
