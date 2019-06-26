@@ -127,7 +127,6 @@ class Edge(list):
         return True
 
     def copy(self):
-        # return Edge(self[:])
         return Edge(self)
 
 
@@ -199,6 +198,7 @@ class Gspan:
     def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
         load a graph in the form of a list, into a graph object composed of Edge()
+        TODO use Xios object
 
         :param graph: list of lists:
         :return: int, number of vertices
@@ -223,6 +223,8 @@ class Gspan:
         a list of edges, each edge is a triple of vertex0 vertex1 edge_type.  All are abritrary
         strings without quotation marks. square brackets and commas are ignored so a python list of
         lists is OK
+
+        TODO use Xios object
 
         :param graphstr:
         :return:
@@ -257,8 +259,7 @@ class Gspan:
 
     def flip(self, row=0):
         """-----------------------------------------------------------------------------------------
-        convert all j edges to i edges from row to end of graph
-        TODO check if this is the same as Edge.reverse()
+        convert all j edges to i edges from row to end of graph. Not currently used
 
         :param row: integer, beginning row
         :return: integer, number flipped
@@ -275,6 +276,9 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         Count the number of vertices and, if necessary, renumber so they begin at zero
         initialize d2g and g2d to be the correct size
+
+        TODO move to Xios object
+
         :return: int, number of vertices
         -----------------------------------------------------------------------------------------"""
         if self.graph is None:
@@ -307,6 +311,8 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         randomly relaable the graph vertices.  this isw usful for generating graphs that have the
         same canonical form.
+
+        TODO move to Xios object
 
         :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
@@ -370,14 +376,13 @@ class Gspan:
         """-----------------------------------------------------------------------------------------
         pop a saved dfs code from the unexplored stack
         swap the edge with the current edge at the specified row
-        flip j edges in rows following the new edge
 
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
         while len(self.unexplored) > 0:
             edge, self.row = self.unexplored.pop()
 
-            # this makes the popped edge the next to be added
+            # this makes the popped edge current edge by moving it to the restored row
             try:
                 # if the popped edge can't be found it must be in the reverse orientation
                 epos = self.graph.index(edge)
@@ -393,17 +398,16 @@ class Gspan:
             self.row += 1
 
             # rebuild g2d and d2g from scratch
-            v = 0
+            self.vnext = 0
             self.d2g = [None for _ in self.d2g]
             self.g2d = [None for _ in self.g2d]
             for i in range(self.row):
                 edge = self.graph[i]
                 for e in range(0, 2):
                     if edge[e] not in self.d2g:
-                        self.g2d[edge[e]] = v
-                        self.d2g[v] = edge[e]
-                        v += 1
-            self.vnext = v
+                        self.g2d[edge[e]] = self.vnext
+                        self.d2g[self.vnext] = edge[e]
+                        self.vnext += 1
 
             # check to see if the graph could be minimum, if not, go on to the next one
             if not self.minimum(0):
@@ -412,7 +416,7 @@ class Gspan:
             # restored graph could be minimum
             return True
 
-        # end of loop over unexplored stack, if you pass here, the stack is empty
+        # end of loop over unexplored stack, if you reach here, the stack is empty
         return False
 
     def sort(self, begin=0):
@@ -491,19 +495,21 @@ class Gspan:
 
     # end of sort
 
-    def graph2dfs(self, last):
+    def graph2dfs(self, first):
         """-----------------------------------------------------------------------------------------
-        convert the node labels in the graph to dfs labels
+        convert the node labels in the graph to dfs labels and sotre in mindfs
 
-        :last: integer, last row to copy
+        :first: integer, first row to convert/copy
         :return: list of edges
         -----------------------------------------------------------------------------------------"""
+        row = self.row
         g2d = self.g2d
-        dfs = []
-        for i in range(last):
-            self.mindfs[i] = [g2d[self.graph[i][0]], g2d[self.graph[i][1]], self.graph[i][2]]
+        dfs = self.mindfs
+        for i in range(first, row):
+            edge = self.graph[i]
+            dfs[i] = [g2d[edge[0]], g2d[edge[1]], edge[2]]
 
-        self.mindfslen = last
+        self.mindfslen = self.row
 
         return dfs
 
@@ -543,7 +549,6 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         self.initDFS()
         searching = self.restore()
-        # row = self.row
 
         while searching:
             # sort
@@ -580,7 +585,6 @@ class Gspan:
             # check to see if the graph is a possible minimum, or if this graph is done
             if not self.minimum(first) or self.row == len(self.graph):
                 searching = self.restore()
-                # self.row = self.row
 
         return self.mindfs
 
@@ -594,7 +598,7 @@ class Gspan:
 
         row = self.row
         if row > self.mindfslen:
-            self.graph2dfs(row)
+            self.graph2dfs(first)
             return True
 
         cmp = None
@@ -676,7 +680,7 @@ class Gspan:
 
         if cmp is 'lt':
             # current is definitively less than minimum, save as new minimum
-            self.graph2dfs(row)
+            self.graph2dfs(first)
             return True
 
         elif cmp is 'eq':
@@ -709,8 +713,7 @@ class Gspan:
         :param edge: Edge (g space)
         :return: Edge (d space)
         -----------------------------------------------------------------------------------------"""
-        g2d = self.g2d
-        return Edge([g2d[edge[0]], g2d[edge[1]], edge[2]])
+        return Edge([self.g2d[edge[0]], self.g2d[edge[1]], edge[2]])
 
 
 # ==================================================================================================
@@ -730,7 +733,8 @@ if __name__ == '__main__':
         # [[0,1,0], [0,2,0], [1,2,0], [0,3,2], [1,3,2], [2,3,0], [3,4,0]],
         # [[0,1,0], [0,2,2], [0,4,2], [1,2,2], [2,3,2], [2,4,0], [2,5,2], [4,5,2], [5,3,0]],
         # [[0,1,0], [0,2,0], [0,3,0], [0,4,0], [0,5,0], [1,2,0], [4,5,0]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0], [1,6,2], [4,6,2]],
+        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0],
+        # [1,6,2], [4,6,2]],
         # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0, 6, 0],
         # [1, 6, 2], [4, 6, 2], [0,7,0], [1,7,2], [2,7,2], [4,7,2], [5,7,2]],
         # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
