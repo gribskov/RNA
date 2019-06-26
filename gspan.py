@@ -356,14 +356,13 @@ class Gspan:
 
         return vertex
 
-    def save(self, edge, row):
+    def save(self, edge):
         """-----------------------------------------------------------------------------------------
-        push a partial solution onto the unexplored stack. Stores copy of g2d, edge, row
+        push a partial solution onto the unexplored stack. Stores copy of edge, row
 
         :return: integer, length of stack
         -----------------------------------------------------------------------------------------"""
-        g2d = copy.deepcopy(self.g2d)
-        self.unexplored.append([edge, row])
+        self.unexplored.append([edge, self.row])
 
         return len(self.unexplored)
 
@@ -523,16 +522,16 @@ class Gspan:
             for edge in self.graph:
                 if edge[2] != first_edge_type:
                     break
-                self.save(edge.copy(), row)
+                self.save(edge.copy())
                 erev = self.graph[row].copy()
                 erev.reverse()
-                self.save(erev, row)
+                self.save(erev)
         else:
             # first edge type is not undirected, save just one orientation
             for edge in self.graph:
                 if edge[2] != first_edge_type:
                     break
-                self.save(edge.copy(), row)
+                self.save(edge.copy())
 
         return len(self.unexplored)
 
@@ -570,7 +569,7 @@ class Gspan:
                         break
 
                     # if you pass these tests, fall though to saving this edge on stack
-                    self.save(edge.copy(), self.row)
+                    self.save(edge.copy())
 
                 # add the forward extension to g2d and d2g
                 self.d2g[self.vnext] = self.graph[self.row][1]
@@ -585,7 +584,7 @@ class Gspan:
 
         return self.mindfs
 
-    def minimum(self, first ):
+    def minimum(self, first):
         """-----------------------------------------------------------------------------------------
         check if the current dfs is <= the min dfs (returns True). otherwise, returns False.
         mindfs is stored in d space, current dfs must be compared in d space
