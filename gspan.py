@@ -410,7 +410,7 @@ class Gspan:
                     edge = self.graph[i]
                 except IndexError:
                     print('row {} \t {}'.format(self.row, self.graph))
-                for e in range(0,2):
+                for e in range(0, 2):
                     if edge[e] not in self.d2g:
                         self.g2d[edge[e]] = v
                         self.d2g[v] = edge[e]
@@ -418,7 +418,7 @@ class Gspan:
             self.vnext = v
 
             # check to see if the graph could be minimum, if not, go on to the next one
-            if not self.minimum(0,self.row):
+            if not self.minimum(0, self.row):
                 continue
 
             # restored graph could be minimum
@@ -519,20 +519,47 @@ class Gspan:
 
         return dfs
 
+    def initDFS(self):
+        """-----------------------------------------------------------------------------------------
+        stores all possible initial edges to unexplored list
+
+        :return: int, size of unexplored list
+        -----------------------------------------------------------------------------------------"""
+        row = 0
+        self.sort(begin=row)
+
+        first_edge_type = self.graph[row][2]
+        if first_edge_type == 2:
+            # special case: when all edges are undirected, save both orientations on unexplored
+            for edge in self.graph:
+                if edge[2] != first_edge_type:
+                    break
+                self.save(edge.copy(), row)
+                erev = self.graph[row].copy()
+                erev.reverse()
+                self.save(erev, row)
+        else:
+            # first edge type is not undirected, save just one orientation
+            for edge in self.graph:
+                if edge[2] != first_edge_type:
+                    break
+                self.save(edge.copy(), row)
+
+        return len(self.unexplored)
+
     def minDFS(self):
         """-----------------------------------------------------------------------------------------
         reimplement gspan
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        row = 0
-        first = 0
-        searching = True
+        self.initDFS()
+        searching = self.restore()
+        row = self.row
 
         while searching:
             # sort
             first = row
-            # first = 0
             self.sort(begin=row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
@@ -543,15 +570,8 @@ class Gspan:
             if row < len(self.graph):
                 # skip adding forward edges if done
 
-                if row == 0 and self.graph[0][2] == 2:
-                    # special case when all edges are undirected
-                    edge = self.graph[0].copy()
-                    edge.reverse()
-                    self.save(edge, row)
                 # save equivalent forward edges.  We know the number of forward edges from the sort,
                 # the edges are equivalent if they have the same v0 and edge type (v2)
-                # when there are zero forward edges, which should only occur for the first edge,
-                # the equivalent unknown edges should be added since v0 = None and edge=minedge
                 first_edge_type = self.graph[row][2]
                 v0 = self.g2d[self.graph[row][0]]
                 for edge in self.graph[row + 1:]:
@@ -562,38 +582,16 @@ class Gspan:
 
                     # if you pass these tests, fall though to saving this edge on stack
                     self.save(edge.copy(), row)
-                    if row == 0 and edge[2] == 2:
-                        # special case when all edges are undirected
-                        erev = edge.copy()
-                        erev.reverse()
-                        self.save(erev, row)
 
-                # TODO this is done in restore except for the first graph
-                if row == 0:
-                    # add the first edge
-                    self.d2g[0] = self.graph[0][0]
-                    self.d2g[1] = self.graph[0][1]
-                    self.vnext = 2
-                    self.g2d[self.d2g[0]] = 0
-                    self.g2d[self.d2g[1]] = 1
-                else:
-                    self.d2g[self.vnext] = self.graph[row][1]
-                    self.g2d[self.graph[row][1]] = self.vnext
-                    self.vnext += 1
-
+                # add the forward extension to g2d and d2g
+                self.d2g[self.vnext] = self.graph[row][1]
+                self.g2d[self.graph[row][1]] = self.vnext
+                self.vnext += 1
                 row += 1
 
-            # TODO check for minimum dfsored graph shoul move into restore(), i think
-            # checking for min dfs in rest
-            #
             # while not self.minimum(first,row) or row == len(self.graph):
             if not self.minimum(first, row) or row == len(self.graph):
-                # print('current minDFS', self.mindfs)
-                # print('         graph', self.graph, '\n')
                 searching = self.restore()
-                # if not searching:
-                #     break
-                first = 0
                 row = self.row
 
         return self.mindfs
