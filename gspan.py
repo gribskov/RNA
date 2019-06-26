@@ -375,51 +375,57 @@ class Gspan:
 
         :return: integer, next available dfs vertex
         -----------------------------------------------------------------------------------------"""
-        if len(self.unexplored) == 0:
-            return False
+        while len(self.unexplored) > 0:
+            g2d, edge, row = self.unexplored.pop()
+            self.g2d = g2d
+            self.row = row
 
-        g2d, edge, row = self.unexplored.pop()
-        self.g2d = g2d
+            if row == 0:
+                if edge[2] == 1:
+                    edge.reverse()
+            elif g2d[edge[0]] is None:
+                # next edge is always a forward extension. if v0 is not defined in g2d, flip edge
+                edge[0], edge[1] = edge[1], edge[0]
+                if edge[2] < 2:
+                    edge[2] ^= 1
 
-        if row == 0:
-            if edge[2] == 1:
-                edge.reverse()
-        elif g2d[edge[0]] is None:
-            # next edge is always a forward extension. if v0 is not defined in g2d, flip edge
-            edge[0], edge[1] = edge[1], edge[0]
-            if edge[2] < 2:
-                edge[2] ^= 1
+            # this makes the popped edge the next to be added
+            try:
+                epos = self.graph.index(edge)
+            except ValueError:
+                t = edge[2]
+                if t < 2:
+                    t ^= 1
+                epos = self.graph.index([edge[1], edge[0], t])
+            self.graph[epos] = self.graph[row]
+            self.graph[row] = edge
+            self.row += 1
 
-        # this makes the popped edge the next to be added
-        try:
-            epos = self.graph.index(edge)
-        except ValueError:
-            t = edge[2]
-            if t < 2:
-                t ^= 1
-            epos = self.graph.index([edge[1], edge[0], t])
-        self.graph[epos] = self.graph[row]
-        self.graph[row] = edge
+            # rebuild g2d and d2g from scratch
+            v = 0
+            self.d2g = [None for _ in self.d2g]
+            self.g2d = [None for _ in self.g2d]
+            for i in range(self.row):
+                try:
+                    edge = self.graph[i]
+                except IndexError:
+                    print('row {} \t {}'.format(self.row, self.graph))
+                for e in range(0,2):
+                    if edge[e] not in self.d2g:
+                        self.g2d[edge[e]] = v
+                        self.d2g[v] = edge[e]
+                        v += 1
+            self.vnext = v
 
-        # rebuild d2g from g2d
-        self.d2g = [None for _ in self.d2g]
-        self.vnext = 0
-        for i in range(len(self.g2d)):
-            if self.g2d[i] is not None:
-                self.d2g[self.vnext] = i
-                self.vnext += 1
+            # check to see if the graph could be minimum, if not, go on to the next one
+            if not self.minimum(0,self.row):
+                continue
 
-        if self.vnext == 0:
-            self.g2d[edge[0]] = 0
-            self.d2g[0] = edge[0]
-            self.vnext = 1
+            # restored graph could be minimum
+            return True
 
-        self.g2d[edge[1]] = self.vnext
-        self.d2g[self.vnext] = edge[1]
-        self.vnext += 1
-
-        self.row = row + 1
-        return True
+        # end of loop over unexplored stack, if you pass here, the stack is empty
+        return False
 
     def sort(self, begin=0):
         """-----------------------------------------------------------------------------------------
@@ -520,12 +526,13 @@ class Gspan:
         :return:
         -----------------------------------------------------------------------------------------"""
         row = 0
+        first = 0
         searching = True
 
         while searching:
             # sort
-            # first = row
-            first = 0
+            first = row
+            # first = 0
             self.sort(begin=row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
@@ -561,6 +568,7 @@ class Gspan:
                         erev.reverse()
                         self.save(erev, row)
 
+                # TODO this is done in restore except for the first graph
                 if row == 0:
                     # add the first edge
                     self.d2g[0] = self.graph[0][0]
@@ -592,7 +600,7 @@ class Gspan:
 
     def minimum(self, first, row):
         """-----------------------------------------------------------------------------------------
-        check if the current dfs is <= the min dfs.
+        check if the current dfs is <= the min dfs (returns True). otherwise, returns False.
         mindfs is stored in d space, current dfs must be compared in d space
 
         :return: logical
