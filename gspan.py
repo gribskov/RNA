@@ -524,6 +524,7 @@ class Gspan:
 
         while searching:
             # sort
+            first = row
             self.sort(begin=row)
 
             # add backward edges, since the graph is sorted, all this requires is updating the
@@ -573,16 +574,21 @@ class Gspan:
 
                 row += 1
 
-            # check for minimum dfs
-            if not self.minimum(row) or row == len(self.graph):
+            # TODO check for minimum dfsored graph shoul move into restore(), i think
+            # checking for min dfs in rest
+            #
+            while not self.minimum(first,row) or row == len(self.graph):
                 # print('current minDFS', self.mindfs)
                 # print('         graph', self.graph, '\n')
                 searching = self.restore()
+                if not searching:
+                    break
+                first = 0
                 row = self.row
 
         return self.mindfs
 
-    def minimum(self, row):
+    def minimum(self, first, row):
         """-----------------------------------------------------------------------------------------
         check if the current dfs is <= the min dfs.
         mindfs is stored in d space, current dfs must be compared in d space
@@ -595,7 +601,7 @@ class Gspan:
             return True
 
         cmp = None
-        for i in range(row):
+        for i in range(first, row):
             cedge = self.edge_g2d(self.graph[i])
             medge = self.mindfs[i]
 
@@ -628,6 +634,8 @@ class Gspan:
                     # equal v0, v1 must always be the same
                     if cedge[1] != medge[1]:
                         sys.stdout.write('gspan::minimum - forward v1 not equal\n')
+                        sys.stdout.write('\t{}\n'.format(self.graph))
+                        sys.stdout.write('\t{}\n'.format(self.mindfs))
                     if cedge[2] < medge[2]:
                         # c is lt
                         cmp = 'lt'
@@ -766,8 +774,9 @@ if __name__ == '__main__':
         # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2]],
         # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [4, 5, 2]],
         # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
-        [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
-        [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]]
+        # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
+        # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]],
+        [[1, 5, 0], [1, 3, 0], [1, 4, 0], [1, 2, 0], [1, 0, 2], [2, 0, 2]]
     ]
 
     # graph normalization create an unnormalized graph by doubling the vertex numbers
