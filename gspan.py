@@ -549,6 +549,7 @@ class Gspan:
         -----------------------------------------------------------------------------------------"""
         self.initDFS()
         searching = self.restore()
+        graph = self.graph
 
         while searching:
             # sort
@@ -560,14 +561,14 @@ class Gspan:
             # are untouched
             self.row += self.nbackward
 
-            if self.row < len(self.graph):
+            if self.row < len(graph):
                 # skip adding forward edges if done
 
                 # save equivalent forward edges.  We know the number of forward edges from the sort,
                 # the edges are equivalent if they have the same v0 and edge type (v2)
-                first_edge_type = self.graph[self.row][2]
-                v0 = self.g2d[self.graph[self.row][0]]
-                for edge in self.graph[self.row + 1:]:
+                first_edge_type = graph[self.row][2]
+                v0 = self.g2d[graph[self.row][0]]
+                for edge in graph[self.row + 1:]:
                     if edge[2] != first_edge_type:
                         break
                     if self.g2d[edge[0]] != v0:
@@ -577,13 +578,13 @@ class Gspan:
                     self.save(edge.copy())
 
                 # add the forward extension to g2d and d2g
-                self.d2g[self.vnext] = self.graph[self.row][1]
-                self.g2d[self.graph[self.row][1]] = self.vnext
+                self.d2g[self.vnext] = graph[self.row][1]
+                self.g2d[graph[self.row][1]] = self.vnext
                 self.vnext += 1
                 self.row += 1
 
             # check to see if the graph is a possible minimum, or if this graph is done
-            if not self.minimum(first) or self.row == len(self.graph):
+            if not self.minimum(first) or self.row == len(graph):
                 searching = self.restore()
 
         return self.mindfs
