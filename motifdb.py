@@ -31,18 +31,46 @@ MotifDB class is for creating and using XIOS graph dictionaries
 
 Michael Gribskov     15 June 2019
 ================================================================================================="""
+import json
 
 
-class MotifDB(list):
+class MotifDB():
+
     """=============================================================================================
-
+    motif DB is a list of lists
+        motifdb.db[nstem] = [dfshex, dfshex, dfshex ...]
     ============================================================================================="""
 
-    # __init__ inherited from list
-    def dummy(self):
-        pass
-        return
+    def __init__(self):
+        self.db = []
+        self.n = 0
+        self.nstem = 0
 
+
+    def add(self, motif, nstem):
+        """-----------------------------------------------------------------------------------------
+        Add a single motif to the database
+
+        :param motif:
+        :return: int, number of motifs
+        -----------------------------------------------------------------------------------------"""
+        if nstem > self.nstem:
+            for i in range(self.nstem, nstem+1):
+                self.db.append([])
+            self.nstem = nstem
+
+        self.db[nstem].append(motif)
+        self.n += 1
+
+        return self.n
+
+    def toJSON(self):
+        """-----------------------------------------------------------------------------------------
+        Convert database to JSON string
+
+        :return: str
+        -----------------------------------------------------------------------------------------"""
+        return json.dumps({'db':self.db, 'm':self.n, 'nstem':self.nstem}, separators=None)
 
 class SerialRNA(list):
     """=============================================================================================
@@ -219,6 +247,18 @@ class SerialRNA(list):
 # testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+
+    # motifdb
+    motif = MotifDB()
+    motif.add('aabbcc', 1)
+    motif.add('bbccdd', 2)
+    motif.add('ccddee', 2)
+    print( motif.toJSON())
+
+    exit(1)
+
+
+    # SerialRNA
     rnas = [[0, 0, 1, 1, 2, 2],
             [0, 1, 0, 1, 2, 2],
             [0, 1, 1, 2, 2, 0],
