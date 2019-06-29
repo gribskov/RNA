@@ -31,17 +31,79 @@ MotifDB class is for creating and using XIOS graph dictionaries
 
 Michael Gribskov     15 June 2019
 ================================================================================================="""
+import json
+import datetime
 
 
-class MotifDB(list):
+class MotifDB():
     """=============================================================================================
-
+    I keep going back and forth over whether the object should be a dict, or whether it should have
+    defined fields.  Defined fields requires fewere accessors, but a general accessor with getattr
+    could be used.
+        motifdb.fields = list of fields in order for serialization
+        motifdb.information = metadata, standard info has accessors, but any notes can be added
+        motifdb.db[nstem] = [dfshex, dfshex, dfshex ...]
+        motifdb.lenidx = list, index is number of stems
     ============================================================================================="""
 
-    # __init__ inherited from list
-    def dummy(self):
-        pass
-        return
+    def __init__(self):
+        self.fields = [ 'information', 'n', 'db', 'lenidx']
+        self.information = {}  # for metadata
+        self.n = 0
+        self.db = []
+        self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
+
+    def add_with_len(self, motif, nstem):
+        """-----------------------------------------------------------------------------------------
+        Add a single motif to the database
+
+        :param motif:
+        :return: int, number of motifs
+        -----------------------------------------------------------------------------------------"""
+        db = self.db
+        n = len(db)
+        if nstem > len(self.lenidx):
+            for i in range(len(self.lenidx), nstem):
+                self.lenidx.append([])
+
+        db.append(motif)
+        self.lenidx[nstem - 1].append(db[n])
+        self.n = len(db)
+
+        return self.n
+
+    def setdate(self):
+        """-----------------------------------------------------------------------------------------
+        set date in information
+        :return: datetime
+        -----------------------------------------------------------------------------------------"""
+        daytime = datetime.datetime.now()
+        self.information['date'] = daytime.strftime('%Y-%m-%d %H:%M:%S')
+
+        return daytime
+
+    def setname(self, string):
+        """-----------------------------------------------------------------------------------------
+        set database name in information
+
+        :return: int, length of new name field
+        -----------------------------------------------------------------------------------------"""
+        self.information['name'] = string
+
+        return len(string)
+
+    def toJSON(self):
+        """-----------------------------------------------------------------------------------------
+        Convert database to JSON string
+
+        :return: str
+        -----------------------------------------------------------------------------------------"""
+        fields = self.fields
+        dispatch = []
+        for i in range(len(fields)):
+            dispatch.append(getattr(self, fields[i]))
+
+        return json.dumps( {fields[i]:dispatch[i] for i in range(len(fields))})
 
 
 class SerialRNA(list):
@@ -114,7 +176,7 @@ class SerialRNA(list):
         # for pos in self:
         #     base.append(pos + 1)
 
-        for begin in range(0, half-1):
+        for begin in range(0, half - 1):
             for end in range(begin + 1, newlen):
                 extended_rna = [None for _ in range(len(self) + 2)]
                 extended_rna[begin] = 0
@@ -219,6 +281,20 @@ class SerialRNA(list):
 # testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+
+    # motifdb
+    motif = MotifDB()
+    motif.setdate()
+    motif.setname('test database')
+
+    motif.add_with_len('aabbcc', 1)
+    motif.add_with_len('bbccdd', 2)
+    motif.add_with_len('ccddee', 2)
+    print(motif.toJSON())
+
+    exit(1)
+
+    # SerialRNA
     rnas = [[0, 0, 1, 1, 2, 2],
             [0, 1, 0, 1, 2, 2],
             [0, 1, 1, 2, 2, 0],

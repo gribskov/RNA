@@ -41,15 +41,19 @@ while current
 
 ================================================================================================="""
 import time
-from motifdb import SerialRNA
+from motifdb import SerialRNA, MotifDB
 from xios import Xios
 from gspan import Gspan
 
-maxgraph = 14
+maxgraph = 8
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
 allstr = {}
+
+db = MotifDB()
+db.setdate()
+db.setname('{} stem motifs'.format(maxgraph//2))
 
 start = time.time()
 while True:
@@ -87,9 +91,12 @@ while True:
             if dfshex not in motif:
                 # save unique minimum DFS codes
                 motif[dfshex] = {'str': fstr, 'min': dfs}
+                db.add_with_len(dfshex, 1)
                 # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
 
 # o = open('data/12stem.list.txt', 'w')
+print(db.toJSON())
+
 stop = time.time()
 print('motifs {}'.format(len(motif)))
 for m in motif:
