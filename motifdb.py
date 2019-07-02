@@ -47,7 +47,7 @@ class MotifDB():
     ============================================================================================="""
 
     def __init__(self):
-        self.fields = [ 'information', 'n', 'db', 'lenidx']
+        self.fields = ['information', 'n', 'db', 'lenidx']
         self.information = {}  # for metadata
         self.n = 0
         self.db = []
@@ -92,6 +92,15 @@ class MotifDB():
 
         return len(string)
 
+    def setsource(self, source):
+        """-----------------------------------------------------------------------------------------
+        Name of the program creating the database
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        self.information['source'] = source
+
+        return len(source)
+
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
         Convert database to JSON string
@@ -103,7 +112,7 @@ class MotifDB():
         for i in range(len(fields)):
             dispatch.append(getattr(self, fields[i]))
 
-        return json.dumps( {fields[i]:dispatch[i] for i in range(len(fields))})
+        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))})
 
 
 class SerialRNA(list):
