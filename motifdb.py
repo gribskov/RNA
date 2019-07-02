@@ -228,6 +228,24 @@ class SerialRNA(list):
 
         return children
 
+    def subtractstem(self):
+        """-----------------------------------------------------------------------------------------
+        return a list of the graphs made by subtracting one stem.  Returned graphs are in canonical
+        form and unique
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        unique = {}
+        for stem_num in range(len(self) // 2):
+            parent = SerialRNA(self)
+            parent.remove(stem_num)
+            parent.remove(stem_num)
+            for connected in parent.connected():
+                connected.canonical()
+                unique[connected.tostring()] = connected
+
+        return list(unique.values())
+
     def canonical(self):
         """-----------------------------------------------------------------------------------------
         convert graph to canonical form.  In canonical form the stems occur in increasing numerical
@@ -284,6 +302,18 @@ class SerialRNA(list):
         :return: string
         -----------------------------------------------------------------------------------------"""
         return ''.join(str(x) for x in self)
+
+    def fromstring(self, string):
+        """-----------------------------------------------------------------------------------------
+        convert a string of digits, e.g., 010122, to a SerialRNA
+
+        :param string:
+        :return: int, length of structure
+        -----------------------------------------------------------------------------------------"""
+        for c in list(string):
+            self.append(int(c))
+
+        return len(self)
 
 
 # --------------------------------------------------------------------------------------------------
