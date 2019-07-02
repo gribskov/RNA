@@ -53,7 +53,8 @@ allstr = {}
 
 db = MotifDB()
 db.setdate()
-db.setname('{} stem motifs'.format(maxgraph//2))
+db.setname('{} stem motifs'.format(maxgraph // 2))
+db.setsource('enumerate.py')
 
 start = time.time()
 while True:
@@ -93,6 +94,28 @@ while True:
                 motif[dfshex] = {'str': fstr, 'min': dfs}
                 db.add_with_len(dfshex, 1)
                 # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
+
+stridx = {}
+for g in motif:
+    stridx[motif[g]['str']] = g
+    motif[g]['parent'] = []
+
+for g in motif:
+    child = SerialRNA()
+    child.fromstring(motif[g]['str'])
+    parents = child.subtractstem()
+
+    # look up each stem in index and add to the parent record of this graph
+    for p in parents:
+        # p is a SerialRNA
+        parentstr = p.tostring()
+        if parentstr in stridx:
+            print('\tparent:{}'.format(p.tostring()))
+            # parent DFS is known, add to parent list
+            db.add_parent(g, stridx[parentstr])
+        else:
+            # TODO have to get dfs code, then save in index in case it comes up again
+            print('\t{} not in index'.format(p.tostring()))
 
 # o = open('data/12stem.list.txt', 'w')
 print(db.toJSON())
