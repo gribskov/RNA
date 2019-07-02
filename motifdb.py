@@ -242,6 +242,8 @@ class SerialRNA(list):
             parent.remove(stem_num)
             for connected in parent.connected():
                 connected.canonical()
+                if connected == [0,0]:
+                    continue
                 unique[connected.tostring()] = connected
 
         return list(unique.values())
