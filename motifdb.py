@@ -47,10 +47,11 @@ class MotifDB():
     ============================================================================================="""
 
     def __init__(self):
-        self.fields = ['information', 'n', 'db', 'lenidx']
+        self.fields = ['information', 'n', 'db', 'lenidx', 'parent']
         self.information = {}  # for metadata
         self.n = 0
         self.db = []
+        self.parent = {}
         self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
 
     def add_with_len(self, motif, nstem):
@@ -71,6 +72,20 @@ class MotifDB():
         self.n = len(db)
 
         return self.n
+
+    def add_parent(self, motif, parent):
+        """-----------------------------------------------------------------------------------------
+
+        :param parent:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if motif not in self.parent:
+            self.parent[motif] = []
+
+        if parent not in self.parent[motif]:
+            self.parent[motif].append(parent)
+
+        return len(self.parent)
 
     def setdate(self):
         """-----------------------------------------------------------------------------------------
@@ -242,7 +257,7 @@ class SerialRNA(list):
             parent.remove(stem_num)
             for connected in parent.connected():
                 connected.canonical()
-                if connected == [0,0]:
+                if connected == [0, 0]:
                     continue
                 unique[connected.tostring()] = connected
 
