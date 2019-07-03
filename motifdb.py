@@ -47,10 +47,11 @@ class MotifDB():
     ============================================================================================="""
 
     def __init__(self):
-        self.fields = [ 'information', 'n', 'db', 'lenidx']
+        self.fields = ['information', 'n', 'db', 'lenidx', 'parent']
         self.information = {}  # for metadata
         self.n = 0
         self.db = []
+        self.parent = {}
         self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
 
     def add_with_len(self, motif, nstem):
@@ -72,6 +73,20 @@ class MotifDB():
 
         return self.n
 
+    def add_parent(self, motif, parent):
+        """-----------------------------------------------------------------------------------------
+
+        :param parent:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if motif not in self.parent:
+            self.parent[motif] = []
+
+        if parent not in self.parent[motif]:
+            self.parent[motif].append(parent)
+
+        return len(self.parent)
+
     def setdate(self):
         """-----------------------------------------------------------------------------------------
         set date in information
@@ -92,6 +107,15 @@ class MotifDB():
 
         return len(string)
 
+    def setsource(self, source):
+        """-----------------------------------------------------------------------------------------
+        Name of the program creating the database
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        self.information['source'] = source
+
+        return len(source)
+
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
         Convert database to JSON string
@@ -103,7 +127,7 @@ class MotifDB():
         for i in range(len(fields)):
             dispatch.append(getattr(self, fields[i]))
 
-        return json.dumps( {fields[i]:dispatch[i] for i in range(len(fields))})
+        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))})
 
 
 class SerialRNA(list):
@@ -219,6 +243,26 @@ class SerialRNA(list):
 
         return children
 
+    def subtractstem(self):
+        """-----------------------------------------------------------------------------------------
+        return a list of the graphs made by subtracting one stem.  Returned graphs are in canonical
+        form and unique
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        unique = {}
+        for stem_num in range(len(self) // 2):
+            parent = SerialRNA(self)
+            parent.remove(stem_num)
+            parent.remove(stem_num)
+            for connected in parent.connected():
+                connected.canonical()
+                if connected == [0, 0]:
+                    continue
+                unique[connected.tostring()] = connected
+
+        return list(unique.values())
+
     def canonical(self):
         """-----------------------------------------------------------------------------------------
         convert graph to canonical form.  In canonical form the stems occur in increasing numerical
@@ -275,6 +319,18 @@ class SerialRNA(list):
         :return: string
         -----------------------------------------------------------------------------------------"""
         return ''.join(str(x) for x in self)
+
+    def fromstring(self, string):
+        """-----------------------------------------------------------------------------------------
+        convert a string of digits, e.g., 010122, to a SerialRNA
+
+        :param string:
+        :return: int, length of structure
+        -----------------------------------------------------------------------------------------"""
+        for c in list(string):
+            self.append(int(c))
+
+        return len(self)
 
 
 # --------------------------------------------------------------------------------------------------
