@@ -55,7 +55,7 @@ class MotifDB():
         self.parent = {}
         self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
 
-    def add_with_len(self, motif, nstem):
+    def add_with_len(self, motif):
         """-----------------------------------------------------------------------------------------
         Add a single motif to the database
 
@@ -64,6 +64,7 @@ class MotifDB():
         -----------------------------------------------------------------------------------------"""
         db = self.db
         n = len(db)
+        nstem = len(motif)//2
         if nstem > len(self.lenidx):
             for i in range(len(self.lenidx), nstem):
                 self.lenidx.append([])
