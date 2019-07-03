@@ -333,7 +333,7 @@ class Xios(list):
 
         return string
 
-    def ascii_decode(self, string):
+    def ascii_decode(self, code):
         """-----------------------------------------------------------------------------------------
         Decode the ascii encoded graph produced by ascii_encode(). The current graph is
         overwritten by the new graph coming from the hex code so this is like reading in a hex
@@ -342,21 +342,20 @@ class Xios(list):
         :return: int, number of rows
         -----------------------------------------------------------------------------------------"""
         self.clear()
-        n = 0
-        for i in range(0, len(string), 2):
-            n += 1
-            dec1 = ord(string[i])
-            dec2 = ord(string[i + 1])
+        n = len(code)
+        for i in range(0, len(code), 2):
+            dec1 = ord(code[i])
+            dec2 = ord(code[i + 1])
             v0 = (dec1 & 63) - 33
             e = (dec1 & 64) >> 5
             v1 = (dec2 & 63) - 33
             e += (dec2 & 64) >> 6
 
-            print('[{}, {}, {}]'.format(v0, v1, e))
+            # print('[{}, {}, {}]'.format(v0, v1, e))
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
-            return True
+        return True
 
 
 if __name__ == '__main__':
