@@ -45,7 +45,7 @@ from motifdb import SerialRNA, MotifDB
 from xios import Xios
 from gspan import Gspan
 
-maxgraph = 8
+maxgraph = 12
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
@@ -92,33 +92,47 @@ while True:
             if dfshex not in motif:
                 # save unique minimum DFS codes
                 motif[dfshex] = {'str': fstr, 'min': dfs}
-                db.add_with_len(dfshex, 1)
+                db.add_with_len(dfshex)
                 # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
 
+# end of loop over the stack of RNAs to be enumerated
+
+# create an index to convert between the serial strings and motif ascii index. it is more
+# convenient to generate the parents from the SerialRNA form
 stridx = {}
 for g in motif:
     stridx[motif[g]['str']] = g
-    motif[g]['parent'] = []
 
+# For each motif generate all parents my subtracting each possible stem and building a list of parents
+# the add_parent function recursively adds all ancestral graphs, as long as the graphs are processed
+# from small to large
 for g in motif:
     child = SerialRNA()
     child.fromstring(motif[g]['str'])
     parents = child.subtractstem()
 
+    # add this motif to the parent list in the motif db
+    db.parent[g] = []
+
     # look up each stem in index and add to the parent record of this graph
     for p in parents:
         # p is a SerialRNA
         parentstr = p.tostring()
-        if parentstr in stridx:
-            print('\tparent:{}'.format(p.tostring()))
-            # parent DFS is known, add to parent list
-            db.add_parent(g, stridx[parentstr])
-        else:
-            # TODO have to get dfs code, then save in index in case it comes up again
-            print('\t{} not in index'.format(p.tostring()))
+
+        if parentstr not in stridx:
+            xios = Xios(serial=p)
+            gspan = Gspan(xios)
+            dfs = gspan.minDFS()
+            dfshex = dfs.ascii_encode()
+            stridx[parentstr] = dfs.ascii_encode()
+            print('\t{} not in index, dfs calculated'.format(p.tostring()))
+
+        db.add_parent(g, stridx[parentstr])
 
 # o = open('data/12stem.list.txt', 'w')
-print(db.toJSON())
+import sys
+# print(db.toJSON())
+db.toFile(sys.stdout)
 
 stop = time.time()
 print('motifs {}'.format(len(motif)))

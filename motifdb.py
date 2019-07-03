@@ -33,6 +33,7 @@ Michael Gribskov     15 June 2019
 ================================================================================================="""
 import json
 import datetime
+from xios import Xios
 
 
 class MotifDB():
@@ -54,7 +55,7 @@ class MotifDB():
         self.parent = {}
         self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
 
-    def add_with_len(self, motif, nstem):
+    def add_with_len(self, motif):
         """-----------------------------------------------------------------------------------------
         Add a single motif to the database
 
@@ -63,6 +64,7 @@ class MotifDB():
         -----------------------------------------------------------------------------------------"""
         db = self.db
         n = len(db)
+        nstem = len(motif)//2
         if nstem > len(self.lenidx):
             for i in range(len(self.lenidx), nstem):
                 self.lenidx.append([])
@@ -73,19 +75,26 @@ class MotifDB():
 
         return self.n
 
-    def add_parent(self, motif, parent):
+    def add_parent(self, child, parent):
         """-----------------------------------------------------------------------------------------
+        add parent to the parent list of child, and add all the parents of parent to the parent
+        list of child
 
         :param parent:
         :return:
         -----------------------------------------------------------------------------------------"""
-        if motif not in self.parent:
-            self.parent[motif] = []
+        # if child not in self.parent:
+        #     self.parent[child] = []
 
-        if parent not in self.parent[motif]:
-            self.parent[motif].append(parent)
+        if parent not in self.parent[child]:
+            self.parent[child].append(parent)
+
+        for p in self.parent[parent]:
+            if p not in self.parent[child]:
+                self.parent[child].append(p)
 
         return len(self.parent)
+
 
     def setdate(self):
         """-----------------------------------------------------------------------------------------
@@ -127,8 +136,36 @@ class MotifDB():
         for i in range(len(fields)):
             dispatch.append(getattr(self, fields[i]))
 
-        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))})
+        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))},indent=4)
 
+    def toFile(self,fp):
+        """-----------------------------------------------------------------------------------------
+        Write a formatted version of the motif database to a file. use sys.stdout to as the file if
+        you want it on STDOUT
+
+        :param fp:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        fields = ['information', 'n', 'db' ]
+
+        for i in range(len(fields)):
+            data = getattr(self, fields[i])
+            if fields[i] == 'information':
+                for tag in data:
+                    fp.write('{}\t{}\n'.format(tag, data[tag]))
+            elif fields[i] == 'n':
+                fp.write('{}\t{}\n'.format('motifs', data))
+            elif fields[i] == 'db':
+                for m in data:
+                    x = Xios()
+                    x.ascii_decode(m)
+                    fp.write('\t{}\n'.format(x))
+                    for p in self.parent[m]:
+                        x = Xios()
+                        x.ascii_decode(p)
+                        fp.write('\t\t{}\n'.format(x))
+
+        return
 
 class SerialRNA(list):
     """=============================================================================================
