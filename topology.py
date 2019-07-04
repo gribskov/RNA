@@ -1,37 +1,143 @@
+import sys
+from lxml import etree
+
+
 class Topology:
-    """
-    topology describes an RNA in several different ways, as a collection of stems, as a matrix
-    """
+    """=============================================================================================
+    an RNA topology describes an RNA with one more of the following attributes:
+        list of stems (with start, stop, and vienna)
+        vienna (dot-bracket) string
+        nucleic acid sequence
+        sequence ID
+        sequence description (documentation)
+        sequence length
+        comments
 
-    """
-    #-----------------------------------------------------------------------------
-# new
-#
-# this is the constructor for this class. If some attributes of the class
-# are provided in $attributes hash it calls setTopology($attribute_hash),
-# otherwise it calls initialize() to set up the base attributes
-# of the class.
-#
-# USAGE
-#      $topology_obj = Topology->new();
-#
-# NEED TO Change code to add different attributes
-#-----------------------------------------------------------------------------
-sub new {
-    my ( $class, $attribute_hash ) = @_;
+    many topologies will have only some of these
+    ============================================================================================="""
 
-    my $topology = {};
-    bless $topology, $class;
+    def __init__(self):
+        """-----------------------------------------------------------------------------------------
 
-    if ( defined($attribute_hash) ) {
-        $topology->setTopology($attribute_hash);
-    }
-    else {
-        $topology->initialize();
-    }
+        -----------------------------------------------------------------------------------------"""
+        self.stem_list = []
+        self.edge_list = []
+        self.adjacency = []
+        self.vienna = ''
+        self.sequence = ''
+        self.sequence_id = ''
+        self.sequence_doc = ''
+        self.sequence_length = 0
+        self.comment = []
 
-    return $topology;
-}
+    def XIOSread(self, filename):
+        """-----------------------------------------------------------------------------------------
+        Read a XIOS topology file. The file comprises three sections, a list of stems ( read by
+        stemlistRead), a list of edges (not needed), and an adjacency matrix (adjacencyRead).
+
+        :return: int, nujmber of stems read
+        -----------------------------------------------------------------------------------------"""
+        fp = None
+        try:
+            fp = open(filename, 'r')
+        except (OSError, IOError) as err:
+            sys.stderr.write('Topology::XIOSread - error opening input file ({})\n'.
+                             format(filename))
+            sys.stderr.write('\t{}\n'.format(err))
+            exit(1)
+
+        x = etree.parse(fp)
+        print(etree.tostring(x))
+        for section in x.xpath('//XIOS/*'):
+            print('section {}\n{}'.format(section.tag, section.text))
+            if section.tag == 'information':
+                self.parse_information(section.text)
+
+            elif section.tag == 'stem_list':
+                self.parse_stem_list(section.text)
+
+
+            elif section.tag == 'edge_list':
+                self.parse_edge_list(section.text)
+
+            elif section.tag == 'adjacency':
+                self.parse_adjacency(section.text)
+
+            else:
+                sys.stderr.write('Topology::XIOSread - unknown XML tag ({})\n'.format(section.tag))
+
+        return 1
+    
+    def parse_information(self, text):
+        """-----------------------------------------------------------------------------------------
+        Parse the information section of the XIOS formatted topology file
+        
+        :param text: str
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        return True
+
+    def parse_stem_list(self, text):
+        """-----------------------------------------------------------------------------------------
+        Parse the stem_list section of the XIOS formatted topology file
+
+        :param text: str
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        return True
+
+    def parse_edge_list(self, text):
+        """-----------------------------------------------------------------------------------------
+        Parse the edge_list section of the XIOS formatted topology file
+
+        :param text: str
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        return True
+
+    def parse_adjacency(self, text):
+        """-----------------------------------------------------------------------------------------
+        Parse the adjacency section of the XIOS formatted topology file. If the section is absent,
+        return False, otherwise True
+
+        :param text: str
+        :return: logical
+        -----------------------------------------------------------------------------------------"""
+        n = 0
+        for line in text.split('\n'):
+
+            if not line.strip():
+                continue
+
+            n += 1
+            if n == 1:
+                # header line
+                cols = int(line.split()[-1]) + 1
+                adjacency= [['-' for _ in range(cols)] for _ in range(cols)]
+                continue
+
+            # line of adjacency matrix
+            element = line.split()
+            for i in range(1, cols+1):
+                adjacency[n-2][i-1] = element[i]
+
+        self.adjacency = adjacency
+        return True
+
+
+# --------------------------------------------------------------------------------------------------
+# Testing
+# --------------------------------------------------------------------------------------------------
+if __name__ == '__main__':
+
+    top = Topology()
+    top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+
+
+    exit(0)
+
+
+"""
 
 #-----------------------------------------------------------------------------
 # initialize
