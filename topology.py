@@ -51,7 +51,7 @@ class Topology:
         for section in x.xpath('//XIOS/*'):
             print('section {}\n{}'.format(section.tag, section.text))
             if section.tag == 'information':
-                self.parse_information(section.text)
+                self.parse_information(section)
 
             elif section.tag == 'stem_list':
                 self.parse_stem_list(section.text)
@@ -67,32 +67,163 @@ class Topology:
                 sys.stderr.write('Topology::XIOSread - unknown XML tag ({})\n'.format(section.tag))
 
         return 1
-    
-    def parse_information(self, text):
+
+    def parse_information(self, x, clear=True):
         """-----------------------------------------------------------------------------------------
-        Parse the information section of the XIOS formatted topology file
+        Parse the information section of the XIOS formatted topology file.  Information  may
+        include the sequence, provenence, or other metadata.  Information has the
+        following structure, all elements are optional.
+
+        All information fields have white space stripped from begin and end
+
+        <information>
+            <comment_list>
+                <comment></comment>
+            </comment_list>
+            <sequence>
+                <id></id>
+                <doc></doc>
+                <unformatted></unformatted>
+            </sequence>
+
         
         :param text: str
         :return: True
         -----------------------------------------------------------------------------------------"""
+        # if clear:
+        #     info.clear()
+
+        # field =  x.xpath('//information/*')
+        # pass
+        for element in x.iterfind('*'):
+            if element.tag == 'comment_list':
+                for comment in element.findall('*'):
+                    if comment.tag == 'comment':
+                        self.comment.append(comment.text.strip())
+                        # print('\tcomment:\n{}'.format(comment.text))
+                    else:
+                        sys.stderr.write('Topology::parse_information - ')
+                        sys.stderr.write('unknown comment_list element ({})\n'.format(element.tag))
+
+            elif element.tag == 'sequence':
+                for seqfield in element.findall('*'):
+                    if seqfield.tag == 'id':
+                        self.sequence_id = seqfield.text.strip()
+                        # print('sequence id: {}'.format(seqfield.text))
+                    elif seqfield.tag == 'doc':
+                        self.sequence_doc = seqfield.text.strip()
+                        # print('sequence doc: {}'.format(seqfield.text))
+                    elif seqfield.tag == 'unformatted':
+                        self.sequence_id = seqfield.text.strip()
+                        # print('sequence text: {}'.format(seqfield.text))
+                    else:
+                        sys.stderr.write('Topology::parse_information - ')
+                        sys.stderr.write('unknown sequence element ({})\n'.format(seqfield.tag))
+
+            else:
+                sys.stderr.write('Topology::parse_information - unknown information element ({})'.
+                                 format(element.tag))
+
         return True
 
-    def parse_stem_list(self, text):
+    def parse_stem_list(self, text, clear=True):
         """-----------------------------------------------------------------------------------------
-        Parse the stem_list section of the XIOS formatted topology file
+        Parse the stem_list section of the XIOS formatted topology file. The stem list gives the
+        location of each stem, and optionally, the viennna strings for each half stem. By default
+        this method does not clear the current contents of the stem, use clear=False if you
+        don't want to delete the current stemlist
+
+        <stem_list>
+             0 185.5 [   4  14   357 368 ]     (((((((((((   ).))))))))))
+             1 176.5 [  15  21   332 338 ]         (((((((   )))))))
+             2  35.0 [  23  32    38  48 ]      ((((((((((   ).)))))))))
+             3 204.5 [  53  61   348 355 ]       (((.(((((   ))))))))
+             4 148.5 [  62  65   232 235 ]            ((((   ))))
+             5 170.0 [  69  72   268 271 ]            ((((   ))))
+             6 152.5 [  74  78   227 231 ]           (((((   )))))
+             7  86.0 [  79  83    89  93 ]           (((((   )))))
+             8 100.5 [  94  98   103 108 ]           (((((   )))).)
+             9 168.0 [ 109 118   218 226 ]      ((...(((((   )))..))))
+            10 146.0 [ 131 144   148 165 ]  ((((((((((((((   )))))).))).)))..))
+            11 182.0 [ 173 178   186 191 ]          ((((((   ))))))
+            12 202.5 [ 192 200   205 215 ]       (((((((((   ))).))))).)
+            13 267.0 [ 239 242   292 295 ]            ((((   ))))
+            14 267.5 [ 249 254   281 286 ]          ((((((   ))))))
+            15 269.0 [ 262 266   272 276 ]           (((((   )))))
+            16 311.5 [ 302 309   314 321 ]        ((((((((   ))))))))
+        </stem_list>
+
+        description
+                16 311.5 [ 302 309   314 321 ]        ((((((((   ))))))))
+        field   0  1     2 3   4     5   6   7        8          9
+        0   stem name                       str
+        1   stem center                     float
+        2   delimiter                       chr
+        3   left half stem begin            int
+        4   left half stem end              int
+        5   right half stem begin           int
+        6   right half stem end             int
+        7   delimiter                       chr
+        8   left half stem Vienna string    str optional
+        9   right half stem Vienna string   str optional
 
         :param text: str
         :return: True
         -----------------------------------------------------------------------------------------"""
+        stems = self.stem_list
+        if clear:
+            stems.clear()
+
+        n = 0
+        for line in text.split('\n'):
+
+            if not line.strip():
+                continue
+
+            stem = {}
+            field = line.split()
+            stem['name'] = field[0]
+            stem['center'] = float(field[1])
+            stem['left_begin'] = int(field[3])
+            stem['left_end'] = int(field[4])
+            stem['right_begin'] = int(field[5])
+            stem['right_end'] = int(field[6])
+            if len(field) > 7:
+                stem['left_vienna'] = field[8]
+                stem['right_vienna'] = field[9]
+            stems.append(stem)
+
         return True
 
     def parse_edge_list(self, text):
         """-----------------------------------------------------------------------------------------
-        Parse the edge_list section of the XIOS formatted topology file
+        The edge_list section is for human reading purposes only.  I contains the same
+        information, and is written from, the adjacency matrix.
+
+        <edge_list>
+             0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
+             1:  2i  3o  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
+             2:
+             3:  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
+             4:  5o  6i  7i  8i  9i 10i 11i 12i
+             5:  6i  7i  8i  9i 10i 11i 12i 13o 14o 15o
+             6:  7i  8i  9i 10i 11i 12i
+             7:
+             8:
+             9: 10i 11i 12i
+            10:
+            11:
+            12:
+            13: 14i 15i
+            14: 15i
+            15:
+            16:
+        </edge_list>
 
         :param text: str
         :return: True
         -----------------------------------------------------------------------------------------"""
+
         return True
 
     def parse_adjacency(self, text):
@@ -113,13 +244,13 @@ class Topology:
             if n == 1:
                 # header line
                 cols = int(line.split()[-1]) + 1
-                adjacency= [['-' for _ in range(cols)] for _ in range(cols)]
+                adjacency = [['-' for _ in range(cols)] for _ in range(cols)]
                 continue
 
             # line of adjacency matrix
             element = line.split()
-            for i in range(1, cols+1):
-                adjacency[n-2][i-1] = element[i]
+            for i in range(1, cols + 1):
+                adjacency[n - 2][i - 1] = element[i]
 
         self.adjacency = adjacency
         return True
@@ -129,13 +260,10 @@ class Topology:
 # Testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-
     top = Topology()
     top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
 
-
     exit(0)
-
 
 """
 
