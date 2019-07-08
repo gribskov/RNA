@@ -6,8 +6,7 @@ versions of the 7 stem motif list
 Michael Gribskov 21 June 2019
 ================================================================================================="""
 from motifdb import SerialRNA
-from xios import Xios
-from gspan import Gspan
+from xios import Xios, Gspan
 
 field = []
 n = 0
