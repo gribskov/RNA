@@ -3,6 +3,9 @@ class RNAstructure:
     RNA structure
     a single RNA structure
     what is a structure?  well might you ask.
+
+    ================================================================================================
+    DEPRECATED, this entire file copied into topology.py
     ============================================================================================="""
 
     def __init__(self):
