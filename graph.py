@@ -1,5 +1,7 @@
 class RNAGraph:
     """=============================================================================================
+    DEPRECATED -merged with Topology
+    ================================================================================================
     RNA graph class
 
     There are several ways to represent a folded RNA structure as a linear string at an abstract
