@@ -1,5 +1,19 @@
 <XIOS version='2.0'>
   <information>
+      <comment_list>
+          <comment>RNAse P</comment>
+          <comment>Buchnera sp.</comment>
+      </comment_list>
+      <sequence>
+          <id>nrasep_a1.Buchnera_APS</id>
+          <doc>                     type a1 RNAse P</doc>
+          <unformatted>
+
+
+              some
+              sequence here
+          </unformatted>
+      </sequence>
   </information>
   <stem_list>
      0 185.5 [   4  14   357 368 ]     (((((((((((   ).))))))))))
