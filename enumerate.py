@@ -42,8 +42,7 @@ while current
 ================================================================================================="""
 import time
 from topology import SerialRNA
-from motifdb import MotifDB
-from xios import Xios, Gspan
+from xios import Xios, Gspan, MotifDB
 
 maxgraph = 6
 current = [SerialRNA([0, 0])]
