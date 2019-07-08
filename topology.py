@@ -282,9 +282,6 @@ def enumerateRNATopology(n):
     return graphs
 
 
-
-
-
 class Topology:
     """=============================================================================================
     an RNA topology describes an RNA with one more of the following attributes:
