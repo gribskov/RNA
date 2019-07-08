@@ -535,6 +535,210 @@ class Topology:
         self.adjacency = adjacency
         return True
 
+class SerialRNA(list):
+    """=============================================================================================
+    for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
+    ============================================================================================="""
+
+    def connected(self):
+        """-----------------------------------------------------------------------------------------
+        return the connected graph(s) in the current structure. The entire graph is connected if one
+        structure is returned
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        component = []
+        open = []
+        begin = 0
+        for pos in range(len(self)):
+            if self[pos] in open:
+                open.remove(self[pos])
+                if len(open) == 0:
+                    component.append(SerialRNA(self[begin:pos + 1]))
+                    begin = pos + 1
+            else:
+                open.append(self[pos])
+
+        if len(component) == 1:
+            return [self]
+        else:
+            return component
+
+    def addstemall(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem explicitly added at all possible
+        positions. This is just to check the other enumeration approaches.
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        newlen = len(self) + 2
+        children = []
+
+        for begin in range(0, newlen - 1):
+            for end in range(begin + 1, newlen):
+                extended_rna = [None for _ in range(newlen)]
+                extended_rna[begin] = 0
+                extended_rna[end] = 0
+                newpos = 0
+                for pos in self:
+                    while extended_rna[newpos] is not None:
+                        newpos += 1
+                    extended_rna[newpos] = pos + 1
+
+                children.append(SerialRNA(extended_rna))
+
+        return children
+
+    def addstemleft(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem added at all possible position
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        # base = []
+        newlen = len(self) + 2
+        half = newlen // 2
+
+        children = []
+        # for pos in self:
+        #     base.append(pos + 1)
+
+        for begin in range(0, half - 1):
+            for end in range(begin + 1, newlen):
+                extended_rna = [None for _ in range(len(self) + 2)]
+                extended_rna[begin] = 0
+                extended_rna[end] = 0
+                newpos = 0
+                for pos in self:
+                    while extended_rna[newpos] is not None:
+                        newpos += 1
+                    extended_rna[newpos] = pos + 1
+
+                children.append(SerialRNA(extended_rna))
+
+        return children
+
+    def addstemzero(self):
+        """-----------------------------------------------------------------------------------------
+        return the set of structures with one additional stem such that the beginning of the stem
+        is at position zero
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        # make a new structure with the stem number incremented by 1
+        base = []
+        children = []
+        newlen = len(self) + 2
+        for pos in self:
+            base.append(pos + 1)
+
+        for end in range(1, newlen):
+            extended_rna = [None for _ in range(newlen)]
+            extended_rna[0] = 0
+            extended_rna[end] = 0
+            basepos = 0
+            for pos in range(1, newlen):
+                if extended_rna[pos] is None:
+                    extended_rna[pos] = base[basepos]
+                    basepos += 1
+
+            children.append(SerialRNA(extended_rna))
+
+        return children
+
+    def subtractstem(self):
+        """-----------------------------------------------------------------------------------------
+        return a list of the graphs made by subtracting one stem.  Returned graphs are in canonical
+        form and unique
+
+        :return: list of SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        unique = {}
+        for stem_num in range(len(self) // 2):
+            parent = SerialRNA(self)
+            parent.remove(stem_num)
+            parent.remove(stem_num)
+            for connected in parent.connected():
+                connected.canonical()
+                if connected == [0, 0]:
+                    continue
+                unique[connected.tostring()] = connected
+
+        return list(unique.values())
+
+    def canonical(self):
+        """-----------------------------------------------------------------------------------------
+        convert graph to canonical form.  In canonical form the stems occur in increasing numerical
+        order beginning at zero
+
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        stem = 0
+        map = {}
+        for pos in self:
+            if pos not in map:
+                map[pos] = stem
+                stem += 1
+
+        for pos in range(len(self)):
+            self[pos] = map[self[pos]]
+
+        return True
+
+    def reverse(self):
+        """-----------------------------------------------------------------------------------------
+        reverse the rna structure, numbering is not converted to canonical
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        begin = 0
+        end = len(self) - 1
+        while begin < end:
+            self[begin], self[end] = self[end], self[begin]
+            begin += 1
+            end -= 1
+
+        return True
+
+    def canonical_fbstr(self):
+        """-----------------------------------------------------------------------------------------
+        return the graph and its reverse as strings in canonical form
+
+        :return: str, str, forward and backward canonical strings
+        -----------------------------------------------------------------------------------------"""
+        self.canonical()
+        forward = self.tostring()
+
+        self.reverse()
+
+        self.canonical()
+        backward = self.tostring()
+
+        return forward, backward
+
+    def tostring(self):
+        """-----------------------------------------------------------------------------------------
+        return a string representing the stucture.  the string is the concatenation of the digits.
+
+        :return: string
+        -----------------------------------------------------------------------------------------"""
+        return ''.join(str(x) for x in self)
+
+    def fromstring(self, string):
+        """-----------------------------------------------------------------------------------------
+        convert a string of digits, e.g., 010122, to a SerialRNA
+
+        :param string:
+        :return: int, length of structure
+        -----------------------------------------------------------------------------------------"""
+        for c in list(string):
+            self.append(int(c))
+
+        return len(self)
+
+
+
 
 class RNAstructure:
     """=============================================================================================
@@ -898,7 +1102,7 @@ if __name__ == '__main__':
     229-231:31-29
     """
 
-    from graph import enumerateRNATopology, RNAGraph
+    from deprecated.graph import enumerateRNATopology, RNAGraph
     graphs = enumerateRNATopology(3)
 
     for rna in graphs:
