@@ -41,11 +41,11 @@ while current
 
 ================================================================================================="""
 import time
-from motifdb import SerialRNA, MotifDB
-from xios import Xios
-from gspan import Gspan
+from topology import SerialRNA
+from motifdb import MotifDB
+from xios import Xios, Gspan
 
-maxgraph = 12
+maxgraph = 6
 current = [SerialRNA([0, 0])]
 candidate = []
 motif = {}
