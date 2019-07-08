@@ -363,7 +363,7 @@ if __name__ == '__main__':
 229-231:31-29
 """
 
-from graph import enumerateRNATopology, RNAGraph
+from deprecated.graph import enumerateRNATopology, RNAGraph
 graphs = enumerateRNATopology(3)
 
 for rna in graphs:
