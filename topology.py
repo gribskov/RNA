@@ -76,7 +76,7 @@ class Topology:
         self.sequence_length = 0
         self.comment = []
         
-    def format_stemlist(self):
+    def format_stem_list(self):
         """-----------------------------------------------------------------------------------------
         Construct a formatted string in which the stemlist columns line up nicely. stem_list is a
         list of dict with fields
@@ -101,7 +101,7 @@ class Topology:
                 else:
                     colmax[column] = len(colstr)
         
-        fmt = '{{:{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'.\
+        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'.\
             format(colmax['name'],
             colmax['center'],
             colmax['left_begin'],
@@ -122,6 +122,22 @@ class Topology:
             s['right_vienna'] )
 
         return string.rstrip('/n')
+
+    def format_edge_list(self):
+        """
+        edge_list is written from adjacency list
+        :return:
+        """
+        string = ''
+        adj = self.adjacency
+        r = 0
+        for row in adj:
+            string += '{:3}:'.format(r)
+            string += ''.join([' {}{}'.format(i,row[i]) for i in range(r+1,len(row)) if row[i] != 's' ])
+            string += '/n'
+            r += 1
+
+        return string.strip('/n')
 
 
     @staticmethod
@@ -195,11 +211,12 @@ class Topology:
         
         # stemlist block
         self.iwrite(fp, '<stem_list>', 1)
-        self.iwrite(fp, self.format_stemlist(), 2)
+        self.iwrite(fp, self.format_stem_list(), 1)
         self.iwrite(fp, '</stem_list>', 1)
         
         # edge_list block
         self.iwrite(fp, '<edge_list>', 1)
+        self.iwrite(fp, self.format_edge_list(), 1)
         self.iwrite(fp, '</edge_list>', 1)
 
         # adjancy matrix block
@@ -1281,6 +1298,7 @@ if __name__ == '__main__':
 
         top = Topology()
         top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+        top.XIOSwrite(sys.stdout)
         sample = top.sample(5)
 
         top.stem_list[0] = {}
