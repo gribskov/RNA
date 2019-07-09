@@ -39,6 +39,8 @@
     RNAml
 ================================================================================================="""
 import sys
+import copy
+import random
 from lxml import etree
 
 
@@ -57,7 +59,7 @@ class Topology:
 
     many topologies will have only some of these.
 
-    Many functions of topology.pm in the Perlk version have not yet been ported
+    Many functions of topology.pm in the Perl version have not yet been ported
     ============================================================================================="""
 
     def __init__(self):
@@ -299,6 +301,62 @@ class Topology:
 
         self.adjacency = adjacency
         return True
+
+    def sample(self, n):
+        """-----------------------------------------------------------------------------------------
+        randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
+        connected by non-s edges, but size may be less than n if the graph being sampled is smaller
+        than size or has disconnected segmentsSampling is based on the adjacency matrix.
+
+        :param n:
+        :return: topology
+        -----------------------------------------------------------------------------------------"""
+        # randomly determine starting vertex
+        adj = self.adjacency
+        nvertex = len(adj)
+
+        vlist = []
+        neighbor = []
+        v0 = random.randrange(nvertex)
+        size = 0
+
+        while size < n:
+
+            vlist.append(v0)
+            size += 1
+
+            # update list of neighbors
+            for v1 in range(nvertex):
+                if adj[v0][v1] == 's' or v1 == v0:
+                    # skip s edges and self
+                    continue
+
+                if v1 in vlist:
+                    # don't add already selected vertices to neighbors
+                    continue
+
+                if v1 not in neighbor:
+                    # existing neighbor
+                    neighbor.append(v1)
+
+            if len(neighbor) == 0:
+                # if there are no neighbors, you must stop
+                break
+
+            # select new vertex and remove from current neighbor list
+            v0 = random.choice(neighbor)
+            neighbor.remove(v0)
+
+        # end of vertex selection loop
+
+        # build the new topology from the current one
+        newtopo = Topology()
+        newtopo.comment = copy.copy(self.comment)
+        for s in self.stem_list:
+            if int(s['name']) in vlist:
+                newtopo.stem_list.append(s)
+
+        return Topology
 
 
 ####################################################################################################
@@ -1050,21 +1108,49 @@ class Stem:
 ####################################################################################################
 
 if __name__ == '__main__':
+    def test_pair():
+        """-----------------------------------------------------------------------------------------
+        PairRNA object test functions
 
-    # PairRNA
-    print('PairRNA')
-    g = [0, 1, 1, 0]
-    pair = PairRNA()
-    pair.from_SerialRNA(g)
-    print('Serial {} => {}'.format(g, pair))
+        :return:
+        -----------------------------------------------------------------------------------------"""
 
-    gstring = '0 1 1 0'
-    pair.from_SerialRNA_string(gstring)
-    print('Serial string {} => {}'.format(gstring, pair))
+        # PairRNA
+        print('Testing PairRNA')
+        g = [0, 1, 1, 0]
+        pair = PairRNA()
+        pair.from_SerialRNA(g)
+        print('Serial {} => {}'.format(g, pair))
 
-    gstring = '0,2,2,0'
-    pair.from_SerialRNA_string(gstring, sep=',')
-    print('Serial string {} => {}'.format(gstring, pair))
+        gstring = '0 1 1 0'
+        pair.from_SerialRNA_string(gstring)
+        print('Serial string {} => {}'.format(gstring, pair))
+
+        gstring = '0,2,2,0'
+        pair.from_SerialRNA_string(gstring, sep=',')
+        print('Serial string {} => {}'.format(gstring, pair))
+
+        return True
+
+
+    def test_topology():
+        """-----------------------------------------------------------------------------------------
+        Topology object test functions
+        -----------------------------------------------------------------------------------------"""
+        print('\nTesting Topology')
+
+        top = Topology()
+        top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+        sample = top.sample(5)
+        print(sample)
+        top.stem_list[0] = {}
+        print(sample)
+
+        return True
+
+
+    test_pair()
+    test_topology()
 
     exit(0)
 
@@ -1083,8 +1169,7 @@ if __name__ == '__main__':
     #     e = three.edgelist()
     #     print(three.edgelist_format())
     #
-    #     top = Topology()
-    #     top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+    # topology
     #
     #     # from PairRNA
     #
