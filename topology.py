@@ -41,6 +41,7 @@
 import sys
 from lxml import etree
 
+
 ####################################################################################################
 ####################################################################################################
 class Topology:
@@ -130,7 +131,8 @@ class Topology:
             </sequence>
 
         
-        :param text: str
+        :param x: str
+        :param: clear: logical.  not implemented should clar the information block
         :return: True
         -----------------------------------------------------------------------------------------"""
         # if clear:
@@ -217,7 +219,6 @@ class Topology:
         if clear:
             stems.clear()
 
-        n = 0
         for line in text.split('\n'):
 
             if not line.strip():
@@ -278,6 +279,7 @@ class Topology:
         :return: logical
         -----------------------------------------------------------------------------------------"""
         n = 0
+        cols = 0
         for line in text.split('\n'):
 
             if not line.strip():
@@ -503,6 +505,7 @@ class SerialRNA(list):
 
         return len(self)
 
+
 ####################################################################################################
 ####################################################################################################
 class PairRNA:
@@ -532,7 +535,7 @@ class PairRNA:
         self.nstem = 0
 
         if inlist:
-            self.fromList(inlist)
+            self.from_SerialRNA(inlist)
 
     def __str__(self, sep='_'):
         """-----------------------------------------------------------------------------------------
@@ -542,7 +545,11 @@ class PairRNA:
 
         s = ''
         for p in self.pairs:
-            s += '{}_{}_'.format(p[0], p[1])
+            try:
+                s += '({},{}) '.format(p[0], p[1])
+            except IndexError:
+                # undefined stem
+                s += '(.,.) '
 
         return s.rstrip('_')
 
@@ -552,7 +559,7 @@ class PairRNA:
         -----------------------------------------------------------------------------------------"""
         return len(self.pairs)
 
-    def fromList(self, g):
+    def from_SerialRNA(self, g):
         """"----------------------------------------------------------------------------------------
         read a graph in list format as a list.  returns a list of lists with the begin/end position
         of each stem (pair format)
@@ -568,22 +575,34 @@ class PairRNA:
 
         return self.nstem
 
-    def fromListAsString(self, g, sep=' '):
+    def from_SerialRNA_string(self, g, sep=' '):
         """-----------------------------------------------------------------------------------------
-        the input list is a string separated by sep
-        :param g: string, input graph as a string
+        the input list is a string separated by sep, e.g. '0 1 1 0'
+
+        :param g: string, input graph as a SerialRNA string
         :param sep: string, separation character in input string
         :return: integer, number of stems
         -----------------------------------------------------------------------------------------"""
-        listval = g.split(sep)
-        nstem = self.fromList(listval)
+        pairs = self.pairs
+        pairs.clear()
+        nstem = 0
 
-        return nstem
+        value = g.split(sep)
+        for n in range(len(value)):
+            i = int(value[n])
+            while i >= nstem:
+                # create stems if seen for the first time
+                pairs.append([])
+                nstem += 1
+            pairs[i].append(n)
 
-    def toList(self):
+        return len(pairs)
+
+    def to_SerialRNA(self):
         """-----------------------------------------------------------------------------------------
         return the structure in list format (s a list)
         :return g: list, structure in list format
+        TODO convert to SerialRNA object
         -----------------------------------------------------------------------------------------"""
         g = [0 for _ in range(self.nstem * 2)]
 
@@ -595,27 +614,29 @@ class PairRNA:
 
         return g
 
-    def fromVienna(self):
+    def from_vienna(self):
         """-----------------------------------------------------------------------------------------
         Read structure in Vienna format
         :return: integer, number of stems
+        TODO implement
         -----------------------------------------------------------------------------------------"""
         pass
 
-    def toVienna(self, pad=' '):
+    def to_vienna(self, pad=' '):
         """-----------------------------------------------------------------------------------------
         return a string with the structure in vienna format.  This is basically the abstract shapes
         format with support for pseudoknots.
+
         :return: string
+        TODO test
         -----------------------------------------------------------------------------------------"""
         bracket = [['(', ')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
         vienna = ['.' for _ in range(self.nstem * 2)]
-        list_format = self.toList()
+        list_format = self.to_SerialRNA()
 
         level = []
         knot = True
         for stemi in self.pairs:
-            avail = 0
             for l in range(len((level))):
                 knot = True
                 for stem_num in range(len(level[l])):
@@ -645,7 +666,9 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         reverse the positions of the stems by converting to maxpos-pos and resorting in order
         of first coordinate
+
         :return: None
+        TODO test
         -----------------------------------------------------------------------------------------"""
         m = self.nstem * 2 - 1
         for i in range(self.nstem):
@@ -659,6 +682,8 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         Returns True if graph is i-o connected
         :return: True / False
+
+        TODO test
         -----------------------------------------------------------------------------------------"""
         pos = 1
         for d in self.depth():
@@ -678,13 +703,15 @@ class PairRNA:
         Return  list with the nesting depth at each position of the graph in list format.  This is
         useful for mountain plots and determining connectivity.  If the level reaches zero before
         the last position, the graph is disconnected.
+
         :return: list
+        TODO test
         -----------------------------------------------------------------------------------------"""
         depth = []
         d = 0
         stem = []
 
-        for s in self.toList():
+        for s in self.to_SerialRNA():
             if s in stem:
                 # stem seen before
                 d -= 1
@@ -781,7 +808,7 @@ class RNAstructure:
 
         return rnastr
 
-    def stemListGetFromPairs(self, unpaired=2):
+    def stemlist_from_pairs(self, unpaired=2):
         """-----------------------------------------------------------------------------------------
         Construct the stemlist from the paired base list in stem.pair
         :return: integer, number of stems in stemlist
@@ -831,7 +858,7 @@ class RNAstructure:
         :param g: PairRNA object
         :return: integer, number of stems in stemlist
         -----------------------------------------------------------------------------------------"""
-        vienna = g.toVienna().split()
+        vienna = g.to_vienna().split()
         nstem = 0
         for stem in g.pairs:
             s = Stem()
@@ -847,7 +874,7 @@ class RNAstructure:
         self.nstem = nstem
         return nstem
 
-    def stemlistFormat(self):
+    def stemlist_format(self):
         """-----------------------------------------------------------------------------------------
         Returns a string with the stemlist formatted according to Stem.formatted()
         :return: string
@@ -903,13 +930,14 @@ class RNAstructure:
         self.adjacency = a
         return edges
 
-    def adjacencyFormat(self):
+    def adjacency_format(self):
         """-----------------------------------------------------------------------------------------
 
         :return: string, formatted version of adjacency matrix
         -----------------------------------------------------------------------------------------"""
         adjstr = ''
-        width = 4  # TODO set based on matrix size?
+        # TODO set width based on matrix size?
+        width = 4
         if not self.adjacency:
             adjstr = 'None'
             return adjstr
@@ -949,7 +977,7 @@ class RNAstructure:
                     e.append([j, a[i][j]])
         return elist
 
-    def edgelistFormat(self, include='ijo', whole=False):
+    def edgelist_format(self, include='ijo', whole=False):
         """-----------------------------------------------------------------------------------------
         Return a formatted version of the edgelist
         :param include: string, list of edgetypes to include
@@ -1024,121 +1052,131 @@ class Stem:
 if __name__ == '__main__':
 
     # PairRNA
+    print('PairRNA')
+    g = [0, 1, 1, 0]
+    pair = PairRNA()
+    pair.from_SerialRNA(g)
+    print('Serial {} => {}'.format(g, pair))
 
-    graphs = PairRNA.enumerateRNATopology(3)
-    print(graphs)
+    gstring = '0 1 1 0'
+    pair.from_SerialRNA_string(gstring)
+    print('Serial string {} => {}'.format(gstring, pair))
+
+    gstring = '0,2,2,0'
+    pair.from_SerialRNA_string(gstring, sep=',')
+    print('Serial string {} => {}'.format(gstring, pair))
 
     exit(0)
 
-    for rna in graphs:
-        g = RNAGraph(rna)
-        three = RNAstructure()
-        three.stemListGetFromGraph(g)
-        print('Stemlist\n')
-        print(three.stemlistFormat())
+    # for rna in graphs:
+    #     g = RNAGraph(rna)
+    #     three = RNAstructure()
+    #     three.stemListGetFromGraph(g)
+    #     print('Stemlist\n')
+    #     print(three.stemlist_format())
+    #
+    #     edges = three.adjacencyGet()
+    #     print('\nAdjacency matrix\n')
+    #     print(three.adjacency_format())
+    #
+    #     print('\nEdgelist\n')
+    #     e = three.edgelist()
+    #     print(three.edgelist_format())
+    #
+    #     top = Topology()
+    #     top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+    #
+    #     # from PairRNA
+    #
+    #     print('\nTesting connectivity')
+    #     graph = RNAGraph(inlist=[0, 0, 1, 1, 2, 2])
+    #     print('    ', graph.pairs)
+    #     if not graph.connected():
+    #         print('Not connected')
+    #
+    #     print('\nlist format')
+    #     structure = [0, 1, 2, 1, 0, 2]
+    #     print('    input list', structure)
+    #     graph = RNAGraph(inlist=structure)
+    #     print('    serialized', str(graph))
+    #     print('    pairs', graph.pairs)
+    #     print('    list', graph.to_SerialRNA())
+    #     print('    vienna', graph.to_vienna())
+    #
+    #     print('\n    reverse')
+    #     print('    reversed', graph.reverse())
+    #     print('    pairs', graph.pairs)
+    #     print('    list', graph.to_SerialRNA())
+    #     print('    vienna', graph.to_vienna())
+    #
+    #     print('\nenumerating: size, len, total')
+    #     total = 0
+    #     for size in range(1, 8):
+    #         g = enumerateRNATopology(size)
+    #         total += len(g)
+    #         print('    ', size, len(g), total)
+    #
+    #     print('\n3 stem graphs')
+    #     graphs = enumerateRNATopology(3)
+    #     for g in graphs:
+    #         pgraph = RNAGraph(g)
+    #         print('\ngraph:', g)
+    #         print('    pairs:', pgraph.pairs, end='\t=>\t')
+    #         print('    list:', pgraph.to_SerialRNA())
+    #         print('    vienna', pgraph.to_vienna())
+    #
+    #         pgraph.reverse()
+    #         print('    reversed:', str(pgraph))
+    #         print('    pairs:', pgraph.pairs, end='\t=>\t')
+    #         glist = pgraph.to_SerialRNA()
+    #         print('    reversed list:', glist)
+    #         print('    vienna', pgraph.to_vienna())
+    #
+    #     # RNAstructure
+    #
+    #     rna = RNAstructure()
+    #     rna.CTRead('data/mr_s129.probknot.ct')
+    #     rna.stemlist_from_pairs()
+    #     # print(rna)
+    #     print('Stemlist\n')
+    #     print(rna.stemlist_format())
+    #
+    #     edges = rna.adjacencyGet()
+    #     print('edges', edges)
+    #     print('\nAdjacency matrix\n')
+    #     print(rna.adjacency_format())
+    #
+    #     print('\nEdgelist\n')
+    #     e = rna.edgelist()
+    #     for i in range(len(e)):
+    #         print('{}:\t{}'.format(i, e[i]))
+    #
+    #     """ correct structure of mr_s129 by manual inspection
+    #     29-31:231-229
+    #     33-37:225-221
+    #     41-44:220-217
+    #     48-52:211-207
+    #     55-58:68-65
+    #     65-68:58-55
+    #     76-80:192-188
+    #     84-91:184-177
+    #     95-98:155-152
+    #     100-103:150-147
+    #     106-108:145-143
+    #     117-119:130-128
+    #     129-130:119-117
+    #     143-145:108-106
+    #     147-150:103-100
+    #     152-155:98-95
+    #     163-165:176-174
+    #     174-176:165-163
+    #     177-184:91-84
+    #     188-192:80-76
+    #     201-205:216-212
+    #     207-211:52-48
+    #     212-216:205-201
+    #     217-225:44-33
+    #     229-231:31-29
+    #     """
 
-        edges = three.adjacencyGet()
-        print('\nAdjacency matrix\n')
-        print(three.adjacencyFormat())
-
-        print('\nEdgelist\n')
-        e = three.edgelist()
-        print(three.edgelistFormat())
-
-        top = Topology()
-        top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
-
-        # from PairRNA
-
-        print('\nTesting connectivity')
-        graph = RNAGraph(inlist=[0, 0, 1, 1, 2, 2])
-        print('    ', graph.pairs)
-        if not graph.connected():
-            print('Not connected')
-
-        print('\nlist format')
-        structure = [0, 1, 2, 1, 0, 2]
-        print('    input list', structure)
-        graph = RNAGraph(inlist=structure)
-        print('    serialized', str(graph))
-        print('    pairs', graph.pairs)
-        print('    list', graph.toList())
-        print('    vienna', graph.toVienna())
-
-        print('\n    reverse')
-        print('    reversed', graph.reverse())
-        print('    pairs', graph.pairs)
-        print('    list', graph.toList())
-        print('    vienna', graph.toVienna())
-
-        print('\nenumerating: size, len, total')
-        total = 0
-        for size in range(1, 8):
-            g = enumerateRNATopology(size)
-            total += len(g)
-            print('    ', size, len(g), total)
-
-        print('\n3 stem graphs')
-        graphs = enumerateRNATopology(3)
-        for g in graphs:
-            pgraph = RNAGraph(g)
-            print('\ngraph:', g)
-            print('    pairs:', pgraph.pairs, end='\t=>\t')
-            print('    list:', pgraph.toList())
-            print('    vienna', pgraph.toVienna())
-
-            pgraph.reverse()
-            print('    reversed:', str(pgraph))
-            print('    pairs:', pgraph.pairs, end='\t=>\t')
-            glist = pgraph.toList()
-            print('    reversed list:', glist)
-            print('    vienna', pgraph.toVienna())
-
-        # RNAstructure
-
-        rna = RNAstructure()
-        rna.CTRead('data/mr_s129.probknot.ct')
-        rna.stemListGetFromPairs()
-        # print(rna)
-        print('Stemlist\n')
-        print(rna.stemlistFormat())
-
-        edges = rna.adjacencyGet()
-        print('edges', edges)
-        print('\nAdjacency matrix\n')
-        print(rna.adjacencyFormat())
-
-        print('\nEdgelist\n')
-        e = rna.edgelist()
-        for i in range(len(e)):
-            print('{}:\t{}'.format(i, e[i]))
-
-        """ correct structure of mr_s129 by manual inspection
-        29-31:231-229
-        33-37:225-221
-        41-44:220-217
-        48-52:211-207
-        55-58:68-65
-        65-68:58-55
-        76-80:192-188
-        84-91:184-177
-        95-98:155-152
-        100-103:150-147
-        106-108:145-143
-        117-119:130-128
-        129-130:119-117
-        143-145:108-106
-        147-150:103-100
-        152-155:98-95
-        163-165:176-174
-        174-176:165-163
-        177-184:91-84
-        188-192:80-76
-        201-205:216-212
-        207-211:52-48
-        212-216:205-201
-        217-225:44-33
-        229-231:31-29
-        """
-
-        exit(0)
+    exit(0)
