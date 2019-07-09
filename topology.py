@@ -75,6 +75,140 @@ class Topology:
         self.sequence_doc = ''
         self.sequence_length = 0
         self.comment = []
+        
+    def format_stemlist(self):
+        """-----------------------------------------------------------------------------------------
+        Construct a formatted string in which the stemlist columns line up nicely. stem_list is a
+        list of dict with fields
+            name
+            center
+            left_begin
+            left_end
+            right_begin
+            right_end
+            left_vienna
+            right_vienna
+        
+        :return: str
+        -----------------------------------------------------------------------------------------"""
+        string = ''
+        colmax = {}
+        for s in self.stem_list:
+            for column in s:
+                colstr = '{}'.format(s[column])
+                if column in colmax:
+                    colmax[column] = max( colmax[column], len(colstr))
+                else:
+                    colmax[column] = len(colstr)
+        
+        fmt = '{{:{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'.\
+            format(colmax['name'],
+            colmax['center'],
+            colmax['left_begin'],
+            colmax['left_end'],
+            colmax['right_begin'],
+            colmax['right_end'],
+            colmax['left_vienna'],
+            colmax['right_vienna'] )
+
+        for s in self.stem_list:
+            string += fmt.format(s['name'],
+            s['center'],
+            s['left_begin'],
+            s['left_end'],
+            s['right_begin'],
+            s['right_end'],
+            s['left_vienna'],
+            s['right_vienna'] )
+
+        return string.rstrip('/n')
+
+
+    @staticmethod
+    def iwrite(fp, string, level, tag='', indent_len=2, indent_char=' '):
+        """-----------------------------------------------------------------------------------------
+        write a string, possibly multi-line, with indentation.  If tag is provided, opening and
+        closing XML tags are written before and after the block (on separate lines at the same 
+        indentation level).
+
+        :param fp: file, open file for writing
+        :param string: str, string to write, each line is indented
+        :param level: int, indentation level (>= 0)
+        :param tag: str, optional XML tag
+        :param indent_len: int, number of spaced to indent
+        :param indent_char: chr, character to use in indenting
+        :return: int, number of lines written
+        -----------------------------------------------------------------------------------------"""
+        nline = 0
+        space = indent_char * level * indent_len
+        if tag:
+            fp.write("{}<{}>\n".format(space, tag))
+            nline += 1
+
+        for line in string.split('/n'):
+            fp.write("{}{}\n".format(space, line))
+            nline += 1
+
+        if tag:
+            fp.write("{}</{}>\n".format(space, tag))
+            nline += 1
+
+        return nline
+
+    def XIOSwrite(self, fp):
+        """-----------------------------------------------------------------------------------------
+        Write the topology in XIOS XML format. The file comprises four sections
+            <information>       metadata
+            <stem_list>         a list of stems
+            <edge_list>         list of edges (not needed)
+            <adjacency>         adjacency matrix
+
+        :param fp: file, a writeable file, e.g., sys.stdout
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        version = 2.1
+        indent = 0
+        indent_len = 2
+
+        self.iwrite(fp, "<XIOS version='{}'>".format(version), 0)
+        indent += indent_len
+        space = ' ' * indent
+
+        # information block
+        self.iwrite(fp, '<information>', 1)
+
+        if self.sequence:
+            indent += indent_len
+            space = ' ' * indent
+            self.iwrite(fp, '<sequence>', 2 )
+            self.iwrite(fp, self.sequence_id, 3, 'id')
+            self.iwrite(fp, self.sequence_doc, 3, 'doc')
+            self.iwrite(fp, self.sequence, 3, 'unformatted')
+            self.iwrite(fp, '</sequence>', 2)
+
+            self.iwrite(fp, '<comment_list>', 2 )
+            for comment in self.comment:
+                self.iwrite(fp, comment, 3, 'comment')
+            self.iwrite(fp, '</comment_list>', 2)
+
+        self.iwrite(fp, '</information>', 1)
+        
+        # stemlist block
+        self.iwrite(fp, '<stem_list>', 1)
+        self.iwrite(fp, self.format_stemlist(), 2)
+        self.iwrite(fp, '</stem_list>', 1)
+        
+        # edge_list block
+        self.iwrite(fp, '<edge_list>', 1)
+        self.iwrite(fp, '</edge_list>', 1)
+
+        # adjancy matrix block
+        self.iwrite(fp, '<adjacency>', 1)
+        self.iwrite(fp, '</adjacency>', 1)
+
+        self.iwrite(fp, "</XIOS>".format(version), 0)
+
+        return True
 
     def XIOSread(self, filename):
         """-----------------------------------------------------------------------------------------
@@ -161,7 +295,7 @@ class Topology:
                         self.sequence_doc = seqfield.text.strip()
                         # print('sequence doc: {}'.format(seqfield.text))
                     elif seqfield.tag == 'unformatted':
-                        self.sequence_id = seqfield.text.strip()
+                        self.sequence = seqfield.text.strip()
                         # print('sequence text: {}'.format(seqfield.text))
                     else:
                         sys.stderr.write('Topology::parse_information - ')
@@ -351,12 +485,18 @@ class Topology:
 
         # build the new topology from the current one
         newtopo = Topology()
-        newtopo.comment = copy.copy(self.comment)
         for s in self.stem_list:
             if int(s['name']) in vlist:
                 newtopo.stem_list.append(s)
 
-        return Topology
+        # copy the old sequence information, add a new tracking comment
+        newtopo.sequence = self.sequence
+        newtopo.sequence_id = self.sequence_id
+        newtopo.sequence_doc = self.sequence_doc
+        newtopo.comment = copy.copy(self.comment)
+        # TODO add provenance
+
+        return newtopo
 
 
 ####################################################################################################
@@ -1142,9 +1282,9 @@ if __name__ == '__main__':
         top = Topology()
         top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
         sample = top.sample(5)
-        print(sample)
+
         top.stem_list[0] = {}
-        print(sample)
+        sample.XIOSwrite(sys.stdout)
 
         return True
 
