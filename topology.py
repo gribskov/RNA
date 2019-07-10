@@ -272,9 +272,9 @@ class Topology:
             exit(1)
 
         x = etree.parse(fp)
-        print(etree.tostring(x))
+        # print(etree.tostring(x))
         for section in x.xpath('//XIOS/*'):
-            print('section {}\n{}'.format(section.tag, section.text))
+            # print('section {}\n{}'.format(section.tag, section.text))
             if section.tag == 'information':
                 self.parse_information(section)
 
