@@ -40,6 +40,7 @@
 ================================================================================================="""
 import sys
 import copy
+from datetime import datetime
 import random
 from lxml import etree
 
@@ -131,8 +132,8 @@ class Topology:
         -----------------------------------------------------------------------------------------"""
         string = ''
         adj = self.adjacency
-        fmtrow = '{{:>{}}}:'.format(fieldwidth-1)
-        fmtcol = '{{:>{}}}{{}}'.format(fieldwidth-1)
+        fmtrow = '{{:>{}}}:'.format(fieldwidth - 1)
+        fmtcol = '{{:>{}}}{{}}'.format(fieldwidth - 1)
 
         r = 0
         for row in adj:
@@ -544,7 +545,8 @@ class Topology:
         newtopo.sequence_id = self.sequence_id
         newtopo.sequence_doc = self.sequence_doc
         newtopo.comment = copy.copy(self.comment)
-        # TODO add provenance
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        newtopo.comment.append('history {} creator topology::sample(n={})'.format(now, n))
 
         return newtopo
 
@@ -1332,10 +1334,12 @@ if __name__ == '__main__':
         top = Topology()
         top.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
         top.XIOSwrite(sys.stdout)
-        sample = top.sample(5)
 
+        # sample a subgraph and confirm it is independent
+        sample = top.sample(5)
         top.stem_list[0] = {}
         top.adjacency = []
+        top.comment = []
         sample.XIOSwrite(sys.stdout)
 
         return True
