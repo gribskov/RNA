@@ -75,7 +75,7 @@ class Topology:
         self.sequence_doc = ''
         self.sequence_length = 0
         self.comment = []
-        
+
     def format_stem_list(self):
         """-----------------------------------------------------------------------------------------
         Construct a formatted string in which the stemlist columns line up nicely. stem_list is a
@@ -97,48 +97,73 @@ class Topology:
             for column in s:
                 colstr = '{}'.format(s[column])
                 if column in colmax:
-                    colmax[column] = max( colmax[column], len(colstr))
+                    colmax[column] = max(colmax[column], len(colstr))
                 else:
                     colmax[column] = len(colstr)
-        
-        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'.\
+
+        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'. \
             format(colmax['name'],
-            colmax['center'],
-            colmax['left_begin'],
-            colmax['left_end'],
-            colmax['right_begin'],
-            colmax['right_end'],
-            colmax['left_vienna'],
-            colmax['right_vienna'] )
+                   colmax['center'],
+                   colmax['left_begin'],
+                   colmax['left_end'],
+                   colmax['right_begin'],
+                   colmax['right_end'],
+                   colmax['left_vienna'],
+                   colmax['right_vienna'])
 
         for s in self.stem_list:
             string += fmt.format(s['name'],
-            s['center'],
-            s['left_begin'],
-            s['left_end'],
-            s['right_begin'],
-            s['right_end'],
-            s['left_vienna'],
-            s['right_vienna'] )
+                                 s['center'],
+                                 s['left_begin'],
+                                 s['left_end'],
+                                 s['right_begin'],
+                                 s['right_end'],
+                                 s['left_vienna'],
+                                 s['right_vienna'])
 
         return string.rstrip('/n')
 
-    def format_edge_list(self):
-        """
+    def format_edge_list(self, fieldwidth=4):
+        """-----------------------------------------------------------------------------------------
         edge_list is written from adjacency list
-        :return:
-        """
+
+        :return: str
+        -----------------------------------------------------------------------------------------"""
         string = ''
         adj = self.adjacency
+        fmtrow = '{{:>{}}}:'.format(fieldwidth-1)
+        fmtcol = '{{:>{}}}{{}}'.format(fieldwidth-1)
+
         r = 0
         for row in adj:
-            string += '{:3}:'.format(r)
-            string += ''.join([' {}{}'.format(i,row[i]) for i in range(r+1,len(row)) if row[i] != 's' ])
+            string += fmtrow.format(r)
+            string += ''.join(
+                [fmtcol.format(i, row[i]) for i in range(r + 1, len(row)) if row[i] != 's'])
             string += '/n'
             r += 1
 
         return string.strip('/n')
 
+    def format_adjacency(self, fieldwidth=3):
+        """-----------------------------------------------------------------------------------------
+        Return a formatted string with the adjacency matrix.
+
+        :param fieldwidth: int, with of field in formatted string
+        :return: str
+        -----------------------------------------------------------------------------------------"""
+        string = ' ' * fieldwidth
+        adj = self.adjacency
+
+        fmt = '{{:>{}}}'.format(fieldwidth)
+        string += ''.join([fmt.format(i) for i in range(len(adj))])
+        r = 0
+        for row in adj:
+            string += '/n'
+            string += fmt.format(r)
+            string += ''.join([fmt.format(row[i]) for i in range(len(adj))])
+            r += 1
+
+        return string
 
     @staticmethod
     def iwrite(fp, string, level, tag='', indent_len=2, indent_char=' '):
@@ -196,31 +221,32 @@ class Topology:
         if self.sequence:
             indent += indent_len
             space = ' ' * indent
-            self.iwrite(fp, '<sequence>', 2 )
+            self.iwrite(fp, '<sequence>', 2)
             self.iwrite(fp, self.sequence_id, 3, 'id')
             self.iwrite(fp, self.sequence_doc, 3, 'doc')
             self.iwrite(fp, self.sequence, 3, 'unformatted')
             self.iwrite(fp, '</sequence>', 2)
 
-            self.iwrite(fp, '<comment_list>', 2 )
+            self.iwrite(fp, '<comment_list>', 2)
             for comment in self.comment:
                 self.iwrite(fp, comment, 3, 'comment')
             self.iwrite(fp, '</comment_list>', 2)
 
         self.iwrite(fp, '</information>', 1)
-        
+
         # stemlist block
         self.iwrite(fp, '<stem_list>', 1)
         self.iwrite(fp, self.format_stem_list(), 1)
         self.iwrite(fp, '</stem_list>', 1)
-        
+
         # edge_list block
         self.iwrite(fp, '<edge_list>', 1)
         self.iwrite(fp, self.format_edge_list(), 1)
         self.iwrite(fp, '</edge_list>', 1)
 
-        # adjancy matrix block
+        # adjacency matrix block
         self.iwrite(fp, '<adjacency>', 1)
+        self.iwrite(fp, self.format_adjacency(), 1)
         self.iwrite(fp, '</adjacency>', 1)
 
         self.iwrite(fp, "</XIOS>".format(version), 0)
@@ -499,12 +525,19 @@ class Topology:
             neighbor.remove(v0)
 
         # end of vertex selection loop
+        vlist.sort()
 
         # build the new topology from the current one
         newtopo = Topology()
         for s in self.stem_list:
             if int(s['name']) in vlist:
                 newtopo.stem_list.append(s)
+
+        newadj = newtopo.adjacency
+        for row in vlist:
+            newadj.append([])
+            for v in vlist:
+                newadj[-1].append(adj[row][v])
 
         # copy the old sequence information, add a new tracking comment
         newtopo.sequence = self.sequence
@@ -1302,6 +1335,7 @@ if __name__ == '__main__':
         sample = top.sample(5)
 
         top.stem_list[0] = {}
+        top.adjacency = []
         sample.XIOSwrite(sys.stdout)
 
         return True
