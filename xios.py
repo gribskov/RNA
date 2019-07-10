@@ -85,7 +85,7 @@ class Xios(list):
 
         for arg in kwargs:
             if arg == 'list':
-                self.len = self.from_list(kwargw['list'])
+                self.len = self.from_list(kwargs['list'])
             elif arg == 'string':
                 self.len = self.from_string(kwargs['string'])
             elif arg == 'graph':
@@ -718,6 +718,9 @@ class Gspan:
 
             elif isinstance(graph, str):
                 self.from_string(graph)
+
+            elif isinstance(graph, Xios):
+                self.graph = graph
 
             else:
                 sys.stderr.write('Gspan::__init__ - unknown graph type ({})\n'.format(graph))
