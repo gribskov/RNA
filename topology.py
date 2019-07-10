@@ -532,6 +532,60 @@ class Topology:
 
         return vlist
 
+    @staticmethod
+    def samplebyweight(self, n, w):
+        """-----------------------------------------------------------------------------------------
+        randomly sample a connected subgraph of size=n from the topology weighted by w.  The sampled
+        graph will be
+        connected by non-s edges, but size may be less than n if the graph being sampled is smaller
+        than size or has disconnected segmentsSampling is based on the adjacency matrix.
+
+        :param n:
+        :return: topology
+        -----------------------------------------------------------------------------------------"""
+        # randomly determine starting vertex
+        adj = self.adjacency
+        nvertex = len(adj)
+
+        vlist = []
+        neighbor = []
+        idx = [i for i in range(nvertex)]
+        v0 = random.choices(idx, weights=w)[0]
+        size = 0
+
+        while size < n:
+
+            vlist.append(v0)
+            size += 1
+
+            # update list of neighbors
+            for v1 in range(nvertex):
+                if adj[v0][v1] == 's' or v1 == v0:
+                    # skip s edges and self
+                    continue
+
+                if v1 in vlist:
+                    # don't add already selected vertices to neighbors
+                    continue
+
+                if v1 not in neighbor:
+                    # existing neighbor
+                    neighbor.append(v1)
+
+            if len(neighbor) == 0:
+                # if there are no neighbors, you must stop
+                break
+
+            # select new vertex and remove from current neighbor list
+            ww = [w[i] for i in neighbor]
+            v0 = random.choices(neighbor,weights=ww)[0]
+            neighbor.remove(v0)
+
+        # end of vertex selection loop
+        vlist.sort()
+
+        return vlist
+
     def sample_topology(self, n):
         """-----------------------------------------------------------------------------------------
         Return a new topology sampled from the current one.
@@ -585,6 +639,30 @@ class Topology:
                     struct.append([row, col, edge[adj[row][col]]])
 
         return Xios(list=struct)
+
+    def sample_xios_weighted(self, n, w):
+        """-----------------------------------------------------------------------------------------
+        Return a xios structure sampled from the current topology.
+
+        :param n: int, number of stems to sample
+        :param w: list of weights
+        :param sample:
+        :return: Xios object (see xios.py)
+        -----------------------------------------------------------------------------------------"""
+        edge = {'i':0, 'j':1, 'o':2, 's':3, 'x':4 }
+        vlist = self.samplebyweight(self, n, w)
+
+        adj = self.adjacency
+        struct = []
+        for row in vlist:
+            for col in vlist:
+                if col <= row:
+                    continue
+                if adj[row][col] in ('i', 'j', 'o'):
+                    struct.append([row, col, edge[adj[row][col]]])
+
+        return Xios(list=struct), vlist
+
 
 ####################################################################################################
 ####################################################################################################
