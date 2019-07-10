@@ -43,6 +43,7 @@ import copy
 from datetime import datetime
 import random
 from lxml import etree
+from xios import Xios
 
 
 ####################################################################################################
@@ -480,6 +481,7 @@ class Topology:
         self.adjacency = adjacency
         return True
 
+    @staticmethod
     def sample(self, n):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
@@ -528,12 +530,24 @@ class Topology:
         # end of vertex selection loop
         vlist.sort()
 
+        return vlist
+
+    def sample_topology(self, n):
+        """-----------------------------------------------------------------------------------------
+        Return a new topology sampled from the current one.
+        :param n: int, number of stems to sample
+        :param sample:
+        :return: Topology
+        -----------------------------------------------------------------------------------------"""
+        vlist = self.sample(self, n)
+
         # build the new topology from the current one
         newtopo = Topology()
         for s in self.stem_list:
             if int(s['name']) in vlist:
                 newtopo.stem_list.append(s)
 
+        adj = self.adjacency
         newadj = newtopo.adjacency
         for row in vlist:
             newadj.append([])
@@ -550,6 +564,27 @@ class Topology:
 
         return newtopo
 
+    def sample_xios(self, n):
+        """-----------------------------------------------------------------------------------------
+        Return a xios structure sampled from the current topology.
+
+        :param n: int, number of stems to sample
+        :param sample:
+        :return: Xios object (see xios.py)
+        -----------------------------------------------------------------------------------------"""
+        edge = {'i':0, 'j':1, 'o':2, 's':3, 'x':4 }
+        vlist = self.sample(self, n)
+
+        adj = self.adjacency
+        struct = []
+        for row in vlist:
+            for col in vlist:
+                if col <= row:
+                    continue
+                if adj[row][col] in ('i', 'j', 'o'):
+                    struct.append([row, col, edge[adj[row][col]]])
+
+        return Xios(list=struct)
 
 ####################################################################################################
 ####################################################################################################
@@ -1336,11 +1371,17 @@ if __name__ == '__main__':
         top.XIOSwrite(sys.stdout)
 
         # sample a subgraph and confirm it is independent
-        sample = top.sample(5)
+        sample = top.sample_topology(5)
         top.stem_list[0] = {}
         top.adjacency = []
         top.comment = []
         sample.XIOSwrite(sys.stdout)
+
+        # sample xios from topology
+        top2 = Topology()
+        top2.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+        x = top2.sample_xios(5)
+        print(x)
 
         return True
 
