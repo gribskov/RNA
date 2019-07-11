@@ -1463,12 +1463,54 @@ if __name__ == '__main__':
 
         return True
 
+    def test_SerialRNA():
+        """-----------------------------------------------------------------------------------------
+        # SerialRNA
+        -----------------------------------------------------------------------------------------"""
+        rnas = [[0, 0, 1, 1, 2, 2],
+                [0, 1, 0, 1, 2, 2],
+                [0, 1, 1, 2, 2, 0],
+                [0, 1, 2, 1, 2, 0],
+                [0, 0], []
+                ]
 
+        print('canonical form')
+        noncanonical = [[3, 3, 0, 0, 1, 1], [1, 1, 2, 2, 3, 3], [1, 1, 2, 2, 4, 4],
+                        [3, 2, 0, 2, 0, 3]]
+        for testcase in noncanonical:
+            rna = SerialRNA(testcase)
+            print('RNA {}'.format(rna))
+            rna.canonical()
+            print('\tcanonical {}'.format(rna))
+
+        print('\nConnected components')
+        for testcase in rnas:
+            rna = SerialRNA(testcase)
+            print('RNA {}'.format(rna))
+            connected = rna.connected()
+            if len(connected) > 1:
+                for i in range(len(connected)):
+                    print('\tcomponent {}: {}'.format(i, connected[i]))
+
+        print('\nExtension')
+        for testcase in rnas:
+            rna = SerialRNA(testcase)
+            print('RNA {}'.format(rna))
+            for new in rna.addstemzero():
+                print('\t{} {}'.format(new, len(new.connected())))
+
+        return
+
+    # ##############################################################################################
+    # Testing
+    # ##############################################################################################
     test_pair()
     test_topology()
+    test_SerialRNA()
 
     exit(0)
 
+    # TODO convert this section
     # for rna in graphs:
     #     g = RNAGraph(rna)
     #     three = RNAstructure()
