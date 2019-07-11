@@ -567,11 +567,11 @@ class MotifDB():
             elif fields[i] == 'db':
                 for m in data:
                     x = Xios()
-                    x.ascii_decode(m)
+                    x.human_decode(m)
                     fp.write('\t{}\n'.format(x))
                     for p in self.parent[m]:
                         x = Xios()
-                        x.ascii_decode(p)
+                        x.human_decode(p)
                         fp.write('\t\t{}\n'.format(x))
 
         return
