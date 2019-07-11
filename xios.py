@@ -1,4 +1,7 @@
 import sys
+import re
+
+
 class XiosEdge(list):
     """=============================================================================================
     Edge class
@@ -76,7 +79,7 @@ class Xios(list):
     
     ============================================================================================="""
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         """-----------------------------------------------------------------------------------------
         Xios graph is a list of XiosEdge
 
@@ -307,11 +310,52 @@ class Xios(list):
             v1 = (dec2 & 127)
             e += (dec2 & 128) >> 7
 
-            print('[{}, {}, {}]'.format(v0, v1, e))
+            # print('[{}, {}, {}]'.format(v0, v1, e))
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
             return True
+
+    def human_encode(self, width=1):
+        """-----------------------------------------------------------------------------------------
+        A human readable compact encoding for a dfs row. Adaptable to various limits on by changing
+        the field width of the vertex integers.
+
+        a row such as 0 1 0 or 0 1 i becomes 0i1 or 00i01 or 000i001 etc.
+
+        :param width: field width for vertices
+        :return: str
+        -----------------------------------------------------------------------------------------"""
+        fmt = '{{:0{}d}}'.format(width)
+        etype = ['i', 'j', 'o', 's', 'x']
+
+        string = ''
+        for edge in self:
+            v0 = fmt.format(edge[0])
+            v1 = fmt.format(edge[1])
+            string += '{}{}{}.'.format(v0, etype[edge[2]], v1)
+
+        return string
+
+    def human_decode(self, code):
+        """-----------------------------------------------------------------------------------------
+        Decode the encoded graph produced by human_encode(). The current graph is overwritten
+        by the new graph coming from the code so this is like reading in a human encoded graph.
+
+        :return: int, number of rows
+        -----------------------------------------------------------------------------------------"""
+        rowre = re.compile(r'(\d+)([ijosx])(\d+)')
+        etype = {'i':0, 'j':1, 'o':2, 's':3, 'x':4}
+
+        self.clear()
+        for row in code.rstrip('.').split('.'):
+            m = rowre.match(row)
+            (v0, e, v1) = m.group(1, 2, 3)
+            e = etype[e]
+
+            edge = XiosEdge([int(v0), int(v1), e])
+            self.append(edge)
+
 
     def ascii_encode(self):
         """-----------------------------------------------------------------------------------------
@@ -336,7 +380,7 @@ class Xios(list):
     def ascii_decode(self, code):
         """-----------------------------------------------------------------------------------------
         Decode the ascii encoded graph produced by ascii_encode(). The current graph is
-        overwritten by the new graph coming from the hex code so this is like reading in a hex
+        overwritten by the new graph coming from the code so this is like reading in a ascii
         encoded graph.
 
         :return: int, number of rows
@@ -430,7 +474,7 @@ class MotifDB():
         -----------------------------------------------------------------------------------------"""
         db = self.db
         n = len(db)
-        nstem = len(motif)//2
+        nstem = len(motif) // 2
         if nstem > len(self.lenidx):
             for i in range(len(self.lenidx), nstem):
                 self.lenidx.append([])
@@ -460,7 +504,6 @@ class MotifDB():
                 self.parent[child].append(p)
 
         return len(self.parent)
-
 
     def setdate(self):
         """-----------------------------------------------------------------------------------------
@@ -502,9 +545,9 @@ class MotifDB():
         for i in range(len(fields)):
             dispatch.append(getattr(self, fields[i]))
 
-        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))},indent=4)
+        return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))}, indent=4)
 
-    def toFile(self,fp):
+    def toFile(self, fp):
         """-----------------------------------------------------------------------------------------
         Write a formatted version of the motif database to a file. use sys.stdout to as the file if
         you want it on STDOUT
@@ -512,7 +555,7 @@ class MotifDB():
         :param fp:
         :return:
         -----------------------------------------------------------------------------------------"""
-        fields = ['information', 'n', 'db' ]
+        fields = ['information', 'n', 'db']
 
         for i in range(len(fields)):
             data = getattr(self, fields[i])
@@ -1255,220 +1298,255 @@ class Gspan:
 
 
 if __name__ == '__main__':
-    # test that edges are behave properly
 
-    a = ['a', 'b', 'i']
-    b = XiosEdge(a)
-    print(b)
-    b.reverse()
-    print('reversed', b)
-    b.reverse()
-    print('dereversed', b)
+    # the main testing program is at the very end
 
-    i = [1, 0, 0]
-    b = XiosEdge(i)
-    print(b)
-    b.reverse()
-    print('reversed', b)
-    b.reverse()
-    print('dereversed', b)
-    b.flip()
-    print('flipped', b)
-    b.flip()
-    print('deflipped', b)
+    def test_XiosEdge():
+        """-----------------------------------------------------------------------------------------
+        Test SiosEdge class
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        a = ['a', 'b', 'i']
+        b = XiosEdge(a)
+        print(b)
+        b.reverse()
+        print('reversed', b)
+        b.reverse()
+        print('dereversed', b)
 
-    c = b
-    d = b[:]
-    b[1] = 2
+        i = [1, 0, 0]
+        b = XiosEdge(i)
+        print(b)
+        b.reverse()
+        print('reversed', b)
+        b.reverse()
+        print('dereversed', b)
+        b.flip()
+        print('flipped', b)
+        b.flip()
+        print('deflipped', b)
 
-    print('a=', a, ' b=', b, ' c=', c, ' d=', d)
+        c = b
+        d = b[:]
+        b[1] = 2
 
-    # XIOS
-    x = Xios()
-    x.append(XiosEdge([0, 1, 0]))
-    x.append(XiosEdge([1, 2, 0]))
-    x.append(XiosEdge([2, 0, 1]))
-    print('x=', x)
+        print('a=', a, ' b=', b, ' c=', c, ' d=', d)
 
-    print('\nread from graph format')
-    rnas = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]], [[0, 5], [1, 2], [3, 4]],
-            [[1, 7], [1, 3], [2, 5], [4, 7]]]
-    for graph in rnas:
-        print('\nx1 read from graph', graph)
-        xg = Xios()
-        xg.from_graph(graph)
-        print('xg=', xg)
+        print('\nEdge manipulation\n')
+        e = Edge()
+        e.set(2, 3, 0)
+        e.g2d = [0, 1, 2]
+        print('    edge', e)
+        e.reverse()
+        print('    edge reversed', e)
+        e.set(1, 2, 1)
+        e.g2d = [2, 1, 0]
+        print('    dfs numbering using {}: {}'.format(e.g2d, e))
+        e.reverse()
+        print('    dfs numbering reversed', e)
 
-    print('\nRead XIOS list and string formats')
+        print('Edge comparison\n')
+        Edge.g2d = [1, 0, 2, None]
+        e1 = Edge([0, 3, 0])
+        e2 = Edge([2, 1, 1])
+        print('    edge 1', e1)
+        print('    edge 2', e2)
 
-    graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
-    print('\nx2 read from list', graph)
-    x2 = Xios()
-    x2.from_list(graph)
-    print('x2=', x2)
+        e3 = e2.copy()
+        e3[0], e3[1] = e3[1], e3[0]
+        e3[0] = 5
+        print('copy {} | {}'.format(e2, e3))
 
-    graph = '[[0, 1, 0], [1, 2, 0], [2, 0, 1]]'
-    print('\nx3 read from string', graph)
-    x3 = Xios()
-    x3.from_string(graph)
-    print('x3=', x3)
+        if e1 < e2:
+            print('e1 smaller')
+        if e2 < e1:
+            print('e2 smaller')
 
-    print('\nrnormalize x3')
-    print('x=', x3)
-    map = x3.normalize()
-    print('normalized=', x3, map)
+        print('x=', x)
 
-    print('\nrnormalize x2')
-    print('x=', x2)
-    map = x2.normalize()
-    print('normalized=', x2, map)
+        return
 
-    print('\nhex encoding x2')
-    hex = x2.hex2_encode()
-    print(x2, hex)
-    x2.hex2_decode(hex)
-    print('decoded', x2)
-    print('\nhex encoding x3')
-    hex = x3.hex2_encode()
-    print(x3, hex)
-    x3.hex2_decode(hex)
-    print('decoded', x3)
+    def test_Xios():
+        """-----------------------------------------------------------------------------------------
+        Test Xios class
 
-    print('\nascii encoding x2')
-    x4 = Xios()
-    x4.from_graph(rnas[4])
-    ascii = x4.ascii_encode()
-    print(x4, ascii)
-    x2.ascii_decode(ascii)
-    print('decoded', x4)
-    print('\nascii encoding x3')
-    ascii = x3.ascii_encode()
-    print(x3, ascii)
-    x3.ascii_decode(ascii)
-    print('decoded', x3)
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        print('Testing Xios class')
+        # mapping of edge types to integers to avoid quoting all the time
+        i = 0
+        j = 1
+        o = 2
+        s = 3
 
-    # mapping of edge types to integers to avoid quoting all the time
-    i = 0
-    j = 1
-    o = 2
-    s = 3
+        print('\nread from Pair format')
+        rnas = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]], [[0, 5], [1, 2], [3, 4]],
+                [[1, 7], [1, 3], [2, 5], [4, 7]]]
+        for graph in rnas:
+            print('\nx1 read from graph', graph)
+            xg = Xios()
+            xg.from_graph(graph)
+            print('xg=', xg)
 
-    '''
-    graphset(0:2) have the same canonical representation as graphset[0]
-    '''
-    graphset = [
-        # [[0,1,0], [0,2,0], [1,2,0], [0,3,2], [1,3,2], [2,3,0], [3,4,0]],
-        # [[0,1,0], [0,2,2], [0,4,2], [1,2,2], [2,3,2], [2,4,0], [2,5,2], [4,5,2], [5,3,0]],
-        # [[0,1,0], [0,2,0], [0,3,0], [0,4,0], [0,5,0], [1,2,0], [4,5,0]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0],
-        # [1,6,2], [4,6,2]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0, 6, 0],
-        # [1, 6, 2], [4, 6, 2], [0,7,0], [1,7,2], [2,7,2], [4,7,2], [5,7,2]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
-        #  [0, 6, 0], [5, 6, 2], [0, 7, 2], [7, 8, 0], [7, 9, 0], [8, 9, 0]],
-        # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 8, 0],
-        #  [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
-        #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
-        #  [4, 5, 0], [4, 6, 0]],
-        # [[2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
-        #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
-        #  [4, 5, 0], [4, 6, 0]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 0]],
-        # [[2, 3, 0], [2, 4, 0], [2, 6, 0],
-        #  [3, 4, 0], [3, 6, 0],
-        #  [4, 6, 0]]
-        # [[0, 1, i], [1, 2, i], [2, 0, j]],
-        # [[0, 1, i], [0, 2, j], [1, 2, j]],
-        # [[0, 1, j], [0, 2, j], [1, 2, j]],
-        # [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
-        # [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
-        #  [3, 4, 2]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 6, 0], [0, 7, 0],
-        #  [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
-        #  [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
-        # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
-        #  [1, 9, 0],
-        #   [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
-        #   [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
-        #   [4, 5, 0], [4, 6, 0],
-        #   [7, 8, 0], [7, 9, 2]]
-        # [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
-        # [[0, 1, 2], [0, 2, 0], [0, 3, 2], [0, 4, 2], [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0],
-        #  [3, 4, 2], [4, 5, 2]],
-        # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 2], [0, 5, 0], [1, 2, 2], [2, 3, 2], [2, 4, 2],
-        #  [3, 4, 2], [4, 5, 0]],
-        # [[0, 1, 2], [0, 2, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
-        # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2]],
-        # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [4, 5, 2]],
-        # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
-        # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
-        # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]],
-        [[1, 5, 0], [1, 3, 0], [1, 4, 0], [1, 2, 0], [1, 0, 2], [2, 0, 2]]
-    ]
+        print('\nRead XIOS list and string formats')
 
-    # graph normalization create an unnormalized graph by doubling the vertex numbers
+        graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
+        print('\nx2 read from list', graph)
+        x2 = Xios()
+        x2.from_list(graph)
+        print('x2=', x2)
 
-    print('\nEdge manipulation\n')
-    e = Edge()
-    e.set(2, 3, 0)
-    e.g2d = [0, 1, 2]
-    print('    edge', e)
-    e.reverse()
-    print('    edge reversed', e)
-    e.set(1, 2, 1)
-    e.g2d = [2, 1, 0]
-    print('    dfs numbering using {}: {}'.format(e.g2d, e))
-    e.reverse()
-    print('    dfs numbering reversed', e)
+        graph = '[[0, 1, 0], [1, 2, 0], [2, 0, 1]]'
+        print('\nx3 read from string', graph)
+        x3 = Xios()
+        x3.from_string(graph)
+        print('x3=', x3)
 
-    print('Edge comparison\n')
-    Edge.g2d = [1, 0, 2, None]
-    e1 = Edge([0, 3, 0])
-    e2 = Edge([2, 1, 1])
-    print('    edge 1', e1)
-    print('    edge 2', e2)
+        print('\nrnormalize x3')
+        print('x=', x3)
+        map = x3.normalize()
+        print('normalized=', x3, map)
 
-    e3 = e2.copy()
-    e3[0], e3[1] = e3[1], e3[0]
-    e3[0] = 5
-    print('copy {} | {}'.format(e2, e3))
+        print('\nrnormalize x2')
+        print('x=', x2)
+        map = x2.normalize()
+        print('normalized=', x2, map)
 
-    if e1 < e2:
-        print('e1 smaller')
-    if e2 < e1:
-        print('e2 smaller')
+        # encoding/decoding
 
-    # testing reading graphs from string
-    gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
-    # g = Gspan(gstr)
+        print('\nTest encoding')
+        test = Xios()
+        x4 = Xios()
+        x4.from_graph(rnas[4])
 
-    for graph in graphset:
-        print('\nGraph normalization')
-    g = copy.deepcopy(graph)
-    print('    original graph: {}'.format(g))
+        graphs = [x2, x3, x4]
+        print('\thuman encoding')
+        for rna in graphs:
+            print('\t\tinput {}'.format(rna))
+            code = rna.human_encode()
+            print('\t\tcoded {}'.format(code))
+            test.human_decode(code)
+            print('\t\tdecoded {}\n'.format(test))
 
-    # for edge in g:
-    #     for i in range(0, 2):
-    #         edge[i] *= 2
-    # print('    un-normalized graph: {}'.format(g))
+        print('\thex2 encoding')
+        for rna in graphs:
+            print('\t\tinput {}'.format(rna))
+            code = rna.hex2_encode()
+            print('\t\tcoded {}'.format(code))
+            test.hex2_decode(code)
+            print('\t\tdecoded {}\n'.format(test))
 
-    print('\nGspan canonical graph')
-    for g in graphset:
-        # g = graphset[4]
-        print('\n\tinput graph', g)
-        gspan = Gspan(graph=g)
-        for _ in range(1):
-            # map = gspan.graph_randomize()
-            gspan.graph_normalize()
-            # print('    renormalized graph: {}'.format(gspan.graph))
-            glen = len(gspan.graph)
-            gspan.minDFS()
-            print('\trandomized{}\n\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+        print('\tascii encoding')
+        for rna in graphs:
+            print('\t\tinput {}'.format(rna))
+            code = rna.ascii_encode()
+            print('\t\tcoded {}'.format(code))
+            test.ascii_decode(code)
+            print('\t\tdecoded {}\n'.format(test))
 
-    # --------------------------------------------------------------------------------------------------
-    # testing - motifDB
-    # --------------------------------------------------------------------------------------------------
+        # graph normalization create an unnormalized graph by doubling the vertex numbers
+        # XIOS
+        x = Xios()
+        x.append(XiosEdge([0, 1, 0]))
+        x.append(XiosEdge([1, 2, 0]))
+        x.append(XiosEdge([2, 0, 1]))
+
+
+        return
+
+    def test_Gspan():
+        """-----------------------------------------------------------------------------------------
+        Test Gspan class
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        '''
+         graphset(0:2) have the same canonical representation as graphset[0]
+         '''
+        graphset = [
+            # [[0,1,0], [0,2,0], [1,2,0], [0,3,2], [1,3,2], [2,3,0], [3,4,0]],
+            # [[0,1,0], [0,2,2], [0,4,2], [1,2,2], [2,3,2], [2,4,0], [2,5,2], [4,5,2], [5,3,0]],
+            # [[0,1,0], [0,2,0], [0,3,0], [0,4,0], [0,5,0], [1,2,0], [4,5,0]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0,6,0],
+            # [1,6,2], [4,6,2]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [1, 2, 0], [4, 5, 0], [0, 6, 0],
+            # [1, 6, 2], [4, 6, 2], [0,7,0], [1,7,2], [2,7,2], [4,7,2], [5,7,2]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 0], [0, 5, 0], [2, 5, 0], [4, 6, 2],
+            #  [0, 6, 0], [5, 6, 2], [0, 7, 2], [7, 8, 0], [7, 9, 0], [8, 9, 0]],
+            # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 8, 0],
+            #  [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+            #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
+            #  [4, 5, 0], [4, 6, 0]],
+            # [[2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0],
+            #  [3, 4, 0], [3, 5, 0], [3, 6, 0],
+            #  [4, 5, 0], [4, 6, 0]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 0]],
+            # [[2, 3, 0], [2, 4, 0], [2, 6, 0],
+            #  [3, 4, 0], [3, 6, 0],
+            #  [4, 6, 0]]
+            # [[0, 1, i], [1, 2, i], [2, 0, j]],
+            # [[0, 1, i], [0, 2, j], [1, 2, j]],
+            # [[0, 1, j], [0, 2, j], [1, 2, j]],
+            # [[0, 1, 1], [0, 2, 0], [0, 3, 0], [1, 2, 0], [1, 3, 0], [2, 3, 2]],
+            # [['a', 'c', 1], ['a', 'b', 0], ['a', 'd', 0], ['c', 'b', 0], ['c', 'd', 0], ['b', 'd', 2]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [1, 4, 2], [2, 3, 0], [2, 4, 2],
+            #  [3, 4, 2]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 0], [0, 5, 0], [0, 6, 0], [0, 7, 0],
+            #  [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0],
+            #  [2, 3, 2], [3, 5, 0], [3, 6, 0], [3, 7, 0], [4, 3, 2], [5, 6, 2], [7, 6, 2]],
+            # [[1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0], [1, 6, 0], [1, 7, 0], [1, 8, 0],
+            #  [1, 9, 0],
+            #   [2, 3, 0], [2, 4, 0], [2, 5, 0], [2, 6, 0], [2, 8, 0], [2, 7, 2],
+            #   [3, 4, 0], [3, 5, 0], [3, 6, 0], [3, 7, 2],
+            #   [4, 5, 0], [4, 6, 0],
+            #   [7, 8, 0], [7, 9, 2]]
+            # [[0, 1, 2], [1, 2, 2]], [[0, 1, 2], [0, 2, 2]],
+            # [[0, 1, 2], [0, 2, 0], [0, 3, 2], [0, 4, 2], [1, 2, 0], [1, 3, 0], [1, 4, 0], [1, 5, 0],
+            #  [3, 4, 2], [4, 5, 2]],
+            # [[0, 1, 0], [0, 2, 0], [0, 3, 0], [0, 4, 2], [0, 5, 0], [1, 2, 2], [2, 3, 2], [2, 4, 2],
+            #  [3, 4, 2], [4, 5, 0]],
+            # [[0, 1, 2], [0, 2, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
+            # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2]],
+            # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [2, 4, 2], [3, 4, 2], [4, 5, 2]],
+            # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2]],
+            # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
+            # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]],
+            [[1, 5, 0], [1, 3, 0], [1, 4, 0], [1, 2, 0], [1, 0, 2], [2, 0, 2]]
+        ]
+        # testing reading graphs from string
+        gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
+        # g = Gspan(gstr)
+
+        for graph in graphset:
+            print('\nGraph normalization')
+        g = copy.deepcopy(graph)
+        print('    original graph: {}'.format(g))
+
+        # for edge in g:
+        #     for i in range(0, 2):
+        #         edge[i] *= 2
+        # print('    un-normalized graph: {}'.format(g))
+
+        print('\nGspan canonical graph')
+        for g in graphset:
+            # g = graphset[4]
+            print('\n\tinput graph', g)
+            gspan = Gspan(graph=g)
+            for _ in range(1):
+                # map = gspan.graph_randomize()
+                gspan.graph_normalize()
+                # print('    renormalized graph: {}'.format(gspan.graph))
+                glen = len(gspan.graph)
+                gspan.minDFS()
+                print('\trandomized{}\n\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+
+        return
+
+    def test_MotifDB():
+        """-----------------------------------------------------------------------------------------
+        testing - motifDB
+
+        :return:
+       ----------------------------------------------------------------------------------------- """
 
         motif = MotifDB()
         motif.setdate()
@@ -1479,39 +1557,19 @@ if __name__ == '__main__':
         motif.add_with_len('ccddee', 2)
         print(motif.toJSON())
 
-        exit(1)
+        return
 
-        # SerialRNA
-        rnas = [[0, 0, 1, 1, 2, 2],
-                [0, 1, 0, 1, 2, 2],
-                [0, 1, 1, 2, 2, 0],
-                [0, 1, 2, 1, 2, 0],
-                [0, 0], []
-                ]
+    # ##############################################################################################
+    # Testing
+    # ##############################################################################################
 
-        print('canonical form')
-        noncanonical = [[3, 3, 0, 0, 1, 1], [1, 1, 2, 2, 3, 3], [1, 1, 2, 2, 4, 4],
-                        [3, 2, 0, 2, 0, 3]]
-        for testcase in noncanonical:
-            rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
-            rna.canonical()
-            print('\tcanonical {}'.format(rna))
+    def test_Main():
+        # test_XiosEdge()
+        test_Xios()
+        # test_Gspan()
+        # test_MotifDB()
 
-        print('\nConnected components')
-        for testcase in rnas:
-            rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
-            connected = rna.connected()
-            if len(connected) > 1:
-                for i in range(len(connected)):
-                    print('\tcomponent {}: {}'.format(i, connected[i]))
+        return
 
-        print('\nExtension')
-        for testcase in rnas:
-            rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
-            for new in rna.addstemzero():
-                print('\t{} {}'.format(new, len(new.connected())))
-
-        exit(0)
+    test_Main()
+    exit(0)
