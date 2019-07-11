@@ -1,5 +1,6 @@
 import sys
 import re
+import hashlib
 
 
 class XiosEdge(list):
@@ -345,7 +346,7 @@ class Xios(list):
         :return: int, number of rows
         -----------------------------------------------------------------------------------------"""
         rowre = re.compile(r'(\d+)([ijosx])(\d+)')
-        etype = {'i':0, 'j':1, 'o':2, 's':3, 'x':4}
+        etype = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
 
         self.clear()
         for row in code.rstrip('.').split('.'):
@@ -355,7 +356,6 @@ class Xios(list):
 
             edge = XiosEdge([int(v0), int(v1), e])
             self.append(edge)
-
 
     def ascii_encode(self):
         """-----------------------------------------------------------------------------------------
@@ -449,7 +449,7 @@ from xios import Xios
 class MotifDB():
     """=============================================================================================
     I keep going back and forth over whether the object should be a dict, or whether it should have
-    defined fields.  Defined fields requires fewere accessors, but a general accessor with getattr
+    defined fields.  Defined fields requires fewer accessors, but a general accessor with getattr
     could be used.
         motifdb.fields = list of fields in order for serialization
         motifdb.information = metadata, standard info has accessors, but any notes can be added
@@ -457,13 +457,19 @@ class MotifDB():
         motifdb.lenidx = list, index is number of stems
     ============================================================================================="""
 
-    def __init__(self):
+    def __init__(self, **kwds):
         self.fields = ['information', 'n', 'db', 'lenidx', 'parent']
         self.information = {}  # for metadata
         self.n = 0
         self.db = []
         self.parent = {}
         self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
+
+        for key in kwds:
+            if key == 'json':
+                self.fromJSON(kwds[key])
+            else:
+                sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
 
     def add_with_len(self, motif):
         """-----------------------------------------------------------------------------------------
@@ -474,7 +480,10 @@ class MotifDB():
         -----------------------------------------------------------------------------------------"""
         db = self.db
         n = len(db)
-        nstem = len(motif) // 2
+        # for ascii_encode
+        # nstem = len(motif) // 2
+        # for human_encode
+        nstem = motif.count('.') + 1
         if nstem > len(self.lenidx):
             for i in range(len(self.lenidx), nstem):
                 self.lenidx.append([])
@@ -534,28 +543,67 @@ class MotifDB():
 
         return len(source)
 
+    def checksum(self):
+        """-----------------------------------------------------------------------------------------
+        caclulate a checksum.  The checksum is based on the JSON string of the db, parent, and
+        lenidx fields so it should not be affected by changes to comments.
+
+        :return: str, hexadecimal md5 checksum
+        -----------------------------------------------------------------------------------------"""
+        content = json.dumps(self.db) + json.dumps(self.parent) + json.dumps(self.lenidx)
+        result = hashlib.md5(content.encode())
+
+        return result.hexdigest()
+
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
         Convert database to JSON string
+        self.fields specifies the order of the fields in the output
 
         :return: str
         -----------------------------------------------------------------------------------------"""
         fields = self.fields
+
+        self.information['checksum'] = self.checksum()
         dispatch = []
         for i in range(len(fields)):
+            # look up the values of each field and add to dispatch list
             dispatch.append(getattr(self, fields[i]))
 
         return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))}, indent=4)
 
+    def fromJSON(self, fp):
+        """-----------------------------------------------------------------------------------------
+        Read in a JSON serialized MotifDB written by toJSON
+
+        :param fp:  file, open for reading
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        j = json.load(fp)
+
+        for i in self.fields:
+            # look up the values of each field and add to dispatch list
+            setattr(self, i, j[i])
+        old_checksum = self.information['checksum']
+        self.information['checksum'] = self.checksum()
+        checksum_is_ok = old_checksum == self.information['checksum']
+        if checksum_is_ok is False:
+            sys.stderr.write('MotifDB::fromJSON - checksums do not match (file:{} new:{}'.
+                             format(oldchecksum, self.information['checksum']))
+
+        return checksum_is_ok
+
     def toFile(self, fp):
         """-----------------------------------------------------------------------------------------
-        Write a formatted version of the motif database to a file. use sys.stdout to as the file if
-        you want it on STDOUT
+        Write a formatted version of the motif database to a file. use sys.stdout as the file if
+        you want it on STDOUT.  The JSON format is authoritative, this is for reference only.
 
         :param fp:
         :return:
         -----------------------------------------------------------------------------------------"""
-        fields = ['information', 'n', 'db']
+        fields = self.fields
+
+        self.information['checksum'] = self.checksum()
 
         for i in range(len(fields)):
             data = getattr(self, fields[i])
@@ -568,11 +616,24 @@ class MotifDB():
                 for m in data:
                     x = Xios()
                     x.human_decode(m)
-                    fp.write('\t{}\n'.format(x))
+                    fp.write('\t{}\t{}\n'.format(m, x))
                     for p in self.parent[m]:
                         x = Xios()
                         x.human_decode(p)
-                        fp.write('\t\t{}\n'.format(x))
+                        fp.write('\t\t{}\t{}\n'.format(p, x))
+            elif fields[i] == 'lenidx':
+                fp.write('{}\n'.format('length index'))
+                l = 0
+                for m in data:
+                    l += 1
+                    if not m:
+                        continue
+
+                    fp.write('\tlength\t{}\n'.format(l))
+                    for motif in m:
+                        x = Xios()
+                        x.human_decode(motif)
+                        fp.write('\t{}\t{}\n'.format(motif, x))
 
         return
 
@@ -1366,6 +1427,7 @@ if __name__ == '__main__':
 
         return
 
+
     def test_Xios():
         """-----------------------------------------------------------------------------------------
         Test Xios class
@@ -1451,8 +1513,8 @@ if __name__ == '__main__':
         x.append(XiosEdge([1, 2, 0]))
         x.append(XiosEdge([2, 0, 1]))
 
-
         return
+
 
     def test_Gspan():
         """-----------------------------------------------------------------------------------------
@@ -1541,6 +1603,7 @@ if __name__ == '__main__':
 
         return
 
+
     def test_MotifDB():
         """-----------------------------------------------------------------------------------------
         testing - motifDB
@@ -1559,6 +1622,7 @@ if __name__ == '__main__':
 
         return
 
+
     # ##############################################################################################
     # Testing
     # ##############################################################################################
@@ -1570,6 +1634,7 @@ if __name__ == '__main__':
         # test_MotifDB()
 
         return
+
 
     test_Main()
     exit(0)
