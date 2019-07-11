@@ -128,9 +128,14 @@ for g in motif:
 
         db.add_parent(g, stridx[parentstr])
 
-# o = open('data/12stem.list.txt', 'w')
+o = open('data/12stem.list.txt', 'w')
 import sys
-# print(db.toJSON())
+o.write(db.toJSON())
+o.close()
+
+import json
+infp = open('data/12stem.list.txt', 'r')
+ttt = MotifDB(json=infp)
 db.toFile(sys.stdout)
 
 stop = time.time()
