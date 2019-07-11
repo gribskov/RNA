@@ -5,8 +5,11 @@ import hashlib
 
 class XiosEdge(list):
     """=============================================================================================
-    Edge class
-
+    XIOS Edge class
+    and edge is a 3-tuple of (v0, v1, edge)
+    v0 and v1 can be integers or strings, and need not be consecutive.  edge can be one of the
+    allowed characters [ijosx] or the corresponding integer. the authoritative converstions are
+    given by the class variables below: a2i, arev, a2a, irev
     ============================================================================================="""
     # class variables for master definition of edge types
     # a2i   dict    convert edge type alpha to int encoding
@@ -69,15 +72,19 @@ class XiosEdge(list):
         return
 
 
+####################################################################################################
+####################################################################################################
+
 class Xios(list):
     """=============================================================================================
     A XIOS graph is a description of an RNA topology.
-    The basic structure is a list of edges where each edge is [v0, v1, e]
-        v0 originating vertex
-        v1 terminating vertex
-        e edge type (x, i, (j), o, s)
-            i edges are directed. i and j indicate forward and backward directions
-    
+    The basic structure is a list of edges where each edge is a XIOSEdge, [v0, v1, e]
+
+    XIOSEdge does not constrain whether v0, v1, and e are integers or strings, although e must be an
+    integer [0-4] or character[ijosx]
+
+    Most of these variation are fixed up by the normalize method.  the encode/decode methods expect
+    the edges to be in all integer form
     ============================================================================================="""
 
     def __init__(self, **kwargs):
@@ -109,8 +116,12 @@ class Xios(list):
         :return: int, number of vertices
         -----------------------------------------------------------------------------------------"""
         for edge in graph:
+            # print('type', type(edge[2]))
+            if isinstance(edge[2], str):
+                edge[2] = XiosEdge.a2i[edge[2]]
             edge = XiosEdge(edge)
             self.append(edge)
+
         return len(self)
 
     def from_string(self, graphstr):
@@ -123,14 +134,28 @@ class Xios(list):
         :param graphstr:
         :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
+        etype = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
+
         simple = ''.join([c if c.isalnum() else " " for c in graphstr])
         simple = simple.strip()
-        graph = simple.split()
-        for i in range(0, len(graph), 3):
-            edge = XiosEdge([graph[1], graph[i + 2], graph[i + 2]])
-            self.append(edge)
+        glist = simple.split()
 
-            return len(self)
+        pos = 0
+        triple = []
+        for i in glist:
+            pos += 1
+            if i.isdigit():
+                i = int(i)
+            else:
+                i = etype[i]
+
+            triple.append(i)
+            if not pos % 3:
+                edge = XiosEdge(triple)
+                self.append(edge)
+                triple = []
+
+        return len(self)
 
     def from_graph(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -170,7 +195,7 @@ class Xios(list):
 
     def from_serial(self, graph):
         """-----------------------------------------------------------------------------------------
-        creates a Xios graph from a SerialRNA.  SerialRNA is defined in motifdb.py.  In serial
+        creates a Xios graph from a SerialRNA.  SerialRNA is defined in topology.py.  In serial
         format, the positions in a list indicate the left to right positions in the RNA and the
         values indicate which string begins or ends at that position, e.g., [0,1,0,1] for a
         pseudoknot.
@@ -201,20 +226,25 @@ class Xios(list):
 
         :return: list, map[i] is original vertex name
         -----------------------------------------------------------------------------------------"""
-        n = 0
+        etype = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
+
         map = []
-        for edge in self:
+        for e in range(len(self)):
+            edge = self[e]
             for v in (0, 1):
                 if edge[v] not in map:
                     map.append(edge[v])
-                    n += 1
 
                 edge[v] = map.index(edge[v])
 
-            if edge[2].isdigit():
-                edge[2] = int(edge[2])
-            else:
-                edge.int()
+            if type(edge[2]) == 'str':
+                if edge[2].isdigit():
+                    edge[2] = int(edge[2])
+                else:
+                    try:
+                        edge[2] = etype[edge[2]]
+                    except KeyError as err:
+                        print(edge, err)
 
         return map
 
@@ -328,13 +358,15 @@ class Xios(list):
         :return: str
         -----------------------------------------------------------------------------------------"""
         fmt = '{{:0{}d}}'.format(width)
-        etype = ['i', 'j', 'o', 's', 'x']
 
         string = ''
         for edge in self:
             v0 = fmt.format(edge[0])
             v1 = fmt.format(edge[1])
-            string += '{}{}{}.'.format(v0, etype[edge[2]], v1)
+            e = edge[2]
+            if isinstance(edge[2], int):
+                e = XiosEdge.i2a[edge[2]]
+            string += '{}{}{}.'.format(v0, e, v1)
 
         return string
 
@@ -351,11 +383,12 @@ class Xios(list):
         self.clear()
         for row in code.rstrip('.').split('.'):
             m = rowre.match(row)
-            (v0, e, v1) = m.group(1, 2, 3)
-            e = etype[e]
+            if m:
+                (v0, e, v1) = m.group(1, 2, 3)
+                e = etype[e]
 
-            edge = XiosEdge([int(v0), int(v1), e])
-            self.append(edge)
+                edge = XiosEdge([int(v0), int(v1), e])
+                self.append(edge)
 
     def ascii_encode(self):
         """-----------------------------------------------------------------------------------------
@@ -410,33 +443,6 @@ from xios import XiosEdge, Xios
 
 """=================================================================================================
 MotifDB class is for creating and using XIOS graph dictionaries
-
-011220
-
-0,5  1,2  3,4
-
-00 -> 11 *
-    0011 -> 1122
-        010122
-        011022
-        011202 *
-        011220 *
-    0101 -> 1212  *
-        010212 *
-        012012 *
-        012102 *
-        012120 *
-    0110 -> 1221  *
-        010221 *
-        012021 *
-        012201 *
-        012210 *
-
-01
-    01 23
-
-    02 13
-    03 12
 
 
 Michael Gribskov     15 June 2019
@@ -545,7 +551,7 @@ class MotifDB():
 
     def checksum(self):
         """-----------------------------------------------------------------------------------------
-        caclulate a checksum.  The checksum is based on the JSON string of the db, parent, and
+        calculate a checksum.  The checksum is based on the JSON string of the db, parent, and
         lenidx fields so it should not be affected by changes to comments.
 
         :return: str, hexadecimal md5 checksum
@@ -1441,45 +1447,54 @@ if __name__ == '__main__':
         o = 2
         s = 3
 
-        print('\nread from Pair format')
-        rnas = [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]], [[0, 5], [1, 2], [3, 4]],
-                [[1, 7], [1, 3], [2, 5], [4, 7]]]
-        for graph in rnas:
-            print('\nx1 read from graph', graph)
-            xg = Xios()
-            xg.from_graph(graph)
-            print('xg=', xg)
+        print('\nLoad from python list')
+        rnas = [[[0, 1, 0], [1, 2, 0], [2, 0, 1]], [['a', 1, 'i'], [1, 2, 'j'], [2, 0, 'j']]]
+        for rna in rnas:
+            x = Xios(list=rna)
+            print('\t{}'.format(x))
 
-        print('\nRead XIOS list and string formats')
+        print('\nLoad from python list-like string')
+        rnas = ['[[0, 1, 0], [1, 2, 0], [2, 0, 1]]', '(0,1,0) (1,2,0) (2,0,1)', '0 1 i 1 2 i 2 0 j']
+        for rna in rnas:
+            x = Xios(string=rna)
+            print('\t{}\t =>\t{}'.format(rna, x))
+
+
+        print('\nRead from Pair format (no normalization)')
+        rnapairs = [[[0, 1], [2, 3]],
+                    [[0, 2], [1, 3]],
+                    [[0, 3], [1, 2]],
+                    [[0, 5], [1, 2], [3, 4]],
+                    [[1, 7], [1, 3], [2, 5], [4, 7]]]
+        for rna in rnapairs:
+            xg = Xios(graph=rna)
+            print('\tinput:{}\tXios:{}'.format(rna, xg))
+
+        print('\nRead from SerialRNA format (no normalization)')
+        rnas = [[0, 1, 2, 2, 1, 0], [1, 0, 2, 2, 0, 1], [0, 1, 2, 1, 2, 0], [2, 0, 1, 2, 0, 1]]
+        for rna in rnas:
+            xg = Xios(serial=rna)
+            print('\tinput:{}\tXios:{}'.format(rna, xg))
+
+        print('\nNormalization')
 
         graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
-        print('\nx2 read from list', graph)
-        x2 = Xios()
-        x2.from_list(graph)
-        print('x2=', x2)
+        print('\tx2 read from list', graph)
+        x2 = Xios(list=graph)
+        map = x2.normalize()
+        print('\tnormalized={}\tmap:{}\n'.format(x2, map))
 
         graph = '[[0, 1, 0], [1, 2, 0], [2, 0, 1]]'
-        print('\nx3 read from string', graph)
-        x3 = Xios()
-        x3.from_string(graph)
-        print('x3=', x3)
-
-        print('\nrnormalize x3')
-        print('x=', x3)
+        print('\tx3 read from string', graph)
+        x3 = Xios(string=graph)
         map = x3.normalize()
-        print('normalized=', x3, map)
-
-        print('\nrnormalize x2')
-        print('x=', x2)
-        map = x2.normalize()
-        print('normalized=', x2, map)
+        print('\tnormalized={}\tmap:{}\n'.format(x3, map))
 
         # encoding/decoding
 
         print('\nTest encoding')
         test = Xios()
-        x4 = Xios()
-        x4.from_graph(rnas[4])
+        x4 = Xios(graph=rnapairs[4])
 
         graphs = [x2, x3, x4]
         print('\thuman encoding')
@@ -1505,6 +1520,8 @@ if __name__ == '__main__':
             print('\t\tcoded {}'.format(code))
             test.ascii_decode(code)
             print('\t\tdecoded {}\n'.format(test))
+
+        exit(1)
 
         # graph normalization create an unnormalized graph by doubling the vertex numbers
         # XIOS
