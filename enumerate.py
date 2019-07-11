@@ -87,7 +87,7 @@ while True:
             xios = Xios(serial=rna)
             gspan = Gspan(xios)
             dfs = gspan.minDFS()
-            dfshex = dfs.ascii_encode()
+            dfshex = dfs.human_encode()
             if dfshex not in motif:
                 # save unique minimum DFS codes
                 motif[dfshex] = {'str': fstr, 'min': dfs}
@@ -122,8 +122,8 @@ for g in motif:
             xios = Xios(serial=p)
             gspan = Gspan(xios)
             dfs = gspan.minDFS()
-            dfshex = dfs.ascii_encode()
-            stridx[parentstr] = dfs.ascii_encode()
+            dfshex = dfs.human_encode()
+            stridx[parentstr] = dfs.human_encode()
             print('\t{} not in index, dfs calculated'.format(p.tostring()))
 
         db.add_parent(g, stridx[parentstr])
