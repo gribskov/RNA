@@ -109,8 +109,8 @@ rna.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
 
 block = 1000
 minmotifcount = 3
-subgraphlen = 5
-replicates = 100
+subgraphlen = 7
+replicates = 20
 print('block: {}  minimum motif count: {}  subgraph length: {}'.format(block, minmotifcount,
                                                                        subgraphlen))
 print('replicates: {}'.format(replicates))
