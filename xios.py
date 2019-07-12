@@ -578,13 +578,24 @@ class MotifDB():
 
         return json.dumps({fields[i]: dispatch[i] for i in range(len(fields))}, indent=4)
 
-    def fromJSON(self, fp):
+    def fromJSON(self, fpin):
         """-----------------------------------------------------------------------------------------
         Read in a JSON serialized MotifDB written by toJSON
 
-        :param fp:  file, open for reading
+        :param fpin:  file/str, either a file open for reading, or a string giving the path
         :return: True
         -----------------------------------------------------------------------------------------"""
+        # check the argument, if it is a file pointer (open file) it can just be used
+        # otherwise, open the file
+        if isinstance(fpin, str):
+            try:
+                fp = open(fpin, 'r')
+            except OSError:
+                sys.stderr.write('MotifDB.fromJSON - error opening file ({})'.format(fpin))
+        else:
+            fp = fpin
+
+        # read the JSON
         j = json.load(fp)
 
         for i in self.fields:
