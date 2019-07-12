@@ -64,7 +64,7 @@ class Topology:
     Many functions of topology.pm in the Perl version have not yet been ported
     ============================================================================================="""
 
-    def __init__(self):
+    def __init__(self, **kwds):
         """-----------------------------------------------------------------------------------------
 
         -----------------------------------------------------------------------------------------"""
@@ -77,6 +77,12 @@ class Topology:
         self.sequence_doc = ''
         self.sequence_length = 0
         self.comment = []
+
+        for key in kwds:
+            if key == 'xml':
+                self.XIOSread(kwds[key])
+            else:
+                sys.stderr.write('Topology::init - unknown keyword ({})'.format(key))
 
     def format_stem_list(self):
         """-----------------------------------------------------------------------------------------
