@@ -261,7 +261,7 @@ class Topology:
 
         return True
 
-    def XIOSread(self, filename):
+    def XIOSread(self, file):
         """-----------------------------------------------------------------------------------------
         Read a XIOS topology file. The file comprises three sections, a list of stems ( read by
         stemlistRead), a list of edges (not needed), and an adjacency matrix (adjacencyRead).
@@ -269,13 +269,18 @@ class Topology:
         :return: int, nujmber of stems read
         -----------------------------------------------------------------------------------------"""
         fp = None
-        try:
-            fp = open(filename, 'r')
-        except (OSError, IOError) as err:
-            sys.stderr.write('Topology::XIOSread - error opening input file ({})\n'.
-                             format(filename))
-            sys.stderr.write('\t{}\n'.format(err))
-            exit(1)
+        if isinstance(file, str):
+            # file argument is string, try to open
+            try:
+                fp = open(file, 'w')
+            except (OSError, IOError) as err:
+                sys.stderr.write('Topology::XIOSread - error opening input file ({})\n'.
+                                 format(filename))
+                sys.stderr.write('\t{}\n'.format(err))
+                exit(1)
+        else:
+            # file is not str, assume it is a file pointer
+            fp = file
 
         x = etree.parse(fp)
         # print(etree.tostring(x))
