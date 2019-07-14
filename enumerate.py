@@ -44,7 +44,7 @@ import time
 from topology import SerialRNA
 from xios import Xios, Gspan, MotifDB
 
-stems = 5
+stems = 7
 maxgraph = stems * 2
 current = [SerialRNA([0, 0])]
 candidate = []
@@ -129,7 +129,7 @@ for g in motif:
 
         db.add_parent(g, stridx[parentstr])
 
-o = open('data/5stem.list.txt', 'w')
+o = open('data/7stem.motifdb', 'w')
 o.write(db.toJSON())
 o.close()
 
