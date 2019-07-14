@@ -121,6 +121,38 @@ class Fingerprint(dict):
         return True
 
 
+    def readYAML(self, file):
+        """-----------------------------------------------------------------------------------------
+        read the fingerprint from a file in YAML format
+
+        :param file: fp/str, either a string or an open file
+        :return: int, number of motfs
+        -----------------------------------------------------------------------------------------"""
+        if isinstance(file, str):
+            # file argument is string, try to open
+            try:
+                fp = open(file, 'r')
+            except OSError:
+                sys.stderr.write('fingerprint.readYAML - error opening file ({})'.format(file))
+                exit(1)
+        else:
+            # file is not str, assume it is a file pointer
+            fp = file
+
+        f = yaml.load(fp)
+        root = f[0]['fingerprint']
+
+        # fields = ['information', 'total', 'nmotif', 'motif']
+
+        self.information = root[0]['information']
+        self.total = root[1]['total']
+        self.nmotif = root[2]['nmotif']
+        self.motif = root[3]['motif']
+
+
+        return nmotif
+
+
     def add_parents(self, motifdb):
         """-----------------------------------------------------------------------------------------
         Look up the parents in the provided motif database and add them to the fingerprint.  The
