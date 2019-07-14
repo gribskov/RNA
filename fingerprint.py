@@ -150,7 +150,7 @@ class Fingerprint(dict):
         self.motif = root[3]['motif']
 
 
-        return nmotif
+        return self.nmotif
 
 
     def add_parents(self, motifdb):
