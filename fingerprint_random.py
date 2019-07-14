@@ -115,6 +115,10 @@ while True:
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
     # minimum is expensive)
     xios = rna.sample_xios(subgraph)
+    if len(xios) < 1:
+        # in case the sample graph is empty
+        continue
+
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
     fingerprint.add(dfs)
