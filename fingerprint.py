@@ -2,6 +2,7 @@ import sys
 import json
 import yaml
 
+
 class Fingerprint(dict):
     """=============================================================================================
     A finger print is a spectrum of fixed size motifs identified in a structure.  The motifs are
@@ -23,12 +24,11 @@ class Fingerprint(dict):
 
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
-        self.information = { 'Date': ''
+        self.information = {'Date': ''
                             }
         self.motif = {}
         self.nmotif = 0
-        self.total = 0      # total count of added motifs
-
+        self.total = 0  # total count of added motifs
 
     def add(self, string, count=1):
         """-----------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ class Fingerprint(dict):
             self.nmotif += count
 
         return self.nmotif
-    
+
     def mincount(self):
         """-----------------------------------------------------------------------------------------
         Return the count of the motif with the smallest count
@@ -62,7 +62,7 @@ class Fingerprint(dict):
         :return: str
         -----------------------------------------------------------------------------------------"""
         m = self.motif
-        m = min(m.items(), default=0, key= lambda x:x[1])
+        m = min(m.items(), default=0, key=lambda x: x[1])
         # print('smallest', m)
 
         return m[0]
@@ -90,10 +90,10 @@ class Fingerprint(dict):
         -----------------------------------------------------------------------------------------"""
         fields = ['information', 'total', 'nmotif', 'motif']
 
-        root = [ { 'fingerprint': [ {'information':self.information},
-                                    {'total':self.total},
-                                    {'nmotif':self.nmotif},
-                                    {'motif':self.motif} ] } ]
+        root = [{'fingerprint': [{'information': self.information},
+                                 {'total': self.total},
+                                 {'nmotif': self.nmotif},
+                                 {'motif': self.motif}]}]
 
         return yaml.dump(root, indent=2)
 
@@ -112,14 +112,13 @@ class Fingerprint(dict):
                 sys.stderr.write('fingerprint.writeYAML - error opening file ({})'.format(file))
                 exit(1)
         else:
-                # file is not str, assume it is a file pointer
-                fp = file
+            # file is not str, assume it is a file pointer
+            fp = file
 
         fp.write(self.toYAML())
         # fp.close()    if fp is stdout, not good
 
         return True
-
 
     def readYAML(self, file):
         """-----------------------------------------------------------------------------------------
@@ -149,9 +148,7 @@ class Fingerprint(dict):
         self.nmotif = root[2]['nmotif']
         self.motif = root[3]['motif']
 
-
         return self.nmotif
-
 
     def add_parents(self, motifdb):
         """-----------------------------------------------------------------------------------------
@@ -170,17 +167,88 @@ class Fingerprint(dict):
 
         return self.nmotif
 
+
+class FingerprintSet(list):
+    """=============================================================================================
+    A collection of fingerprints
+
+    ============================================================================================="""
+
+    def __init__(self):
+        """-----------------------------------------------------------------------------------------
+
+        -----------------------------------------------------------------------------------------"""
+        super().__init__(self)
+
+    def fill(self):
+        """-----------------------------------------------------------------------------------------
+        compare the motif lists for all the fingerprint in the set and fill in any missing  motifs
+        with zeroes.  After running fill, all fingerprints will have the same motfif lists
+
+        :return: int, number of motifs
+        -----------------------------------------------------------------------------------------"""
+        # first pass to get a list of all motifs
+        motiflist = []
+        if len(self) == 0:
+            return 0
+
+        first = True
+        for fingerprint in self:
+            if first:
+                motiflist = self[0].keys()
+                first = False
+                continue
+
+            for motif in fingerprint.motif:
+                if not motif in motiflist:
+                    motiflist.append(motif)
+
+        # second pass to fill in missing values
+        for fingerprint in self:
+            for motif in motiflist:
+                if not motif in fingerprint.motif:
+                    fingerprint.motif[motif] = 0
+
+        return len(motiflist)
+
+    def jaccard(self, idx=[]):
+        """-----------------------------------------------------------------------------------------
+        Calculate pairwise Jaccard distance between the fingerprints indicated by idx.  [0,1],
+        e.g., means just the first two fingerprints in the set.
+
+        :param idx: list, indices of members of fingerprintset to compare,
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        nmotif = len(self)
+        if len(idx) == 0:
+            idx = range(nmotif)
+
+        for i in range(len(idx)):
+            m0 = self[i].motif
+            intersection = 0
+
+            for j in range(i+1, len(idx)):
+                m1 = self[j].motif
+
+                for motif in m0:
+                    if m0[motif] == 0
+                        continue
+                    if m1[motif] > 0
+                        intersect += 1
+
+                jaccard[i][j] = intersect / nmotif
+
+        return True
+
 # ##################################################################################################
 # Testing
 # ##################################################################################################
 if __name__ == '__main__':
-
     finger = Fingerprint()
     finger.append('dummy')
     finger.append('dummier')
     finger.append('dummiest')
     print(finger[0])
     print(finger)
-
 
     exit(0)
