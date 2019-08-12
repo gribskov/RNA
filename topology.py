@@ -64,7 +64,7 @@ class Topology:
     Many functions of topology.pm in the Perl version have not yet been ported
     ============================================================================================="""
 
-    def __init__(self, **kwds):
+    def __init__(self, *args, **kwds):
         """-----------------------------------------------------------------------------------------
 
         -----------------------------------------------------------------------------------------"""
@@ -99,11 +99,13 @@ class Topology:
         
         :return: str
         -----------------------------------------------------------------------------------------"""
+        attrs = ['name', 'lbegin', 'lend', 'lvienna', 'rvienna', 'rbegin', 'rend']
         string = ''
         colmax = {}
         for s in self.stem_list:
-            for column in s:
-                colstr = '{}'.format(s[column])
+            # for formatting, find the width of each attribute in the stem_list
+            for column in attrs:
+                colstr = '{}'.format(getattr(s, column))
                 if column in colmax:
                     colmax[column] = max(colmax[column], len(colstr))
                 else:
@@ -111,23 +113,17 @@ class Topology:
 
         fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'. \
             format(colmax['name'],
-                   colmax['center'],
-                   colmax['left_begin'],
-                   colmax['left_end'],
-                   colmax['right_begin'],
-                   colmax['right_end'],
-                   colmax['left_vienna'],
-                   colmax['right_vienna'])
+                   colmax['rend'] + 2,
+                   colmax['lbegin'],
+                   colmax['lend'],
+                   colmax['rbegin'],
+                   colmax['rend'],
+                   colmax['lvienna'],
+                   colmax['rvienna'])
 
         for s in self.stem_list:
-            string += fmt.format(s['name'],
-                                 s['center'],
-                                 s['left_begin'],
-                                 s['left_end'],
-                                 s['right_begin'],
-                                 s['right_end'],
-                                 s['left_vienna'],
-                                 s['right_vienna'])
+            string += fmt.format(s.name, round((s.lbegin + s.rend) / 2, 1),
+                                 s.lbegin, s.lend, s.rbegin, s.rend, s.lvienna, s.rvienna)
 
         return string.rstrip('/n')
 
@@ -195,7 +191,8 @@ class Topology:
             nline += 1
 
         for line in string.split('/n'):
-            fp.write("{}{}\n".format(space, line))
+            if line:
+                fp.write("{}{}\n".format(space, line))
             nline += 1
 
         if tag:
@@ -589,7 +586,7 @@ class Topology:
 
             # select new vertex and remove from current neighbor list
             ww = [w[i] for i in neighbor]
-            v0 = random.choices(neighbor,weights=ww)[0]
+            v0 = random.choices(neighbor, weights=ww)[0]
             neighbor.remove(v0)
 
         # end of vertex selection loop
@@ -637,7 +634,7 @@ class Topology:
         :param sample:
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
-        edge = {'i':0, 'j':1, 'o':2, 's':3, 'x':4 }
+        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         vlist = self.sample(self, n)
 
         adj = self.adjacency
@@ -660,7 +657,7 @@ class Topology:
         :param sample:
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
-        edge = {'i':0, 'j':1, 'o':2, 's':3, 'x':4 }
+        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         vlist = self.samplebyweight(self, n, w)
 
         adj = self.adjacency
@@ -1101,7 +1098,7 @@ class PairRNA:
 
 ####################################################################################################
 ####################################################################################################
-class RNAstructure:
+class RNAstructure(Topology):
     """=============================================================================================
     RNA structure class is for working with output from the RNAStructure package
     a single RNA structure
@@ -1110,21 +1107,17 @@ class RNAstructure:
 
     ============================================================================================="""
 
-    def __init__(self):
-        self.sequence = ''
-        self.length = 0
+    def __init__(self, *args, **kwargs):
+
+        super(RNAstructure, self).__init__(*args, **kwargs)
         self.energy = None  # not defined for probknot
         self.pair = []  # base number of the paired base
-        self.stemlist = []
-        self.adjacency = None
-        self.id = None
-        self.filename = None
 
     def CTRead(self, filename):
         """-----------------------------------------------------------------------------------------
         Read in RNAstructure CT file
 
-        format example:
+        format example (unifold/mfold):
           240  ENERGY = -49.3   mr_s129
             1 A       0    2    0    1
             2 A       1    3    0    2
@@ -1133,41 +1126,64 @@ class RNAstructure:
             5 A       4    6    0    5
 
             base_number base previous_base next_base paired_base base_number
+        format example (probknot)
+          240   mrs129
+            1 A       0    2    0    1
+            2 A       1    3    0    2
+            3 C       2    4    0    3
+            4 C       3    5    0    4
 
         usage
             rna.CTRead(filename)
         :param filename: string, filename with CT formatted structure
         :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
+        try:
+            ct = open(filename, 'r')
+        except OSError:
+            sys.stderr.write("RNAstructure::CTRead - unable to open CT file ({})".format(filename))
+
         nbase = 0
         path = filename.split('/')
         self.filename = path[-1]
-        with open(filename, 'r') as ct:
-            line = ct.readline()
-            # print('firstline:', line)
-            # print('field:',field)
 
-            if line.find('ENERGY') >= 0:
-                field = line.split()
-                self.energy = field[3]
+        # read the header line
+        line = ct.readline()
+        if line.find('ENERGY') >= 0:
+            field = line.split()
+            self.energy = field[3]
+            self.sequence_id = field[4]
+            self.sequence_length = int(field[0])
 
-            else:
-                # probknot file
-                field = line.split()
-                self.length = int(field[0])
-                self.id = field[1]
+        else:
+            # probknot file
+            field = line.split()
+            self.sequence_length = int(field[0])
+            self.sequence_id = field[1]
 
-            self.pair = [0] * (self.length + 1)
+        # the rest of the CT file
+        self.pair = [0] * (self.sequence_length + 1)
+        for line in ct:
+            if not line:
+                # blank lines?
+                continue
 
-            for line in ct:
-                n, base, prev, following, pair, n2 = line.split()
-                # print('n:', n, 'base:', base, 'pref:', prev, 'next:', next, 'pair:', pair, 'n2:',
-                #       n2)
-                self.sequence += base
-                if pair != '0':
-                    self.pair[int(pair)] = int(n)
-                    self.pair[int(n)] = int(pair)
-                nbase += 1
+            field = line.split()
+            if len(field) == 5:
+                # if there is a second structure stop
+                sys.stderr.write('opology/RNAstructure::CTread - a second structure is present\n')
+                break
+
+            # n   base  prev next   pair n2
+            # 239 A     238  240    0  239
+            base = field[1]
+            n = int(field[0])
+            pair = int(field[4])
+            self.sequence += base
+            if pair != 0:
+                self.pair[pair] = n
+                self.pair[n] = pair
+            nbase += 1
 
         return nbase
 
@@ -1213,7 +1229,8 @@ class RNAstructure:
             # not in a stem, start a new stem
             stem = Stem()
             nstem += 1
-            self.stemlist.append(stem)
+            stem.name = '{}'.format(nstem)
+            self.stem_list.append(stem)
             instem = True
 
             stem.lbegin = pos
@@ -1242,7 +1259,7 @@ class RNAstructure:
             s.rend = stem[1]
             s.lvienna = vienna[stem[0]]
             s.rvienna = vienna[stem[1]]
-            self.stemlist.append(s)
+            self.stem_list.append(s)
             nstem += 1
 
         self.nstem = nstem
@@ -1255,27 +1272,27 @@ class RNAstructure:
         -----------------------------------------------------------------------------------------"""
         n = 0
         stemstr = ''
-        for stem in self.stemlist:
+        for stem in self.stem_list:
             n += 1
             stemstr += '{0}\t{1}\n'.format(n, stem.formatted())
         return stemstr
 
-    def adjacencyGet(self):
+    def adjacency_from_stemlist(self):
         """-----------------------------------------------------------------------------------------
-        Calculate an adjacency matrix from a stemlist. assumes stems are ordered by the beginning
+        Calculate an adjacency matrix from stem_list. assumes stems are ordered by the beginning
         of the left half-stem.
         :return: dict, keys are edge types, values are counts
         -----------------------------------------------------------------------------------------"""
-        nstem = len(self.stemlist)
+        nstem = len(self.stem_list)
 
         edges = {'i': 0, 'j': 0, 'o': 0, 's': 0, 'x': 0}
         a = [[0 for _ in range(nstem)] for _ in range(nstem)]
 
         for i in range(nstem):
-            stem_i = self.stemlist[i]
+            stem_i = self.stem_list[i]
 
             for j in range(i + 1, nstem):
-                stem_j = self.stemlist[j]
+                stem_j = self.stem_list[j]
 
                 if stem_i.rend < stem_j.lbegin:
                     # serial edge
@@ -1325,15 +1342,17 @@ class RNAstructure:
 
         return adjstr
 
-    def edgelist(self, include="ijo", whole=False):
+    def edgelist_from_adjacency(self, include="ijo", whole=False):
         """-----------------------------------------------------------------------------------------
         An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
-        tuples with the number and type of nodes with edges
-        :return: list, edgelist
+        tuples with the number and type of nodes with edges.  This function populates the edge_list
+        of the topology opbject
+
+        :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
         elist = []
         if not self.adjacency:
-            return elist
+            return 0
 
         size = len(self.adjacency)
         a = self.adjacency
@@ -1349,7 +1368,10 @@ class RNAstructure:
                     continue
                 if a[i][j] in include:
                     e.append([j, a[i][j]])
-        return elist
+
+        self.edge_list = elist
+
+        return len(self.edge_list)
 
     def edgelist_format(self, include='ijo', whole=False):
         """-----------------------------------------------------------------------------------------
@@ -1474,6 +1496,7 @@ if __name__ == '__main__':
 
         return True
 
+
     def test_SerialRNA():
         """-----------------------------------------------------------------------------------------
         # SerialRNA
@@ -1512,6 +1535,7 @@ if __name__ == '__main__':
 
         return
 
+
     # ##############################################################################################
     # Testing
     # ##############################################################################################
@@ -1525,9 +1549,9 @@ if __name__ == '__main__':
     # for rna in graphs:
     #     g = RNAGraph(rna)
     #     three = RNAstructure()
-    #     three.stemListGetFromGraph(g)
-    #     print('Stemlist\n')
-    #     print(three.stemlist_format())
+    #     three.stem_listGetFromGraph(g)
+    #     print('stem_list\n')
+    #     print(three.stem_list_format())
     #
     #     edges = three.adjacencyGet()
     #     print('\nAdjacency matrix\n')
@@ -1589,10 +1613,10 @@ if __name__ == '__main__':
     #
     #     rna = RNAstructure()
     #     rna.CTRead('data/mr_s129.probknot.ct')
-    #     rna.stemlist_from_pairs()
+    #     rna.stem_list_from_pairs()
     #     # print(rna)
-    #     print('Stemlist\n')
-    #     print(rna.stemlist_format())
+    #     print('stem_list\n')
+    #     print(rna.stem_list_format())
     #
     #     edges = rna.adjacencyGet()
     #     print('edges', edges)
