@@ -231,9 +231,9 @@ class FingerprintSet(list):
                 m1 = self[j].motif
 
                 for motif in m0:
-                    if m0[motif] == 0
+                    if m0[motif] == 0:
                         continue
-                    if m1[motif] > 0
+                    if m1[motif] > 0:
                         intersect += 1
 
                 jaccard[i][j] = intersect / nmotif
