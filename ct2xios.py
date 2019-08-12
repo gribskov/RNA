@@ -1,7 +1,10 @@
 ####################################################################################################
 # ct2xios
 #
-# convert ct file to XIOS formatted XML file
+# convert ct file to XIOS formatted XML file. Output is STDOUYT so redirect to a filename
+#
+# Usage:
+#   ct2xios <ct_file> > <XIOS file>
 ####################################################################################################
 import sys
 from datetime import datetime
