@@ -269,7 +269,7 @@ class Topology:
         if isinstance(file, str):
             # file argument is string, try to open
             try:
-                fp = open(file, 'w')
+                fp = open(file, 'r')
             except (OSError, IOError) as err:
                 sys.stderr.write('Topology::XIOSread - error opening input file ({})\n'.
                                  format(filename))
@@ -646,6 +646,7 @@ class Topology:
                 if adj[row][col] in ('i', 'j', 'o'):
                     struct.append([row, col, edge[adj[row][col]]])
 
+        # print(struct)
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):
@@ -1171,7 +1172,7 @@ class RNAstructure(Topology):
             field = line.split()
             if len(field) == 5:
                 # if there is a second structure stop
-                sys.stderr.write('opology/RNAstructure::CTread - a second structure is present\n')
+                sys.stderr.write('Topology/RNAstructure::CTread - a second structure is present\n')
                 break
 
             # n   base  prev next   pair n2
