@@ -107,9 +107,9 @@ from xios import Xios, Gspan
 rna = Topology()
 rna.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
 
-block = 1000
-minmotifcount = 3
-subgraphlen = 7
+block = 100
+minmotifcount = 2
+subgraphlen = 4
 replicates = 20
 print('block: {}  minimum motif count: {}  subgraph length: {}'.format(block, minmotifcount,
                                                                        subgraphlen))
@@ -134,14 +134,20 @@ for rep in range(replicates):
                 fingerprint[dfs] += 1
             else:
                 fingerprint[dfs] = 1
+                print(dfs)
                 nmotif += 1
 
         mincount = min(fingerprint.values())
         # print('{}\t{}\t{}'.format(nrandom, nmotif, mincount))
 
-    print('\t{}\t{}\t{}\t{}'.format(rep, nrandom, nmotif, mincount))
+    # print('\t{}\t{}\t{}\t{}'.format(rep, nrandom, nmotif, mincount))
     mlen.append(nmotif)
     cycles.append(nrandom)
+
+i = 0
+for dfs in fingerprint:
+    i += 1
+    print('{}\t{}\t{}'.format(i, dfs, fingerprint[dfs]))
 
 # done with replicates calculate mean and sd
 print('\tcycles:       {:8.2f} {:8.2f}'.format(stat.mean(cycles), stat.stdev(cycles)))
