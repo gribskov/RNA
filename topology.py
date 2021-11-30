@@ -421,7 +421,7 @@ class Topology:
             stem['left_end'] = int(field[4])
             stem['right_begin'] = int(field[5])
             stem['right_end'] = int(field[6])
-            if len(field) > 7:
+            if len(field) > 8:
                 stem['left_vienna'] = field[8]
                 stem['right_vienna'] = field[9]
             stems.append(stem)
