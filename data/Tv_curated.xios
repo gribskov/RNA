@@ -1,0 +1,68 @@
+<XIOS version='1.59.2.7'>
+  <information>
+    <comment_list>
+      <comment>overlap = 1 (default)</comment>
+      <comment>unpaired = 2(default)</comment>
+      <comment>minimum stem = 1(default)</comment>
+    </comment_list>
+    <sequence>
+      <id>T_volvanum.ct</id>
+      <unformatted>GAUGAGAAAGCACGAGGGCAACUGACGCCGUAAGGUGAGGAAAGUCCCCCCUCCUCGGCAGGGCCCAGUUGGCGCAAGCCAGUGUUCCGAGAGGAAUGGUAAAGGCAAAAGAAAUCAACGGUUCCCAGUAAAGGAUGAACUCGAAGGGGAGACGUUUCUGGGAGAUCCGAUGGGAAGCCUUCCUGGGUGGAGAAAGUCUAAAAUGGCCCUGUGAAGCUGCCGUUAGGGCCGGGUGAGACGACUAGUCGAAUGUUGCCAGCCCGAAAGGGUGAACAGAAGGGGGCUUACUCCGUGGAUUCUCAUCU</unformatted>
+    </sequence>
+  </information>
+  <stem_list>
+     0 152.0 [   4  16   288 301 ]  (((((((((((((   )).)))))))))))
+     1 137.0 [  17  22   252 257 ]         ((((((   ))))))
+     2  31.5 [  26  29    34  37 ]           ((((   ))))
+     3 164.5 [  42  50   279 286 ]      (((.(((((   ))))))))
+     4 121.5 [  51  54   189 192 ]           ((((   ))))
+     5 139.0 [  56  61   217 222 ]         ((((((   ))))))
+     6 125.5 [  63  67   184 188 ]          (((((   )))))
+     7  75.5 [  68  73    78  83 ]         ((((((   ))))))
+     8  90.5 [  84  88    93  97 ]          (((((   )))))
+     9 141.5 [  98 105   178 183 ]       ((...(((   ))).))
+    10 141.5 [ 106 106   177 177 ]              (   )
+    11 143.0 [ 119 128   158 169 ]     ((((((((((   )))))))..)))
+    12 144.0 [ 138 142   146 150 ]          (((((   )))))
+    13 217.5 [ 196 199   236 239 ]           ((((   ))))
+    14 218.5 [ 205 214   223 230 ]     (((((..(((   ))))))))
+    15 264.5 [ 258 262   267 271 ]          (((((   )))))
+  </stem_list>
+  <edge_list>
+     0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i
+     1:  2i  3o  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i
+     2:
+     3:  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i
+     4:  5o  6i  7i  8i  9i 10i 11i 12i
+     5:  6i  7i  8i  9i 10i 11i 12i 13o 14o
+     6:  7i  8i  9i 10i 11i 12i
+     7:
+     8:
+     9: 10i 11i 12i
+    10: 11i 12i
+    11: 12i
+    12:
+    13: 14i
+    14:
+    15:
+  </edge_list>
+  <adjacency>
+        0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+     0  -  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i
+     1  j  -  i  o  i  i  i  i  i  i  i  i  i  i  i  s
+     2  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s
+     3  j  o  s  -  i  i  i  i  i  i  i  i  i  i  i  i
+     4  j  j  s  j  -  o  i  i  i  i  i  i  i  s  s  s
+     5  j  j  s  j  o  -  i  i  i  i  i  i  i  o  o  s
+     6  j  j  s  j  j  j  -  i  i  i  i  i  i  s  s  s
+     7  j  j  s  j  j  j  j  -  s  s  s  s  s  s  s  s
+     8  j  j  s  j  j  j  j  s  -  s  s  s  s  s  s  s
+     9  j  j  s  j  j  j  j  s  s  -  i  i  i  s  s  s
+    10  j  j  s  j  j  j  j  s  s  j  -  i  i  s  s  s
+    11  j  j  s  j  j  j  j  s  s  j  j  -  i  s  s  s
+    12  j  j  s  j  j  j  j  s  s  j  j  j  -  s  s  s
+    13  j  j  s  j  s  o  s  s  s  s  s  s  s  -  i  s
+    14  j  j  s  j  s  o  s  s  s  s  s  s  s  j  -  s
+    15  j  s  s  j  s  s  s  s  s  s  s  s  s  s  s  -
+  </adjacency>
+</XIOS>
