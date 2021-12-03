@@ -3,6 +3,7 @@ compare xios file to xios of a curated file and evaluate overlap
 
 ================================================================================================="""
 import sys
+import glob
 from topology import Topology
 
 
@@ -38,6 +39,9 @@ def check_left(x1, x2, p1, p2):
     stem1 = x1.stem_list[p1]
     pos2 = p2
     while True:
+        if pos2 >= len(x2.stem_list):
+            break
+
         stem2 = x2.stem_list[pos2]
         if stem2['left_begin'] > stem1['left_end']:
             # end condition for while loop, stem2 is to the right of stem1
@@ -116,18 +120,18 @@ def stat_stem(match1, nstem_2):
             tp2 += 1
         else:
             fn2 += 1
-                
+
     recall_1 = tp1 / len(match1)
     precision_1 = tp2 / len(match2)
     recall_2 = tp2 / len(match2)
     precision_2 = tp1 / len(match1)
     print(f'structure 1: recall={recall_1:.3f}\tprecision={precision_1:.3f}')
     print(f'structure 2: recall={recall_2:.3f}\tprecision={precision_2:.3f}')
-    print(f'jaccard={(tp1+tp2)/(len(match1)+len(match2)):.3f}')
+    print(f'jaccard={(tp1 + tp2) / (len(match1) + len(match2)):.3f}')
     return True
 
 
-def overlap2(x1, x2):
+def overlap(x1, x2):
     """---------------------------------------------------------------------------------------------
     compare the stems in structure 1 and structure 2 and identify the overlapping stems
     :param x1: Topology object, structure 1
@@ -162,20 +166,25 @@ def overlap2(x1, x2):
     return True
 
 
+# ===================================================================================================
+# main program
+# ===================================================================================================
+
 if __name__ == '__main__':
     refname = sys.argv[1]
-    subjectname = sys.argv[2]
+    subjectglob = sys.argv[2]
 
     # read reference xios (gold standard)
     ref = Topology()
     ref.XIOSread(refname)
     summary(ref, 'Curated')
 
-    # read subject xios (test structure to compare)
-    subject = Topology()
-    subject.XIOSread(subjectname)
-    summary(subject, 'Test')
+    # read subject xios (test structures to compare)
+    for subjectname in glob.glob(subjectglob):
+        subject = Topology()
+        subject.XIOSread(subjectname)
+        summary(subject, 'Test')
 
-    overlap2(ref, subject)
+        overlap(ref, subject)
 
     exit(0)
