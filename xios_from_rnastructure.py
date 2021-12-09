@@ -185,7 +185,10 @@ def runfold(args, fasta, ct):
 
     exe = args.rnastructure + '/Fold'
     opt = f'-p {args.percent} -m {args.maximum}'
-    subprocess.call([exe, fasta, ct, opt])
+    opt = [exe, fasta, ct]
+    opt += ['-p', f'{args.{percent}']
+    opt += ['-m', f'{args.{maximum}']
+    subprocess.call([opt])
 
     return
 
