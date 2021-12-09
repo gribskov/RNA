@@ -130,8 +130,8 @@ def xios_from_ct(ct):
     :return ct: string, name of xios file
     ---------------------------------------------------------------------------------------------"""
     xios = os.path.basename(ct)
-    l = len(ct)
-    if ct.rindex('.fa') == l - 3:
+    l = len(xios)
+    if xios.rindex('.ct') == l - 3:
         xios = xios[:-3]
 
     xios += '.xios'
