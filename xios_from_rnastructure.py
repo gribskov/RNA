@@ -57,7 +57,7 @@ def options():
     # process command line arguments
     args = commandline.parse_args()
     if not args.indir.endswith('/'):
-        args.indir.endswith += '/'
+        args.indir += '/'
 
     return args
 
@@ -184,7 +184,7 @@ def runfold(args, fasta, ct):
     safe_file(ct, 'w')
 
     exe = args.rnastructure + '/Fold'
-    subprocess.call([exe, '-h'])
+    subprocess.call([exe, fasta, ct])
 
     return
 
