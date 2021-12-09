@@ -95,8 +95,8 @@ def safe_file(filename, mode):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}')
             exit(4)
 
-
     return True
+
 
 def ct_from_fasta(fasta):
     """---------------------------------------------------------------------------------------------
@@ -184,11 +184,10 @@ def runfold(args, fasta, ct):
     safe_file(ct, 'w')
 
     exe = args.rnastructure + '/Fold'
-    opt = f'-p {args.percent} -m {args.maximum}'
     opt = [exe, fasta, ct]
-    opt += ['-p', f'{args.{percent}']
-    opt += ['-m', f'{args.{maximum}']
-    subprocess.call([opt])
+    opt += ['-p', f'{args.percent}']
+    opt += ['-m', f'{args.maximum}']
+    subprocess.call(opt)
 
     return
 
@@ -240,12 +239,11 @@ if __name__ == '__main__':
     safe_mkdir(xiosdir)
 
     for fasta in fastafiles:
-
         ct = 'ctfiles/' + ct_from_fasta(fasta)
 
         # run fold
 
-        runfold(args, fasta, ct, f'-p {args.percent}', f'-m {args.maximum}')
+        runfold(args, fasta, ct)
 
         # run mergestems
 
