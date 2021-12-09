@@ -9,6 +9,7 @@ Steps:
 import argparse
 import glob
 import os
+import subprocess
 import sys
 
 
@@ -182,6 +183,9 @@ def runfold(args, fasta, ct):
     safe_file(fasta, 'r')
     safe_file(ct, 'w')
 
+    exe = args.rnastructure + '/Fold'
+    subprocess.call([exe, '-h'])
+
     return
 
 
@@ -208,10 +212,11 @@ def runmergestems(mergecases, ddG, ct):
 if __name__ == '__main__':
     args = options()
 
-    # code locations
+    # code locations, add to args
     rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure/exe"
+    args.rnastructure = rnastructure
     perl_src = "/depot/mgribsko/rna/RNA/perl_src"
-
+    args.perl_src = perl_src
     print(f'RNAstructure executables: {rnastructure}')
     print(f'Mergestem executable: {perl_src}')
 
