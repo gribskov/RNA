@@ -226,7 +226,7 @@ def runmergestems(arg, ct, xios):
     ---------------------------------------------------------------------------------------------"""
     safe_file(xios, 'w')
 
-    xiosout = safe_open(xios)
+    xiosout = open(xios, 'w')
 
     exe = args.perl_src + '/mergestems.pl'
     opt = [exe, ct]
@@ -273,7 +273,7 @@ if __name__ == '__main__':
         runfold(args, fasta, ct)
 
         # run mergestems
-        xios = 'xiosfiles' + xios_from_ct(ct)
+        xios = 'xiosfiles/' + xios_from_ct(ct)
         runmergestems(args, ct, xios)
 
     exit(0)
