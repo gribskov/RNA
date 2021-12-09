@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
         # run fold
 
-        runfold(args, fasta, ct)
+        runfold(args, fasta, ct, f'-p {args.percent}', f'-m {args.maximum}')
 
         # run mergestems
 
