@@ -211,7 +211,7 @@ def runfold(args, fasta, ct):
     return
 
 
-def runmergestems(mergecases, ddG, ct):
+def runmergestems(arg, ct, xios):
     """---------------------------------------------------------------------------------------------
     mergestem.pl [-c <mergecases>] [-g <ddG>] [l <int>] [-p <plot_file>]  [-q] [-m <curated_file>] 
             <CT_file>
@@ -229,7 +229,7 @@ def runmergestems(mergecases, ddG, ct):
     exe = args.perl_src + '/mergestems.pl'
     opt = [exe, ct]
     opt += ['-c', f'{args.mergecase}']
-    opt += ['-g', f'{args.ddg}']
+    opt += ['-g', f'{args.ddG}']
     subprocess.call(opt)
 
     return
@@ -271,6 +271,6 @@ if __name__ == '__main__':
 
         # run mergestems
         xios = 'xiosfiles' + xios_from_ct(ct)
-        runmergestems(args, ct)
+        runmergestems(args, ct, xios)
 
     exit(0)
