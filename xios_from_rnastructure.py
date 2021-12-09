@@ -226,11 +226,14 @@ def runmergestems(arg, ct, xios):
     ---------------------------------------------------------------------------------------------"""
     safe_file(xios, 'w')
 
+    xiosout = safe_open(xios)
+
     exe = args.perl_src + '/mergestems.pl'
     opt = [exe, ct]
     opt += ['-c', f'{args.mergecase}']
     opt += ['-g', f'{args.ddG}']
-    subprocess.call(opt)
+    subprocess.call(opt, stdout=xiosout)
+    xiosout.close()
 
     return
 
