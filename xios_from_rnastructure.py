@@ -7,6 +7,9 @@ Steps:
 
 ================================================================================================="""
 import argparse
+import glob
+import os
+import sys
 
 
 def formatter(prog):
@@ -29,10 +32,10 @@ def options():
         formatter_class=formatter)
     commandline.add_argument('-i', '--indir',
                              help='Directory containing FastA files',
-                             default='/')
-    commandline.add_argument('-s', '--suffix',
-                             help='Suffix for input FastA files (%(default)s)',
-                             default='.fa')
+                             default='./')
+    commandline.add_argument('-f', '--fasta',
+                             help='FastA filename, can be a glob (%(default)s)',
+                             default='*.fa')
     commandline.add_argument('-p', '--percent',
                              help='Fold: percent cutoff for suboptimal structures (%(default)s)',
                              default=4)
@@ -51,10 +54,71 @@ def options():
                              default='12345')
 
     # process command line arguments
-    return commandline.parse_args()
+    args = commandline.parse_args()
+    if not args.indir.endswith('/'):
+        args.indir.endswith += '/'
+
+    return args
 
 
-def runfold(percent, maxstruct, window, fasta, ct):
+def safe_mkdir(dirname):
+    """---------------------------------------------------------------------------------------------
+    Try to create a directory, if directory already exists, exit with status = 2
+
+    :param dirname: string, path to directory
+    ---------------------------------------------------------------------------------------------"""
+    try:
+        os.mkdir(dirname)
+        return True
+    except FileExistsError:
+        sys.stderr.write(f'Directory {dirname} already exists, move or delete {dirname}')
+        exit(2)
+
+
+def safe_file(filename, mode):
+    """---------------------------------------------------------------------------------------------
+    check if the named file is readable, mode = 'r', or does not already exist, mode=w.
+    Exit with status = 3 or status = 4, respectively if the tests fail
+
+    :param filename: string
+    :param mode: string, 'r' or 'w'
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    if mode is 'r':
+        if not os.access(filename, os.R_OK):
+            sys.stderr.write(f'File {filename} cannot be read')
+            exit(3)
+
+    else:
+        if os.path.exists(filename):
+            sys.stderr.write(f'File {filename} already exists, move or delete {filename}')
+            exit(4)
+
+
+    return True
+
+def ct_from_fasta(fasta):
+    """---------------------------------------------------------------------------------------------
+    create a name for a ct file from the fastafile name.
+    1. remove any directory path
+    2. remove the last suffix is it is .fa, or .fasta
+    3. add the suffix .ct
+
+    :param fasta: string, name of fasta file
+    :return ct: string, name of ct file
+    ---------------------------------------------------------------------------------------------"""
+    ct = os.path.basename(fasta)
+    l = len(ct)
+    if ct.rindex('.fa') == l - 3:
+        ct = ct[:-3]
+    elif ct.rindex('.fasta') == l - 6:
+        ct = ct[:-6]
+
+    ct += '.ct'
+    return ct
+
+
+def runfold(args, fasta, ct):
     """---------------------------------------------------------------------------------------------
     USAGE: Fold <sequence file> <CT file> [options]
     All flags are case-insensitive, and grouping of flags is not allowed.
@@ -110,13 +174,13 @@ def runfold(percent, maxstruct, window, fasta, ct):
             etc to detect problems.
           * off -- Do not display warnings at all (not recommended).
 
-    :param percent: int, maximum percent ddG for suboptimal structures
-    :param maxstruct: int, maximum number of suoptimal structures
-    :param window: int, window size for filtering suboptimal structures
+    :param args: Namespace, command line arguments from options()
     :param fasta: string, readable fasta file
     :param ct: string, writable ct file
     :return:
     ---------------------------------------------------------------------------------------------"""
+    safe_file(fasta, 'r')
+    safe_file(ct, 'w')
 
     return
 
@@ -142,21 +206,38 @@ def runmergestems(mergecases, ddG, ct):
 # main program
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    args = options()
+
     # code locations
     rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure/exe"
     perl_src = "/depot/mgribsko/rna/RNA/perl_src"
 
-    print(f'RNAstructure executables {rnastructure}')
-    print(f'Mergestem executable {perl_src}')
+    print(f'RNAstructure executables: {rnastructure}')
+    print(f'Mergestem executable: {perl_src}')
 
-    # command line options
-    args = options()
+    # check if there are inputs and create directories
 
+    input = args.indir + args.fasta
+    print(f'FastaA input: {input}')
+    fastafiles = glob.glob(input)
 
-    # run fold
+    if not fastafiles:
+        sys.stderr.write('No files match the specified input ({})\n'.format(input))
+        exit(1)
 
-    # runfold(p, m, args.fasta)
+    ctdir = 'ctfiles'
+    safe_mkdir(ctdir)
+    xiosdir = 'xiosfiles'
+    safe_mkdir(xiosdir)
 
-    # run mergestems
+    for fasta in fastafiles:
+
+        ct = 'ctfiles/' + ct_from_fasta(fasta)
+
+        # run fold
+
+        runfold(args, fasta, ct)
+
+        # run mergestems
 
     exit(0)
