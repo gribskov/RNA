@@ -184,7 +184,8 @@ def runfold(args, fasta, ct):
     safe_file(ct, 'w')
 
     exe = args.rnastructure + '/Fold'
-    subprocess.call([exe, fasta, ct])
+    opt = f'-p {args.percent} -m {args.maximum}'
+    subprocess.call([exe, fasta, ct, opt])
 
     return
 
