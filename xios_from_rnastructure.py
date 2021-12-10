@@ -98,13 +98,14 @@ def safe_file(filename, mode):
     return True
 
 
-def ct_from_fasta(fasta):
+def ct_from_fasta(args, fasta):
     """---------------------------------------------------------------------------------------------
     create a name for a ct file from the fastafile name.
     1. remove any directory path
     2. remove the last suffix if it is .fa, or .fasta
     3. add the suffix .ct
 
+    :param args: Namespace, command line arguments
     :param fasta: string, name of fasta file
     :return ct: string, name of ct file
     ---------------------------------------------------------------------------------------------"""
@@ -115,17 +116,19 @@ def ct_from_fasta(fasta):
     elif ct.rindex('.fasta') == l - 6:
         ct = ct[:-6]
 
+    ct += f'.w{args.window}'
     ct += '.ct'
     return ct
 
 
-def xios_from_ct(ct):
+def xios_from_ct(args, ct):
     """---------------------------------------------------------------------------------------------
     create a name for a xios file from the ct name.
     1. remove any directory path
     2. remove the last suffix if it is .ct
     3. add the suffix .xios
 
+    :param args: Namespace, command line arguments
     :param ct: string, name of ct file
     :return ct: string, name of xios file
     ---------------------------------------------------------------------------------------------"""
@@ -133,6 +136,8 @@ def xios_from_ct(ct):
     l = len(xios)
     if xios.rindex('.ct') == l - 3:
         xios = xios[:-3]
+    xios += f'.d{args.ddG}'
+    xios += f'.c{args.mergecase}'
 
     xios += '.xios'
     return xios
@@ -273,7 +278,7 @@ if __name__ == '__main__':
         runfold(args, fasta, ct)
 
         # run mergestems
-        xios = 'xiosfiles/' + xios_from_ct(ct)
+        xios = 'xiosfiles/' + xios_from_ct(args, ct)
         runmergestems(args, ct, xios)
 
     exit(0)
