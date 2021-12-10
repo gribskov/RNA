@@ -1018,7 +1018,7 @@ sub mfoldMultiple{
         next if ( $line =~ /#/ );       # skip comments
 	next unless ( $line =~ /\w/ );  # skip blank lines
 	  
-	if ( $line=~/dG/ or eof ) {
+	if ( $line=~/dG/ or $line=~/ENERGY/ or eof ) {
 	    # process the current structure
 #            push @stemlist, basepairToStem( @pair );
 	    #-------
