@@ -284,7 +284,7 @@ if __name__ == '__main__':
 
     for fasta in fastafiles:
         # run fold
-        ct = 'ctfiles/' + ct_from_fasta(fasta)
+        ct = 'ctfiles/' + ct_from_fasta(args, fasta)
         runfold(args, fasta, ct)
 
         # run mergestems
