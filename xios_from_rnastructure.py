@@ -11,6 +11,7 @@ import glob
 import os
 import subprocess
 import sys
+import time
 
 
 def formatter(prog):
@@ -247,6 +248,8 @@ def runmergestems(arg, ct, xios):
 # main program
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    now = time.localtime()
+    print(f'xios_from_rnastructure {time.asctime(now)}')
     args = options()
 
     # code locations, add to args
@@ -256,6 +259,13 @@ if __name__ == '__main__':
     args.perl_src = perl_src
     print(f'RNAstructure executables: {rnastructure}')
     print(f'Mergestem executable: {perl_src}')
+
+    print('Parameters')
+    print(f'\tFold:percent={args.percent}')
+    print(f'\tFold:maximum={args.maximum}')
+    print(f'\tFold:window={args.window}\n')
+    print(f'\tmergstems:delta deltaG={args.ddG}')
+    print(f'\tmergstems:mergecases={args.mergecase}')
 
     # check if there are inputs and create directories
 
