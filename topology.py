@@ -100,7 +100,8 @@ class Topology:
         
         :return: str
         -----------------------------------------------------------------------------------------"""
-        attrs = ['name', 'left_begin', 'left_end', 'left_vienna', 'right_vienna', 'right_begin', 'right_end']
+        attrs = ['name', 'left_begin', 'left_end', 'left_vienna', 'right_vienna', 'right_begin',
+                 'right_end']
         string = ''
         colmax = {}
         for s in self.stem_list:
@@ -1190,6 +1191,7 @@ class RNAstructure(Topology):
             if len(field) == 5:
                 # if there is a second structure stop
                 sys.stderr.write('Topology/RNAstructure::CTread - a second structure is present\n')
+                self.stemlist_from_pairs(unpaired=2)
                 break
 
             # n   base  prev next   pair n2
@@ -1226,6 +1228,7 @@ class RNAstructure(Topology):
         instem = False
         for pos in range(0, len(self.pair) - 1):
             if self.pair[pos] == 0 or self.pair[pos] < pos:
+                # is this position unpaired (0), or the right half stem
                 continue
 
             if instem:
@@ -1554,12 +1557,25 @@ if __name__ == '__main__':
         return
 
 
+    def test_RNAstructure(filename):
+        """-----------------------------------------------------------------------------------------
+
+        :param filename:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        test = RNAstructure()
+        test.CTRead(filename)
+
+        return
+
+
     # ##############################################################################################
     # Testing
     # ##############################################################################################
     test_pair()
     test_topology()
     test_SerialRNA()
+    test_RNAstructure('data/mr_s129.fold.ct')
 
     exit(0)
 
