@@ -34,7 +34,7 @@
     prediction programs such as :
 
     CT file
-        mfold and RNA Structure
+        mfold and RNAStructure
 
     RNAml
 ================================================================================================="""
@@ -218,14 +218,14 @@ class Topology:
 
         self.iwrite(fp, "<XIOS version='{}'>".format(version), 0)
         indent += indent_len
-        space = ' ' * indent
+        # space = ' ' * indent
 
         # information block
         self.iwrite(fp, '<information>', 1)
 
         if self.sequence:
             indent += indent_len
-            space = ' ' * indent
+            # space = ' ' * indent
             self.iwrite(fp, '<sequence>', 2)
             self.iwrite(fp, self.sequence_id, 3, 'id')
             self.iwrite(fp, self.sequence_doc, 3, 'doc')
@@ -263,7 +263,7 @@ class Topology:
         Read a XIOS topology file. The file comprises three sections, a list of stems ( read by
         stemlistRead), a list of edges (not needed), and an adjacency matrix (adjacencyRead).
 
-        :return: int, nujmber of stems read
+        :return: int, number of stems read
         -----------------------------------------------------------------------------------------"""
         fp = None
         if isinstance(file, str):
@@ -272,7 +272,7 @@ class Topology:
                 fp = open(file, 'r')
             except (OSError, IOError) as err:
                 sys.stderr.write('Topology::XIOSread - error opening input file ({})\n'.
-                                 format(filename))
+                                 format(file))
                 sys.stderr.write('\t{}\n'.format(err))
                 exit(1)
         else:
@@ -288,7 +288,6 @@ class Topology:
 
             elif section.tag == 'stem_list':
                 self.parse_stem_list(section.text)
-
 
             elif section.tag == 'edge_list':
                 self.parse_edge_list(section.text)
@@ -321,11 +320,12 @@ class Topology:
 
         
         :param x: str
-        :param: clear: logical.  not implemented should clar the information block
+        :param clear: logical.  not implemented should clear the information block
         :return: True
         -----------------------------------------------------------------------------------------"""
-        # if clear:
-        #     info.clear()
+        if clear:
+            pass
+            # info.clear()
 
         # field =  x.xpath('//information/*')
         # pass
@@ -402,6 +402,7 @@ class Topology:
         9   right half stem Vienna string   str optional
 
         :param text: str
+        :param clear, logical - clear the stems list
         :return: True
         -----------------------------------------------------------------------------------------"""
         stems = self.stem_list
@@ -430,8 +431,10 @@ class Topology:
 
     def parse_edge_list(self, text):
         """-----------------------------------------------------------------------------------------
-        The edge_list section is for human reading purposes only.  I contains the same
+        The edge_list section is for human reading purposes only.  It contains the same
         information, and is written from, the adjacency matrix.
+        
+        TODO: currently not implemented
 
         <edge_list>
              0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
@@ -463,6 +466,8 @@ class Topology:
         """-----------------------------------------------------------------------------------------
         Parse the adjacency section of the XIOS formatted topology file. If the section is absent,
         return False, otherwise True
+        
+        TODO: initialize adjacency outside of loop
 
         :param text: str
         :return: logical
@@ -495,8 +500,11 @@ class Topology:
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
         connected by non-s edges, but size may be less than n if the graph being sampled is smaller
         than size or has disconnected segmentsSampling is based on the adjacency matrix.
+        
+        TODO: as a static method, self should not be required.  The intent is probably to pass in 
+        the adjacency matrix
 
-        :param n:
+        :param n: int, size of graph to sample
         :return: topology
         -----------------------------------------------------------------------------------------"""
         # randomly determine starting vertex
@@ -547,6 +555,8 @@ class Topology:
         graph will be
         connected by non-s edges, but size may be less than n if the graph being sampled is smaller
         than size or has disconnected segmentsSampling is based on the adjacency matrix.
+        
+        TODO: as a static method, self should not be required.  The intent is probably to pass in the adjacency matrix
 
         :param n:
         :return: topology
@@ -598,7 +608,6 @@ class Topology:
         """-----------------------------------------------------------------------------------------
         Return a new topology sampled from the current one.
         :param n: int, number of stems to sample
-        :param sample:
         :return: Topology
         -----------------------------------------------------------------------------------------"""
         vlist = self.sample(self, n)
@@ -631,7 +640,6 @@ class Topology:
         Return a xios structure sampled from the current topology.
 
         :param n: int, number of stems to sample
-        :param sample:
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
@@ -655,7 +663,6 @@ class Topology:
 
         :param n: int, number of stems to sample
         :param w: list of weights
-        :param sample:
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
@@ -688,16 +695,16 @@ class SerialRNA(list):
         :return: list of SerialRNA
         -----------------------------------------------------------------------------------------"""
         component = []
-        open = []
+        openstem = []
         begin = 0
         for pos in range(len(self)):
-            if self[pos] in open:
-                open.remove(self[pos])
-                if len(open) == 0:
+            if self[pos] in openstem:
+                openstem.remove(self[pos])
+                if len(openstem) == 0:
                     component.append(SerialRNA(self[begin:pos + 1]))
                     begin = pos + 1
             else:
-                open.append(self[pos])
+                openstem.append(self[pos])
 
         if len(component) == 1:
             return [self]
@@ -816,14 +823,14 @@ class SerialRNA(list):
         :return: True
         -----------------------------------------------------------------------------------------"""
         stem = 0
-        map = {}
+        convert = {}
         for pos in self:
-            if pos not in map:
-                map[pos] = stem
+            if pos not in convert:
+                convert[pos] = stem
                 stem += 1
 
         for pos in range(len(self)):
-            self[pos] = map[self[pos]]
+            self[pos] = convert[self[pos]]
 
         return True
 
@@ -894,7 +901,7 @@ class PairRNA:
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self, inlist=[]):
+    def __init__(self, inlist=None):
         """-----------------------------------------------------------------------------------------
         Internal data structure is a list of lists:
         each element in the list of the begin, end position of a stem.  The stems
@@ -902,6 +909,8 @@ class PairRNA:
 
         two nested stems are [ [0,3], [1,2] ]
         a simple pseudoknot is [ [0,2], [1,3] ]
+
+        :param inlist: a list of lists with coordinates of left and right half stems
         -----------------------------------------------------------------------------------------"""
         self.pairs = []
         self.nstem = 0
@@ -935,8 +944,9 @@ class PairRNA:
         """"----------------------------------------------------------------------------------------
         read a graph in list format as a list.  returns a list of lists with the begin/end position
         of each stem (pair format)
+
         :param g: list, structure in list format
-        :return: integer, number of stems
+        :return: int, number of stems
         -----------------------------------------------------------------------------------------"""
         self.nstem = int(len(g) / 2)
         self.pairs = [[] for _ in range(self.nstem)]
@@ -1004,12 +1014,12 @@ class PairRNA:
         -----------------------------------------------------------------------------------------"""
         bracket = [['(', ')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
         vienna = ['.' for _ in range(self.nstem * 2)]
-        list_format = self.to_SerialRNA()
+        # list_format = self.to_SerialRNA()
 
         level = []
         knot = True
         for stemi in self.pairs:
-            for l in range(len((level))):
+            for l in range(len(level)):
                 knot = True
                 for stem_num in range(len(level[l])):
                     stemj = self.pairs[stem_num]
@@ -1134,11 +1144,15 @@ class RNAstructure(Topology):
             3 C       2    4    0    3
             4 C       3    5    0    4
 
+        CT files written by Fold in the RNAstructure package have the heading
+           229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229
+
         usage
             rna.CTRead(filename)
         :param filename: string, filename with CT formatted structure
         :return: integer, number of bases
         -----------------------------------------------------------------------------------------"""
+        ct = None
         try:
             ct = open(filename, 'r')
         except OSError:
@@ -1384,7 +1398,7 @@ class RNAstructure(Topology):
         edgestr = ''
         # e = self.edgelist(include,whole)
         n = 0
-        for edge in self.edgelist(include, whole):
+        for edge in self.edge_list(include, whole):
             n += 1
             edgestr += '{}: '.format(n)
             for neighbor in edge:
