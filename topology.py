@@ -68,6 +68,7 @@ class Topology:
         """-----------------------------------------------------------------------------------------
 
         -----------------------------------------------------------------------------------------"""
+        self.name = ''
         self.stem_list = []
         self.edge_list = []
         self.adjacency = []
@@ -99,13 +100,13 @@ class Topology:
         
         :return: str
         -----------------------------------------------------------------------------------------"""
-        attrs = ['name', 'lbegin', 'lend', 'lvienna', 'rvienna', 'rbegin', 'rend']
+        attrs = ['name', 'left_begin', 'left_end', 'left_vienna', 'right_vienna', 'right_begin', 'right_end']
         string = ''
         colmax = {}
         for s in self.stem_list:
             # for formatting, find the width of each attribute in the stem_list
             for column in attrs:
-                colstr = '{}'.format(getattr(s, column))
+                colstr = '{}'.format(s[column])
                 if column in colmax:
                     colmax[column] = max(colmax[column], len(colstr))
                 else:
@@ -113,17 +114,19 @@ class Topology:
 
         fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'. \
             format(colmax['name'],
-                   colmax['rend'] + 2,
-                   colmax['lbegin'],
-                   colmax['lend'],
-                   colmax['rbegin'],
-                   colmax['rend'],
-                   colmax['lvienna'],
-                   colmax['rvienna'])
+                   colmax['right_end'] + 2,
+                   colmax['left_begin'],
+                   colmax['left_end'],
+                   colmax['right_begin'],
+                   colmax['right_end'],
+                   colmax['left_vienna'],
+                   colmax['right_vienna'])
 
         for s in self.stem_list:
-            string += fmt.format(s.name, round((s.lbegin + s.rend) / 2, 1),
-                                 s.lbegin, s.lend, s.rbegin, s.rend, s.lvienna, s.rvienna)
+            string += fmt.format(s['name'], round((s['left_begin'] + s['right_end']) / 2, 1),
+                                 s['left_begin'], s['left_end'],
+                                 s['right_begin'], s['right_end'],
+                                 s['left_vienna'], s['right_vienna'])
 
         return string.rstrip('/n')
 
