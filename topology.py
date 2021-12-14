@@ -1125,7 +1125,7 @@ class RNAstructure(Topology):
     def __init__(self, *args, **kwargs):
 
         super(RNAstructure, self).__init__(*args, **kwargs)
-        self.energy = None  # not defined for probknot
+        self.energy = 0.0  # not defined for probknot
         self.pair = []  # base number of the paired base
 
     def ct_header(self, ct):
@@ -1165,106 +1165,99 @@ class RNAstructure(Topology):
 
         return mfe
 
-        def is_ctheader(self, ct):
-            """-----------------------------------------------------------------------------------------
-            Read and parse the header line for a single structure in a CT file.
-            Format differs with the program creating the file.
+    def is_ctheader(self, field):
+        """-----------------------------------------------------------------------------------------
+        Read and parse the header line for a single structure in a CT file.
+        Format differs with the program creating the file.
 
-              240  ENERGY = -49.3   mr_s129                                     <= mfold
-              371     dG = -80.1      Mycpl_arthr 371 bases                     <= unafold/mfold
-              229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229  <= RNAstructure/Fold
-              240   mrs129                                                      <= RNAstructure/probknot
+          240  ENERGY = -49.3   mr_s129                                     <= mfold
+          371     dG = -80.1      Mycpl_arthr 371 bases                     <= unafold/mfold
+          229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229  <= RNAstructure/Fold
+          240   mrs129                                                      <= RNAstructure/probknot
 
-              Assume the first non-blank line is a header line.
+          Assume the first non-blank line is a header line.
 
-            :param ct: filehandle, CT file open for reading
-            :return: boolean, True if header is parsed
-            -----------------------------------------------------------------------------------------"""
-            # read the header line, skip any leading blank lines
-            line = None
-            while not line:
-                line = ct.readline()
+        :param field: list, tokens split from current line of file
+        :return: boolean, True if header is parsed
+        -----------------------------------------------------------------------------------------"""
+        if len(field) == 2:
+            # probknot
+            self.sequence_length = int(field[0])
+            self.sequence_id = field[1]
+            return True
 
-            field = line.split()
-            if len(field) == 2:
-                # probknot
+        if field[1] == 'ENERGY' or field[1] == 'dG':
+            try:
+                self.energy = float(field[3])
+                self.sequence_id = field[4]
                 self.sequence_length = int(field[0])
-                self.sequence_id = field[1]
                 return True
+            except:
+                sys.stderr.write(
+                    f'Topology/RNAstructure::is_ctheader - cannot read header ({line})\n')
 
-            if field[1] == 'ENERGY' or field[1] == 'dG':
+        return False
+
+    def is_ctdata(self, field):
+        """-------------------------------------------------------------------------------------
+        A CT data row has exactly six fields: fields 0 and 2-5 are integers, field 1 is a
+        single character
+
+        :param field: list of strings - fields in original line
+        :return: boolean
+        -------------------------------------------------------------------------------------"""
+        ok = True
+        if not len(field) == 6:
+            ok = False
+
+        if not field[1].isalpha() and len(field[1]) == 1:
+            ok = False
+
+        else:
+            for i in (0, 2, 3, 4, 5):
                 try:
-                    self.energy = float(field[3])
-                    self.sequence_id = field[4]
-                    self.sequence_length = int(field[0])
-                    return True
-                except:
-                    sys.stderr.write(
-                        f'Topology/RNAstructure::is_ctheader - cannot read header ({line})\n')
-
-            return False
-
-        def is_ctdata(field):
-            """-------------------------------------------------------------------------------------
-            A CT data row has exactly six fields: fields 0 and 2-5 are integers, field 1 is a
-            single character
-
-            :param field: list of strings - fields in original line
-            :return: boolean
-            -------------------------------------------------------------------------------------"""
-            ok = True
-            if not len(field) == 6:
-                ok = False
-
-            if not field[1].isalpha() and len(field[1]) == 1:
-                ok = False
-                break
-
-            for i in (1, 2, 3, 4, 5):
-                try:
-                    field[1] = int(field[i])
+                    field[i] = int(field[i])
                 except ValueError:
                     ok = False
-                    break
 
-            if not ok:
-                sys.stderr.write(
-                    f'Topology/RNAstructure::is_ctdata - error in dataline ({"\t".join(field)})\n')
-                exit(1)
+        if not ok:
+            content = '\t'.join(field)
+            sys.stderr.write(
+                f'Topology/RNAstructure::is_ctdata - error in dataline ({content})\n')
+            exit(1)
 
-            x = field.join("\t")
-            return ok
+        return ok
 
-        def CTRead(self, filename):
+    def CTRead(self, filename, ddG=4.0):
+        """-----------------------------------------------------------------------------------------
+        Read in RNAstructure CT file
 
-            """-----------------------------------------------------------------------------------------
-            Read in RNAstructure CT file
+        format example (unifold/mfold):
+          240  ENERGY = -49.3   mr_s129
+            1 A       0    2    0    1
+            2 A       1    3    0    2
+            3 C       2    4    0    3
+            4 C       3    5    0    4
+            5 A       4    6    0    5
 
-            format example (unifold/mfold):
-              240  ENERGY = -49.3   mr_s129
-                1 A       0    2    0    1
-                2 A       1    3    0    2
-                3 C       2    4    0    3
-                4 C       3    5    0    4
-                5 A       4    6    0    5
+            base_number base previous_base next_base paired_base base_number
+        format example (probknot)
+          240   mrs129
+            1 A       0    2    0    1
+            2 A       1    3    0    2
+            3 C       2    4    0    3
+            4 C       3    5    0    4
 
-                base_number base previous_base next_base paired_base base_number
-            format example (probknot)
-              240   mrs129
-                1 A       0    2    0    1
-                2 A       1    3    0    2
-                3 C       2    4    0    3
-                4 C       3    5    0    4
+        CT files written by Fold in the RNAstructure package have the heading
+           229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229
 
-            CT files written by Fold in the RNAstructure package have the heading
-               229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229
+        usage
+            rna.CTRead(filename)
 
-            usage
-                rna.CTRead(filename)
-
-            :param filename: string, filename with CT formatted structure
-            :return: integer, number of bases
-            -----------------------------------------------------------------------------------------"""
+        :param filename: string, filename with CT formatted structure
+        :param ddG: float, maximum delta delta-G from mfe to include
+        :return: integer, number of bases
+        -----------------------------------------------------------------------------------------"""
         ct = None
         try:
             ct = open(filename, 'r')
@@ -1275,23 +1268,30 @@ class RNAstructure(Topology):
         path = filename.split('/')
         self.filename = path[-1]
 
-        mfe = self.energy
-        self.pair = [0] * (self.sequence_length + 1)  # workspace for calculation
-
         for line in ct:
             if not line:
                 # skip blank lines?
                 continue
             field = line.split()
 
-            if is_ctheader(split):
+            if self.is_ctheader(field):
                 # add information to Topology
                 self.comment.append(line)
-                mfe = min(mfe, self.energy)
-                if self.energy <= mfe + self.ddG:
-                    break
+                if not self.pair:
+                    # for the first structure the pair array is empty, save mfe and create pair list
+                    # pairlist is the workspace for the stem calculation
+                    mfe = self.energy
+                    self.pair = [0] * (self.sequence_length + 1)
 
-            elif is_ctdata(split):
+                else:
+                    # second or later structure, save the stems, check that we are below mfe + ddG
+                    #
+                    self.stemlist_from_pairs(unpaired=2)
+                    if self.energy > mfe + ddG:
+                        break
+                    self.pair = [0] * (self.sequence_length + 1)
+
+            elif self.is_ctdata(field):
                 base = field[1]
                 n = int(field[0])
                 pair = int(field[4])
@@ -1305,7 +1305,7 @@ class RNAstructure(Topology):
                 # unidentified line
                 sys.stderr.write(f'Topology/RNAstructure::CTread - unidentified line ({line})\n')
 
-        # after all structures are read, convert to stems
+        # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
 
         return nbase
@@ -1667,7 +1667,8 @@ if __name__ == '__main__':
         :return:
         -----------------------------------------------------------------------------------------"""
         test = RNAstructure()
-        test.CTRead(filename)
+        ddG = 1.75
+        test.CTRead(filename, ddG)
 
         return
 
