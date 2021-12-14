@@ -1128,43 +1128,6 @@ class RNAstructure(Topology):
         self.energy = 0.0  # not defined for probknot
         self.pair = []  # base number of the paired base
 
-    def ct_header(self, ct):
-        """-----------------------------------------------------------------------------------------
-        Read and parse the header line for a single structure in a CT file.
-        Format differs with the program creating the file.
-
-          240  ENERGY = -49.3   mr_s129                                     <= mfold
-          371     dG = -80.1      Mycpl_arthr 371 bases                     <= unafold/mfold
-          229  ENERGY = -102.8  rnasep_m.A_fulgidus RNase P RNA length=229  <= RNAstructure/Fold
-          240   mrs129                                                      <= RNAstructure/probknot
-
-          Assume the first non-blank line is a header line.
-
-        :param ct: filehandle, CT file open for reading
-        :return: float, predicted minimum free energy
-        -----------------------------------------------------------------------------------------"""
-        mfe = None
-
-        # read the header line, skip any leading blank lines
-        line = None
-        while not line:
-            line = ct.readline()
-
-        if line.find('ENERGY') >= 0 or line.find('dG') >= 0:
-            field = line.split()
-            self.energy = field[3]
-            self.sequence_id = field[4]
-            self.sequence_length = int(field[0])
-            mfe = self.energy
-
-        else:
-            # probknot file
-            field = line.split()
-            self.sequence_length = int(field[0])
-            self.sequence_id = field[1]
-
-        return mfe
-
     def is_ctheader(self, field):
         """-----------------------------------------------------------------------------------------
         Read and parse the header line for a single structure in a CT file.
@@ -1307,6 +1270,7 @@ class RNAstructure(Topology):
 
         # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
+        dedup_n = self.stemlist_deduplicate()
 
         return nbase
 
@@ -1320,6 +1284,47 @@ class RNAstructure(Topology):
             rnastr += '{0} = {1}\n'.format(key, self.__dict__[key])
 
         return rnastr
+
+    def stemlist_deduplicate(self):
+        """-----------------------------------------------------------------------------------------
+        Remove stems from the stemlist that are identical or perfectly nested.  The nesting test is
+        based only on ranges so the base-pairing may differ slightly
+
+        :return: int, number of stems in revised stemlist
+        -----------------------------------------------------------------------------------------"""
+        old = self.stem_list
+        new = []
+        order = sorted(range(len(old)), key=lambda x: (old[x].lbegin, -old[x].rend))
+        skip = [False] * len(old)
+        i = 0
+        j = 1
+        while i < len(order) - 1:
+            if skip[i]:
+                i += 1
+                j = i + 1
+                continue
+
+            s1 = old[order[i]]
+            s2 = old[order[j]]
+            while s2.lbegin <= s1.lend and j < len(order) - 1:
+                # check potential overlap
+                if s2.lend <= s1.lend and s2.rbegin >= s1.rbegin and s2.rend <= s1.rend:
+                    skip[j] = True
+                j += 1
+                s2 = old[order[j]]
+
+            i += 1
+
+        nstem = 0
+        for s in range(len(order)):
+            stem = old[order[s]]
+            if skip[s]:
+                print(stem.lbegin, stem.lend, stem.rbegin, stem.rend, 'skipped')
+            else:
+                print(stem.lbegin, stem.lend, stem.rbegin, stem.rend )
+                nstem += 1
+
+        return nstem
 
     def stemlist_from_pairs(self, unpaired=2):
         """-----------------------------------------------------------------------------------------
