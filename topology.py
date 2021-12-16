@@ -87,47 +87,42 @@ class Topology:
 
     def format_stem_list(self):
         """-----------------------------------------------------------------------------------------
-        Construct a formatted string in which the stemlist columns line up nicely. stem_list is a
-        list of dict with fields
+        Construct a formatted string in which the stemlist columns line up nicely. is a Stem
+        object with attributes
             name
             center
-            left_begin
-            left_end
-            right_begin
-            right_end
-            left_vienna
-            right_vienna
+            legin
+            lend
+            rbegin
+            rend
+            lvienna
+            rvienna
         
         :return: str
         -----------------------------------------------------------------------------------------"""
-        attrs = ['name', 'left_begin', 'left_end', 'left_vienna', 'right_vienna', 'right_begin',
-                 'right_end']
+        attrs = ['name', 'lbegin', 'lend', 'lvienna', 'rvienna', 'rbegin', 'rend']
         string = ''
         colmax = {}
         for s in self.stem_list:
             # for formatting, find the width of each attribute in the stem_list
             for column in attrs:
-                colstr = '{}'.format(s[column])
+                colstr = '{}'.format(getattr(s, column))
                 if column in colmax:
                     colmax[column] = max(colmax[column], len(colstr))
                 else:
                     colmax[column] = len(colstr)
 
         fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'. \
-            format(colmax['name'],
-                   colmax['right_end'] + 2,
-                   colmax['left_begin'],
-                   colmax['left_end'],
-                   colmax['right_begin'],
-                   colmax['right_end'],
-                   colmax['left_vienna'],
-                   colmax['right_vienna'])
+            format(colmax['name'], colmax['rend'] + 2,
+                   colmax['lbegin'], colmax['lend'],
+                   colmax['rbegin'], colmax['rend'],
+                   colmax['lvienna'], colmax['rvienna'])
 
         for s in self.stem_list:
-            string += fmt.format(s['name'], round((s['left_begin'] + s['right_end']) / 2, 1),
-                                 s['left_begin'], s['left_end'],
-                                 s['right_begin'], s['right_end'],
-                                 s['left_vienna'], s['right_vienna'])
+            string += fmt.format(s.name, round((s.lbegin + s.rend) / 2, 1),
+                                 s.lbegin, s.lend,
+                                 s.rbegin, s.rend,
+                                 s.lvienna, s.rvienna)
 
         return string.rstrip('/n')
 
@@ -418,17 +413,17 @@ class Topology:
             if not line.strip():
                 continue
 
-            stem = {}
+            stem = Stem()
             field = line.split()
-            stem['name'] = field[0]
-            stem['center'] = float(field[1])
-            stem['left_begin'] = int(field[3])
-            stem['left_end'] = int(field[4])
-            stem['right_begin'] = int(field[5])
-            stem['right_end'] = int(field[6])
+            stem.name = field[0]
+            stem.center = float(field[1])
+            stem.lbegin = int(field[3])
+            stem.lend = int(field[4])
+            stem.rbegin = int(field[5])
+            stem.right_end = int(field[6])
             if len(field) > 8:
-                stem['left_vienna'] = field[8]
-                stem['right_vienna'] = field[9]
+                stem.lvienna = field[8]
+                stem.rvienna = field[9]
             stems.append(stem)
 
         return True
@@ -619,7 +614,7 @@ class Topology:
         # build the new topology from the current one
         newtopo = Topology()
         for s in self.stem_list:
-            if int(s['name']) in vlist:
+            if int(getattr(s, 'name')) in vlist:
                 newtopo.stem_list.append(s)
 
         adj = self.adjacency
@@ -1156,6 +1151,7 @@ class RNAstructure(Topology):
                 self.sequence_length = int(field[0])
                 return True
             except:
+                line = '\t'.join(field)
                 sys.stderr.write(
                     f'Topology/RNAstructure::is_ctheader - cannot read header ({line})\n')
 
