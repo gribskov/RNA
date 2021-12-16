@@ -1239,7 +1239,10 @@ class RNAstructure(Topology):
 
             if self.is_ctheader(field):
                 # add information to Topology
-                self.comment.append(line)
+                if len(self.comment) > 0:
+                    self.comment[-1] += f'reading structure {line}'
+                else:
+                    self.comment.append(f'reading structure {line}')
                 if not self.pair:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
@@ -1271,7 +1274,7 @@ class RNAstructure(Topology):
         # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
         dedup_n = self.stemlist_deduplicate()
-
+        self.comment[-1] += f'{dedup_n} stems after removing duplicates'
         return nbase
 
     def __str__(self):
@@ -1292,10 +1295,15 @@ class RNAstructure(Topology):
 
         :return: int, number of stems in revised stemlist
         -----------------------------------------------------------------------------------------"""
-        old = self.stem_list
+        s = self.stem_list
         new = []
-        order = sorted(range(len(old)), key=lambda x: (old[x].lbegin, -old[x].rend))
-        skip = [False] * len(old)
+
+        order = sorted(range(len(s)), key=lambda x: (len(s[x].lvienna)), reverse=True)
+        order = sorted(order, key=lambda x: (s[x].lbegin, s[x].rbegin))
+        # for i in order:
+        #     print(s[i].lbegin, s[i].lend, s[i].rbegin, s[i].rend)
+
+        skip = [False] * len(s)
         i = 0
         j = 1
         while i < len(order) - 1:
@@ -1304,26 +1312,34 @@ class RNAstructure(Topology):
                 j = i + 1
                 continue
 
-            s1 = old[order[i]]
-            s2 = old[order[j]]
-            while s2.lbegin <= s1.lend and j < len(order) - 1:
+            s1 = s[order[i]]
+            s2 = s[order[j]]
+            # if s2.lbegin > s1.lend:
+            #     i += 1
+            #     continue
+
+            while s2.lbegin <= s1.lend and j < len(order):
                 # check potential overlap
                 if s2.lend <= s1.lend and s2.rbegin >= s1.rbegin and s2.rend <= s1.rend:
                     skip[j] = True
-                j += 1
-                s2 = old[order[j]]
+                    j += 1
+                    if j < len(order):
+                        s2 = s[order[j]]
+                else:
+                    break
 
             i += 1
+            j = i + 1
 
         nstem = 0
-        for s in range(len(order)):
-            stem = old[order[s]]
-            if skip[s]:
-                print(stem.lbegin, stem.lend, stem.rbegin, stem.rend, 'skipped')
-            else:
-                print(stem.lbegin, stem.lend, stem.rbegin, stem.rend )
+        for i in range(len(order)):
+            stem = s[order[i]]
+            if not skip[i]:
+                new.append(stem)
+                # print(stem.lbegin, stem.lend, stem.rbegin, stem.rend, stem.lvienna)
                 nstem += 1
 
+        self.stem_list = new
         return nstem
 
     def stemlist_from_pairs(self, unpaired=2):
@@ -1674,6 +1690,7 @@ if __name__ == '__main__':
         test = RNAstructure()
         ddG = 1.75
         test.CTRead(filename, ddG)
+        test.XIOSwrite(sys.stdout)
 
         return
 
