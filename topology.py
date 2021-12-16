@@ -112,7 +112,7 @@ class Topology:
                 else:
                     colmax[column] = len(colstr)
 
-        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}/n'. \
+        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}\n'. \
             format(colmax['name'], colmax['rend'] + 2,
                    colmax['lbegin'], colmax['lend'],
                    colmax['rbegin'], colmax['rend'],
@@ -124,7 +124,7 @@ class Topology:
                                  s.rbegin, s.rend,
                                  s.lvienna, s.rvienna)
 
-        return string.rstrip('/n')
+        return string.rstrip('\n')
 
     def format_edge_list(self, fieldwidth=4):
         """-----------------------------------------------------------------------------------------
@@ -142,10 +142,10 @@ class Topology:
             string += fmtrow.format(r)
             string += ''.join(
                 [fmtcol.format(i, row[i]) for i in range(r + 1, len(row)) if row[i] != 's'])
-            string += '/n'
+            string += '\n'
             r += 1
 
-        return string.strip('/n')
+        return string.strip('\n')
 
     def format_adjacency(self, fieldwidth=3):
         """-----------------------------------------------------------------------------------------
@@ -161,7 +161,7 @@ class Topology:
         string += ''.join([fmt.format(i) for i in range(len(adj))])
         r = 0
         for row in adj:
-            string += '/n'
+            string += '\n'
             string += fmt.format(r)
             string += ''.join([fmt.format(row[i]) for i in range(len(adj))])
             r += 1
@@ -189,7 +189,7 @@ class Topology:
             fp.write("{}<{}>\n".format(space, tag))
             nline += 1
 
-        for line in string.split('/n'):
+        for line in string.split('\n'):
             if line:
                 fp.write("{}{}\n".format(space, line))
             nline += 1
