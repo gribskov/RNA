@@ -1,4 +1,25 @@
 """=================================================================================================
+    There are two main classes in this file.
+    Stem object contain information about a single stem. The begin and end positions of the left
+    and right halves of the stem and the Vienna (dot-bracket) structure.
+    ================================================================================================
+    Topology and its extensions RNAstructure, PairRNA, and SerialRNA describe topologies.
+    Topologies are sets of stems and may include stems that are mutually exclusive (or even
+    identical)
+
+    Topology is the base class and provides functions for reading, parsing, and writing the XIOS
+    format.  Topology is the ultimate arbiter of the XIOS format
+
+    RNAstructure reads structures from CT files produced by the RNAstructure package (or by
+    mfold/unafold).  Multiple structures can be read to creat a single topology if the CT file is
+    produced by the Fold program
+
+    PairRNA produces Topology objects from the pair representation (see below)
+
+    SerialRNA produces Topology objects from the serial format (see below)
+
+    ================================================================================================
+
     There are several ways to represent a folded RNA structure as a linear string at an abstract
     level where we consider simply paired regions rather than individual base pairs.  These include
     the Giegerich abstract shapes approach, where the runs of parentheses and dots in a Vienna
@@ -36,7 +57,7 @@
     CT file
         mfold and RNAStructure
 
-    RNAml
+    RNAml (currently not supported)
 ================================================================================================="""
 import sys
 import copy
@@ -124,7 +145,7 @@ class Topology:
                                  s.rbegin, s.rend,
                                  s.lvienna, s.rvienna)
 
-        return string.rstrip('\n')
+        return string.rstrip()
 
     def format_edge_list(self, fieldwidth=4):
         """-----------------------------------------------------------------------------------------
@@ -145,7 +166,7 @@ class Topology:
             string += '\n'
             r += 1
 
-        return string.strip('\n')
+        return string.rstrip()
 
     def format_adjacency(self, fieldwidth=3):
         """-----------------------------------------------------------------------------------------
@@ -166,7 +187,7 @@ class Topology:
             string += ''.join([fmt.format(row[i]) for i in range(len(adj))])
             r += 1
 
-        return string
+        return string.rstrip()
 
     @staticmethod
     def iwrite(fp, string, level, tag='', indent_len=2, indent_char=' '):
@@ -209,7 +230,7 @@ class Topology:
             <adjacency>         adjacency matrix
 
         :param fp: file, a writeable file, e.g., sys.stdout
-        :return:
+        :return: True
         -----------------------------------------------------------------------------------------"""
         version = 2.1
         indent = 0
