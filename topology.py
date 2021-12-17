@@ -515,85 +515,92 @@ class Topology:
         self.adjacency = adjacency
         return True
 
-    # ------------------------------------------------------------------------------
-    # mergeCase2
-    #
-    #   |0aaaaaaaa1|      |2aaaaaaaa3|
-    #         |0bbbb1|   |2bbbb3|
-    #
-    # merges when
-    # 1) the left half stem of the parent partially/completely overlaps the left
-    #    halfstem of the child, AND
-    # 2) the right half stem of the parent partially/completely overlaps left
-    #    halfstem of the child, AND
-    # 3) the stem center difference should be less than $STEM_CENTER_THRESHOLD
-    #
-    # in this situation, the child has some bases that lie outside the parent half
-    # stems on the right hand side.  if the child halfstems lie entirely within the
-    # parent they will be merged by an earlier invocation of mergeCase1.
-    #
-    # a is the parent stem and b is the child
-    #
-    # ( $b0 >= $a0 && $b0 <= $a1 && $b1 < $a2 )     &&
-    # ( $b3 >= $a2 && $b3 <= $a3 && $b2>$a1 )       &&
-    # ( $b1 > $a1 || $b2 < $a2 )                    &&
-    # ( $stemcenter_diff <= $STEM_CENTER_THRESHOLD )
-    #
-    # USAGE
-    #   $nmerged = mergeCase2( $nodelist );
-    #   Note: uses global variable $STEM_CENTER_THRESHOLD
-    # ------------------------------------------------------------------------------
-#     sub
-#     mergeCase2
-#     {
-#         my( @ nodelist ) =
-#
-#     @_
-#
-#     ;
-#
-#     my $nmerged = 0;
-#     for my $i ( @ nodelist ) {
+    def stemlist_merge_case2(self, stem_center_threshold=2):
+        """-----------------------------------------------------------------------------------------
+          |0aaaaaaaa1|      |2aaaaaaaa3|
+                |0bbbb1|   |2bbbb3|
+    
+        merges when
+        1) the left half stem of the parent partially/completely overlaps the left
+           halfstem of the child, AND
+        2) the right half stem of the parent partially/completely overlaps left
+           halfstem of the child, AND
+        3) the stem center difference is less than stem_center_threshold
+    
+        in this situation, the child has some bases that lie outside the parent half
+        stems on the right are merged by stemlist_deduplicate()
+    
+        a is the parent stem and b is the child, merging occurs when
+        
+        b.lbegin >= a.lbegin and b.lbegin <= a.lend and b.lend < a.rbegin
+    
+        ( stemcenter_diff <= stem_center_threshold )                            and
+        ( b.lbegin >= a.lbegin and b.lbegin <= a.lend and b.lend < a.rbegin )   and
+        ( b.rend >= a.rbegin and b.rend <= a.rend and b.rbegin>a.lend )         and
+        ( b.lend > a.lend or b.rbegin < a.rbegin )                              and
+
+        :param stem_center_threshold: int, allowed difference in center of merged stems 
+        :return: 
+        -----------------------------------------------------------------------------------------"""
+        nmerged = 0
+        for i in range(len(self.stem_list)):
+            s1 = stemlist[i]
+            for j in range(i+1,len(self.stem_list)):
+                s2 = stemlist[j]
+                if s2.lbegin < s1.lend:
+                    # stem 2 is to the right of stem 1, since stems are sorted by lbegin, no other
+                    # stems can overlap
+                    break
+
+                if s2.rbegin > s1.rbegin or s2.rend > s1.rend or s2.rend < s1.rbegin:
+                    # right half stem does not meet conditions of mergecase
+                    break
+                if abs(s1.center-s2.center) > stem_center_threshold:
+                    break
+
+                # qualifying overlap
+
+#     for my i ( nodelist ) {
 #     # skip already merged stems and the root node
-#     next if ( $i->{id} =~ / x / | | $i->{id} == 0 );
+#     next if ( i->{id} =~ / x / | | i->{id} == 0 )
 #
 #     # the parent stem
-#     my ( $a0, $a1, $a2, $a3, $ac ) = ( $i->{pos}->[0], $i->{pos}->[1],
-#     $i->{pos}->[2], $i->{pos}->[3],
-#     $i->{pos}->[4]
-#     );
+#     my ( a0, a1, a2, a3, ac ) = ( i->{pos}->[0], i->{pos}->[1],
+#     i->{pos}->[2], i->{pos}->[3],
+#     i->{pos}->[4]
+#     )
 #
-#     my @ children = @ {$i->{children}};
-#     foreach my $child ( @ children ) {
-#     next if ( $child->{id} =~ / x / );  # skip already merged
+#     my children = {i->{children}}
+#     foreach my child ( children ) {
+#     next if ( child->{id} =~ / x / )  # skip already merged
 #     # the child stem
-#     my ( $b0, $b1, $b2, $b3, $bc ) = ( $child->{pos}->[0], $child->{pos}->[1],
-#     $child->{pos}->[2], $child->{pos}->[3],
-#     $child->{pos}->[4]
-#     );
+#     my ( b0, b1, b2, b3, bc ) = ( child->{pos}->[0], child->{pos}->[1],
+#     child->{pos}->[2], child->{pos}->[3],
+#     child->{pos}->[4]
+#     )
 #
-#     if ( ($b0 >= $a0 & & $b0 <= $a1 & & $b1 < $a2) & &
-#     ($b3 >= $a2 & & $b3 <= $a3 & & $b2 > $a1) & &
-#     ($b1 > $a1 | | $b2 < $a2)                   ) {
+#     if ( (b0 >= a0 & & b0 <= a1 & & b1 < a2) & &
+#     (b3 >= a2 & & b3 <= a3 & & b2 > a1) & &
+#     (b1 > a1 | | b2 < a2)                   ) {
 #     # condition for case 2, has been met,
 #     # Is there any need to test for unmatched bases? I think not...
 #     # TODO: check that the loop region is large enough to be a real loop?
 #
-#     my $stemcenter_diff = abs($bc - $ac);
-#     if ( $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
+#     my stemcenter_diff = abs(bc - ac)
+#     if ( stemcenter_diff <= stem_center_threshold ) {
 #     printf STDERR "   Case 2:Child node %s [ %d %d %d %d ] merged into ",
-#     $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
+#     child->{id}, b0, b1, b2, b3 unless quiet
 #
 #     printf STDERR "%s [ %d %d %d %d ]\n",
-#     $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
+#     i->{id}, a0, a1, a2, a3, ac  unless quiet
 #
-#     treeMergeNodes( $i, $child );
-#     $nmerged++;
+#     treeMergeNodes( i, child )
+#     nmerged++
 #     }
 #     }
 #     }
 #     }
-#     return $nmerged;
+#     return nmerged
 #     }
 #
 #     # end of mergeCase2
