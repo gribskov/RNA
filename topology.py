@@ -1352,6 +1352,7 @@ class RNAstructure(Topology):
         for i in range(len(order)):
             stem = s[order[i]]
             if not skip[i]:
+                stem.name = nstem
                 new.append(stem)
                 # print(stem.lbegin, stem.lend, stem.rbegin, stem.rend, stem.lvienna)
                 nstem += 1
