@@ -41,12 +41,18 @@ class TopologyNode:
 
 class TopologyTree:
     """=============================================================================================
+    Build a tree of stems such that the children are entirely contained within their parents.
+    Each stem is nested as deeply as possible, i.e., is not a child of both its parent and
+    grandparent.
 
+    TODO: what happens when a stem is inside two parents?
     ============================================================================================="""
 
     def __init__(self, topology):
         """-----------------------------------------------------------------------------------------
         Constructor
+
+        :param topology: Topology object (required)
         -----------------------------------------------------------------------------------------"""
         self.topology = topology
 
@@ -57,7 +63,9 @@ class TopologyTree:
         root.name = 'root'
         self.tree = TopologyNode(root)
 
-        for stem in self.topology.stem_list:
+        for stem in sorted(self.topology.stem_list,
+                           key=lambda s: (s.rend - s.lbegin),
+                           reverse=True):
             s = TopologyNode(stem)
             nodestack = [self.tree]
             while nodestack:
