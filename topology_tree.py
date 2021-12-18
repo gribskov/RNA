@@ -39,6 +39,8 @@ class TopologyNode:
         return f'{self.stem.name}: {self.stem.lbegin}, {self.stem.rend}'
 
 
+####################################################################################################
+
 class TopologyTree:
     """=============================================================================================
     Build a tree of stems such that the children are entirely contained within their parents.
@@ -100,6 +102,31 @@ class TopologyTree:
 
         return True
 
+    def merge1(self):
+        """-----------------------------------------------------------------------------------------
+        Merge nodes that are only children of a parent.
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        nodestack = [self.tree]
+        while nodestack:
+            node = nodestack.pop()
+            nchildren = len(node.children)
+            if nchildren == 0:
+                continue
+
+            if nchildren == 1:
+                child = node.children[0]
+                node.stem.lend = max(node.stem.lend, child.stem.lend)
+                node.stem.rbegin = min(node.stem.rbegin, child.stem.rbegin)
+                node.children = child.children
+                nodestack.append(node)
+
+            else:
+                for child in node.children:
+                    nodestack.append(child)
+
+        return True
+
 
 # --------------------------------------------------------------------------------------------------
 # testing
@@ -110,6 +137,9 @@ if __name__ == '__main__':
     test.CTRead('data/mr_s129.fold.ct', ddG)
 
     tree = TopologyTree(test)
+    tree.dump()
+    print('\n\n')
+    tree.merge1()
     tree.dump()
 
     exit(0)
