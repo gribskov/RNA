@@ -22,12 +22,13 @@ class TopologyNode:
 
     def contains(self, node):
         """-----------------------------------------------------------------------------------------
-        returns true if the stem is entirely contained in the stem represented by this node
+        returns true if the stem in node is entirely contained in the stem represented by self
         :param stem: Stem object
         :return: boolean, True if stem is contained
         -----------------------------------------------------------------------------------------"""
         stem = node.stem
-        if stem.lbegin >= self.stem.lbegin and stem.rend <= self.stem.rend:
+        # if stem.lbegin >= self.stem.lbegin and stem.rend <= self.stem.rend:
+        if stem.lbegin >= self.stem.lend and stem.rend <= self.stem.rbegin:
             return True
         return False
 
@@ -94,7 +95,7 @@ class TopologyTree:
         while nodestack:
             node = nodestack.pop()
             if node.children and not node in seen:
-                print(f'\nparent={str(node)}')
+                print(f'\nparent={str(node)}\t{node.stem.lvienna}\t{node.stem.rvienna}')
                 seen.append(node)
                 for child in node.children:
                     print(f'\tchild={str(child)}')
@@ -102,7 +103,7 @@ class TopologyTree:
 
         return True
 
-    def merge1(self):
+    def merge1(self, maxgap=3):
         """-----------------------------------------------------------------------------------------
         Merge nodes that are only children of a parent.
         :return:
@@ -116,10 +117,16 @@ class TopologyTree:
 
             if nchildren == 1:
                 child = node.children[0]
-                node.stem.lend = max(node.stem.lend, child.stem.lend)
-                node.stem.rbegin = min(node.stem.rbegin, child.stem.rbegin)
-                node.children = child.children
-                nodestack.append(node)
+                if child.stem.lbegin - node.stem.lend - 1 < maxgap and \
+                        child.stem.rend - node.stem.rbegin - 1 < maxgap:
+                    node.stem.lvienna, node.stem.rvienna = TopologyTree.merge_vienna(node.stem,
+                                                                                     child.stem)
+                    node.stem.lend = max(node.stem.lend, child.stem.lend)
+                    node.stem.rbegin = min(node.stem.rbegin, child.stem.rbegin)
+                    node.children = child.children
+                    nodestack.append(node)
+                else:
+                    nodestack.append(child)
 
             else:
                 for child in node.children:
@@ -127,19 +134,66 @@ class TopologyTree:
 
         return True
 
+    def to_stemlist(self):
+        """-----------------------------------------------------------------------------------------
+        Convert to list of stems
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        stemlist = []
+        nodestack = [self.tree]
+        seen = []
+        while nodestack:
+            node = nodestack.pop()
+            stemlist.append(node.stem)
+            for child in node.children:
+                nodestack.append(child)
+
+        return stemlist
+
+    @staticmethod
+    def merge_vienna(outer, inner):
+        """-----------------------------------------------------------------------------------------
+        based on the existing dot bracket structure, merge the strings for the outer and inner stems
+
+        :param outer: Stem, outer stem
+        :param inner: Stem, inner stem
+        :return: str, str - left and right vienna strings
+        -----------------------------------------------------------------------------------------"""
+        lvienna = outer.lvienna
+        rvienna = inner.rvienna
+        pos = outer.lend + 1
+        while pos < inner.lbegin:
+            lvienna += '.'
+            pos += 1
+        lvienna += inner.lvienna
+
+        pos = inner.rend + 1
+        while pos < outer.rbegin:
+            rvienna += '.'
+            pos += 1
+        rvienna += outer.rvienna
+
+        return lvienna, rvienna
+
 
 # --------------------------------------------------------------------------------------------------
 # testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    import sys
+
     test = RNAstructure()
     ddG = 1.75
     test.CTRead('data/mr_s129.fold.ct', ddG)
+    test.XIOSwrite(sys.stdout)
 
     tree = TopologyTree(test)
     tree.dump()
     print('\n\n')
     tree.merge1()
     tree.dump()
+
+    test.stemlist = tree.to_stemlist()
+    test.XIOSwrite(sys.stdout)
 
     exit(0)
