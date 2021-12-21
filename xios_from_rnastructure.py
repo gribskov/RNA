@@ -20,7 +20,7 @@ def formatter(prog):
     :param prog:
     :return: argparse formatter class
     ---------------------------------------------------------------------------------------------"""
-    return argparse.HelpFormatter(prog, max_help_position=50, width=100)
+    return argparse.HelpFormatter(prog, max_help_position=50, width=120)
 
 
 def options():
@@ -45,20 +45,41 @@ def options():
                              help='Fold: maximum number of suboptimal structures (%(default)s)',
                              default=20)
     commandline.add_argument('-w', '--window',
-                             help='Fold: window for suboptimal structures (%(default)s)',
+                             help='Fold: window for suboptimal structures (%(default)s) or comma '
+                                  'separated',
                              default=4)
     commandline.add_argument('-d', '--ddG',
-                             help='Mergestems: delta deltaG limit for supoptimal structures (%(default)s)',
-                             default=5)
+                             help='Mergestems: delta deltaG limit for supoptimal structures (%('
+                                  'default)s) or comma separated',
+                             default='5')
     commandline.add_argument('-c', '--mergecase',
                              help='Mergestems: merging cases (rules) for combining suboptimal '
-                                  'structures (%(default)s)',
+                                  'structures (%(default)s). Not implemented for now.',
                              default='12345')
 
     # process command line arguments
     args = commandline.parse_args()
     if not args.indir.endswith('/'):
         args.indir += '/'
+
+    # ddG and window may be comma separated ranges
+    if args.ddG.find(','):
+        minmax = args.ddG.split(',')
+        [args.ddG_min, args.ddG_max] = minmax
+        if len(minmax) == 1:
+            args.ddG_max = args.ddG_min
+        args.ddG_min = int(args.ddG_min)
+        args.ddG_max = int(args.ddG_max)
+        
+    if args.windos.find(','):
+        minmax = args.window.split(',')
+        [args.window_min, args.window_max] = minmax
+        if len(minmax) == 1:
+            args.window_max = args.window_min
+        args.window_min = int(args.window_min)
+        args.window_max = int(args.window_max)
+        
+
 
     return args
 
@@ -212,6 +233,7 @@ def runfold(args, fasta, ct):
     opt = [exe, fasta, ct]
     opt += ['-p', f'{args.percent}']
     opt += ['-m', f'{args.maximum}']
+    opt += ['-w', f'{args.window}']
     subprocess.call(opt)
 
     return
@@ -234,7 +256,7 @@ def runmergestems(arg, ct, xios):
 
     xiosout = open(xios, 'w')
 
-    exe = args.perl_src + '/mergestems.pl'
+    exe = args.perl_src + '/c2'
     opt = [exe, ct]
     opt += ['-c', f'{args.mergecase}']
     opt += ['-g', f'{args.ddG}']
@@ -279,16 +301,28 @@ if __name__ == '__main__':
 
     ctdir = 'ctfiles'
     safe_mkdir(ctdir)
-    xiosdir = 'xiosfiles'
-    safe_mkdir(xiosdir)
 
+    # run Fold once for each window size to generate the structure CT files
     for fasta in fastafiles:
-        # run fold
-        ct = 'ctfiles/' + ct_from_fasta(args, fasta)
-        runfold(args, fasta, ct)
+        for window in range(args.window_min, args.window_max):
+            # run fold
+            args.window = window
+            ct = 'ctfiles/' + ct_from_fasta(args, fasta)
+            runfold(args, fasta, ct)
 
         # run mergestems
         xios = 'xiosfiles/' + xios_from_ct(args, ct)
+
+    # all output goes to the xiosfiles directory
+    # for each ct file we can use different ddG
+    xiosdir = 'xiosfiles'
+    safe_mkdir(xiosdir)
+
+    for ddG in range(args.ddG_min, args.ddG_max):
+        #TODO construct output file name
+        args.ddG = ddG
         runmergestems(args, ct, xios)
+
+    # compare to curated structures
 
     exit(0)
