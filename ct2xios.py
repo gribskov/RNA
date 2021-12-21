@@ -1,7 +1,7 @@
 ####################################################################################################
 # ct2xios
 #
-# convert ct file to XIOS formatted XML file. Output is STDOUYT so redirect to a filename
+# convert ct file to XIOS formatted XML file. Output is STDOUT so redirect to a filename
 #
 # Usage:
 #   ct2xios <ct_file> > <XIOS file>
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     sys.stderr.write('CT file: {}'.format(ctfile))
 
     rna = RNAstructure()
-    rna.CTRead(ctfile)
+    rna.CTRead(ctfile, ddG=3)
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     rna.comment.append('creation_date {}'.format(now))
     rna.comment.append('input_file {}'.format(ctfile))
@@ -26,7 +26,6 @@ if __name__ == '__main__':
         rna.comment.append('input_format unifold')
     else:
         rna.comment.append('input_format probknot')
-    rna.stemlist_from_pairs(unpaired=2)
     rna.adjacency_from_stemlist()
     rna.edgelist_from_adjacency(include="ijo", whole=False)
 
