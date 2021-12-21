@@ -65,22 +65,22 @@ def options():
     # ddG and window may be comma separated ranges
     if args.ddG.find(','):
         minmax = args.ddG.split(',')
-        [args.ddG_min, args.ddG_max] = minmax
-        if len(minmax) == 1:
-            args.ddG_max = args.ddG_min
+        if len(minmax) > 1:
+            [args.ddG_min, args.ddG_max] = minmax
+        else:
+            args.ddG_max = args.ddG_min = int(args.ddG)
         args.ddG_min = int(args.ddG_min)
         args.ddG_max = int(args.ddG_max)
         
-    if args.windos.find(','):
+    if args.window.find(','):
         minmax = args.window.split(',')
-        [args.window_min, args.window_max] = minmax
-        if len(minmax) == 1:
-            args.window_max = args.window_min
+        if len(minmax) > 1:
+            [args.window_min, args.window_max] = minmax
+        else:
+            args.window_max = args.window_min = int(argw.window)
         args.window_min = int(args.window_min)
         args.window_max = int(args.window_max)
         
-
-
     return args
 
 
@@ -256,8 +256,8 @@ def runmergestems(arg, ct, xios):
 
     xiosout = open(xios, 'w')
 
-    exe = args.perl_src + '/c2'
-    opt = [exe, ct]
+    exe = args.perl_src + '/ct2xios.py'
+    opt = [ 'python3', exe, ct]
     opt += ['-c', f'{args.mergecase}']
     opt += ['-g', f'{args.ddG}']
     subprocess.call(opt, stdout=xiosout)
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # code locations, add to args
     rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure/exe"
     args.rnastructure = rnastructure
-    perl_src = "/depot/mgribsko/rna/RNA/perl_src"
+    perl_src = "/scratch/bell/mgribsko/rna/RNA"
     args.perl_src = perl_src
     print(f'RNAstructure executables: {rnastructure}')
     print(f'Mergestem executable: {perl_src}')
@@ -304,7 +304,7 @@ if __name__ == '__main__':
 
     # run Fold once for each window size to generate the structure CT files
     for fasta in fastafiles:
-        for window in range(args.window_min, args.window_max):
+        for window in range(args.window_min, args.window_max+1):
             # run fold
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
@@ -317,11 +317,17 @@ if __name__ == '__main__':
     # for each ct file we can use different ddG
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
-
-    for ddG in range(args.ddG_min, args.ddG_max):
-        #TODO construct output file name
-        args.ddG = ddG
-        runmergestems(args, ct, xios)
+    ctfiles = glob.glob(ctdir+'/*.ct')
+    # print(f'ctfiles: {ctfiles}')
+    for ct in ctfiles:
+        sys.stderr.write( f'{ct}\n')
+        i = 0
+        for ddG in range(args.ddG_min, args.ddG_max+1):
+            xios = f'xiosfiles/file{i}.xios'
+            #TODO construct output file name
+            args.ddG = ddG
+            runmergestems(args, ct, xios)
+            i += 1
 
     # compare to curated structures
 
