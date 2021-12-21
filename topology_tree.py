@@ -190,7 +190,7 @@ if __name__ == '__main__':
     tree = TopologyTree(test)
     tree.dump()
     print('\n\n')
-    tree.merge1()
+    tree.merge1(maxgap=2)
     tree.dump()
 
     test.stemlist = tree.to_stemlist()
