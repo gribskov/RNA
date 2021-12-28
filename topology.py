@@ -544,9 +544,9 @@ class Topology:
         -----------------------------------------------------------------------------------------"""
         nmerged = 0
         for i in range(len(self.stem_list)):
-            s1 = stemlist[i]
-            for j in range(i+1,len(self.stem_list)):
-                s2 = stemlist[j]
+            s1 = self.stem_list[i]
+            for j in range(i + 1, len(self.stem_list)):
+                s2 = self.stem_list[j]
                 if s2.lbegin < s1.lend:
                     # stem 2 is to the right of stem 1, since stems are sorted by lbegin, no other
                     # stems can overlap
@@ -555,397 +555,397 @@ class Topology:
                 if s2.rbegin > s1.rbegin or s2.rend > s1.rend or s2.rend < s1.rbegin:
                     # right half stem does not meet conditions of mergecase
                     break
-                if abs(s1.center-s2.center) > stem_center_threshold:
+                if abs(s1.center - s2.center) > stem_center_threshold:
                     break
 
                 # qualifying overlap
 
-#     for my i ( nodelist ) {
-#     # skip already merged stems and the root node
-#     next if ( i->{id} =~ / x / | | i->{id} == 0 )
-#
-#     # the parent stem
-#     my ( a0, a1, a2, a3, ac ) = ( i->{pos}->[0], i->{pos}->[1],
-#     i->{pos}->[2], i->{pos}->[3],
-#     i->{pos}->[4]
-#     )
-#
-#     my children = {i->{children}}
-#     foreach my child ( children ) {
-#     next if ( child->{id} =~ / x / )  # skip already merged
-#     # the child stem
-#     my ( b0, b1, b2, b3, bc ) = ( child->{pos}->[0], child->{pos}->[1],
-#     child->{pos}->[2], child->{pos}->[3],
-#     child->{pos}->[4]
-#     )
-#
-#     if ( (b0 >= a0 & & b0 <= a1 & & b1 < a2) & &
-#     (b3 >= a2 & & b3 <= a3 & & b2 > a1) & &
-#     (b1 > a1 | | b2 < a2)                   ) {
-#     # condition for case 2, has been met,
-#     # Is there any need to test for unmatched bases? I think not...
-#     # TODO: check that the loop region is large enough to be a real loop?
-#
-#     my stemcenter_diff = abs(bc - ac)
-#     if ( stemcenter_diff <= stem_center_threshold ) {
-#     printf STDERR "   Case 2:Child node %s [ %d %d %d %d ] merged into ",
-#     child->{id}, b0, b1, b2, b3 unless quiet
-#
-#     printf STDERR "%s [ %d %d %d %d ]\n",
-#     i->{id}, a0, a1, a2, a3, ac  unless quiet
-#
-#     treeMergeNodes( i, child )
-#     nmerged++
-#     }
-#     }
-#     }
-#     }
-#     return nmerged
-#     }
-#
-#     # end of mergeCase2
-#
-#     # ------------------------------------------------------------------------------
-#     # mergeCase3
-#     #
-#     #   |0aaaaaaaa1|                    |2aaaaaaaa3|
-#     #                |0bbbb1|  |2bbbb3|
-#     #
-#     # merges child and parent nodes when
-#     # 1) the child is completely nested within the parent stem, AND
-#     # 2) the gap between child and parent stems is not greater than $gap_limit, AND
-#     # 3) the centers are less than $STEM_CENTER_THRESHOLD apart
-#     #
-#     # ( $b0 > $a1 && $b1 < $a2 && $b2 > $a1 && $b3 < $a2 ) and
-#     #                 $left_halfstem_gap <= $threshold and
-#     #                 $right_halfstem_gap <= $threshold and
-#     #                 $stemcenter_diff <= $STEM_CENTER_THRESHOLD
-#     #
-#     # ( $b0 > $a1 && $b1 < $a2 && $b2 > $a1 && $b3 < $a2 ) &&
-#     # ( $b0-$a1 <= $threshold && $a2-$b3 <= $threshold )   &&
-#     # ( $abs($bc - $ac) <= $STEM_CENTER_THRESHOLD )
-#     #
-#     # $b0 - $a1 is the gap between the parent and child left half stems
-#     # $a2 - $b3 is the gap between the parent and child right half stems
-#     # abs($bc - $ac) is the difference in the center position of the two stems
-#     #
-#     # USAGE
-#     #   $nmerged = mergeCase3( $gap_limit, $nodelist );
-#     #   Note: uses global variable $STEM_CENTER_THRESHOLD
-#     # ------------------------------------------------------------------------------
-#     sub
-#     mergeCase3
-#     {
-#     my( $threshold,
-#
-#     @nodelist
-#
-#     ) =
-#
-#     @_
-#
-#     ;
-#
-#     my $nmerged = 0;
-#     for my $i ( @ nodelist ) {
-#     # skip already merged stems and the root node
-#     next if ( $i->{id} =~ / x / | | $i->{id} == 0 );
-#
-#     # the parent stem
-#     my ( $a0, $a1, $a2, $a3, $ac ) = ( $i->{pos}->[0], $i->{pos}->[1],
-#     $i->{pos}->[2], $i->{pos}->[3],
-#     $i->{pos}->[4]
-#     );
-#
-#     my @ children = @ {$i->{children}};
-#     foreach my $child ( @ children ) {
-#     next if ( $child->{id} =~ / x / );
-#     my ( $b0, $b1, $b2, $b3, $bc ) = ( $child->{pos}->[0], $child->{pos}->[1],
-#     $child->{pos}->[2], $child->{pos}->[3],
-#     $child->{pos}->[4]
-#     );
-#
-#     if ( $b0 > $a1 & & $b1 < $a2 & & $b2 > $a1 & & $b3 < $a2 ) {
-#     # don't need to check that a loop is physically reasonable since
-#     # the nested stem has a loop
-#
-#     my $stemcenter_diff    = abs($bc - $ac);
-#     my $left_halfstem_gap  = $b0 - $a1;
-#     my $right_halfstem_gap = $a2 - $b3;
-#
-#     if ( $left_halfstem_gap <= $threshold and
-#     $right_halfstem_gap <= $threshold and
-#     $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
-#
-#     printf STDERR "   Case 3: Child node %s [ %d %d %d %d ] merged into ",
-#     $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
-#
-#     printf STDERR "%s [ %d %d %d %d ]\n",
-#     $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
-#
-#     treeMergeNodes( $i, $child );
-#     $nmerged++;
-#     }
-#     }
-#     }
-#     }
-#     return $nmerged;
-#
-# }
-#
-# # end of mergeCase3
-#
-# # ------------------------------------------------------------------------------
-# # mergeCase4
-# #
-# #       |0aaaaaaaa1|           |2aaaaaaaa3|
-# #        |0bbbb1|     |2bbbb3|
-# #
-# #       |0aaaaaaaa1|           |2aaaaaaaa3|
-# #                    |0bbbb1|     |2bbbb3|
-# #
-# # merges nested child node with parent nodes when
-# # 1) one child halfstem overlaps partially/completely with the parent AND
-# # 2) the other half stem is nested inside the parent half stems AND
-# # 3) the nested half stem is less than $gap_limit away from the boundaries of
-# #    the parent AND
-# # 4) the stem center difference is less than $STEM_CENTER_THRESHOLD
-# #
-# # ( $b0 <= $a1 && $b0 >= $a0 && $b3 <  $a2 && $b2 >  $a1 ) ||
-# # ( $b0 > $a1  && $b1 < $a2  && $b3 >= $a2 && $b3 <= $a3 )
-# # Either the left halfstem overlap or the right halfstem
-# #
-# # USAGE
-# #   $nmerged = mergeCase3( $gap_limit, $nodelist );
-# #   Note: uses global variable $STEM_CENTER_THRESHOLD
-# # ------------------------------------------------------------------------------
-# sub
-# mergeCase4
-# {
-# my( $threshold,
-#
-#
-# @nodelist
-#
-# ) =
-#
-# @_
-#
-# ;
-#
-# my $nmerged = 0;
-# for my $i ( @ nodelist ) {
-# # skip already merged stems and the root node
-# next if ( $i->{id} =~ / x / | | $i->{id} == 0 );  # what does this mean? $i->{id} == 0
-# # the parent stem
-# my ( $a0, $a1, $a2, $a3, $ac ) = ( $i->{pos}->[0], $i->{pos}->[1],
-# $i->{pos}->[2], $i->{pos}->[3],
-# $i->{pos}->[4]
-# );
-#
-# my @ children = @ {$i->{children}};
-# foreach my $child ( @ children ) {
-# next if ( $child->{id} =~ / x / );
-# my ( $b0, $b1, $b2, $b3, $bc ) = ( $child->{pos}->[0], $child->{pos}->[1],
-# $child->{pos}->[2], $child->{pos}->[3],
-# $child->{pos}->[4]
-# );
-#
-# # The left halfstem overlaps, but the right does not, implicit b1< a2
-# if ($b0 <= $a1 & & $b0 >= $a0 & & $b3 < $a2 & & $b2 > $a1 ) {
-# my $stemcenter_diff = abs($bc - $ac);
-# my $right_halfstem_gap = $a2 - $b3;
-# if ( $right_halfstem_gap <= $threshold and
-# $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
-#
-# printf STDERR "   Case 4: Child node %s [ %d %d %d %d ] merged into ",
-# $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
-#
-# printf STDERR "%s [ %d %d %d %d ]\n",
-# $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
-#
-# treeMergeNodes( $i, $child );
-# $nmerged++;
-# }
-# }
-#
-# # The right halfstem overlaps, but the left does not, implicit b2> a1
-# if ($b0 > $a1 & & $b1 < $a2 & & $b3 >= $a2 & & $b3 <= $a3) {
-# my $stemcenter_diff = abs($bc - $ac);
-# my $left_halfstem_gap = $b0 - $a1;
-# if ( $left_halfstem_gap <= $threshold and
-# $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
-#
-# printf STDERR "   Case 4: Child node %s [ %d %d %d %d ] merged into ",
-# $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
-#
-# printf STDERR "%s [ %d %d %d %d ]\n",
-# $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
-#
-# treeMergeNodes( $i, $child );
-# $nmerged++;
-# }
-# }
-# }
-# }
-# return $nmerged;
-# }
-#
-# # end of mergeCase4
-#
-# # ------------------------------------------------------------------------------
-# # mergeCase5
-# #
-# #       |0aaaaaaaa1|                    |2aaaaaaaa3|
-# #     |0bbbb1|                            |2bbbb3|
-# #
-# #       |0aaaaaaaa1|                    |2aaaaaaaa3|
-# #          |0bbbb1|                           |2bbbb3|
-#
-# #
-# # Looks for stems that overlap and are both nested within the same parent.  For
-# # this case a and b are children of the same parent, d.
-# #
-# # merge non-nested stems, when both halfstem overlaps
-# # number of matched and unmatched bases are below a threshold
-# #
-# # The stem center difference also has to be below a threshold
-# #
-# # ( $b0 < $a0 && $b1 >= $a0 && $b3 <= $a3 && $b3 >= $a2 ) ||
-# # ( $b3 > $a3 && $b2 <= $a3 && $b0 >= $a0 && $b0 <= $a1 )
-# # plus, satisfy, matched, unmatched and stem center threshold
-# #
-# # USAGE
-# #   $nmerged = mergeCase5( $threshold, $nodelist );
-# # ------------------------------------------------------------------------------
-# sub
-# mergeCase5
-# {
-# my( $threshold,
-#
-#
-# @nodelist
-#
-# ) =
-#
-# @_
-#
-# ;
-#
-# my $nmerged = 0;
-# for my $i ( @ nodelist ) {
-# # skip already merged stems
-# next if ( $i->{id} =~ / x / );
-#
-# # parent stem
-# my ( $d0, $d1, $d2, $d3, $dc ) = ( $i->{pos}->[0], $i->{pos}->[1],
-# $i->{pos}->[2], $i->{pos}->[3],
-# $i->{pos}->[4]
-# );
-#
-# my @ children = @ {$i->{children}};
-# foreach my $c_one ( 0..$  # children ) {
-# my $c1 = $children[$c_one];
-# next if ( $c1->{id} =~ / x / );  # skip already merged stems
-#
-# # child 1 stem
-# my ( $a0, $a1, $a2, $a3, $ac ) = ( $c1->{pos}->[0], $c1->{pos}->[1],
-# $c1->{pos}->[2], $c1->{pos}->[3],
-# $c1->{pos}->[4]
-# );
-#
-# my ($left_unmatched, $left_matched)   = (0, 0);
-# my ($right_unmatched, $right_matched) = (0, 0);
-#
-# foreach my $c_two ( $c_one+1..$  # children ) {
-# my $c2 = $children[$c_two];
-# next if ( $c2->{id} =~ / x / );  # skip already merged stems
-#
-# # child 2 stem
-# my ( $b0, $b1, $b2, $b3, $bc ) = ( $c2->{pos}->[0], $c2->{pos}->[1],
-# $c2->{pos}->[2], $c2->{pos}->[3],
-# $c2->{pos}->[4]
-# );
-#
-# #
-# #
-# if ( ( $b0 < $a0 & & $b1 >= $a0 & & $b3 <= $a3 & & $b3 >= $a2 ) | |
-# ( $b3 > $a3 & & $b2 <= $a3 & & $b0 >= $a0 & & $b0 <= $a1 )    ) {
-#
-# # _in and _out are inner and outer boundries of the halfstem
-# # there are two possible cases depending on whether a is to
-# # the left or to the right of b
-#
-# my $l1_in = $b0; my $l1_out = $a0;  # left halfstem, left inner and outer boundries of the halfstem
-# if ( $a0 > $b0 ) {$l1_in = $a0; $l1_out = $b0;}
-#
-# my $l2_in = $b1; my $l2_out = $a1;  # left halfstem, right inner and outer boundries of the halfstem
-# if ( $a1 < $b1 ) {$l2_in = $a1; $l2_out = $b1;}
-#
-# my $r1_in = $b2; my $r1_out = $a2;  # right halfstem, left inner and outer boundries of the halfstem
-# if ( $a2 > $b2 ) {$r1_in = $a2; $r1_out = $b2;}
-#
-# my $r2_in = $b3; my $r2_out = $a3;  # right halfstem, right inner and outer boundries of the halfstem
-# if ( $a3 < $b3 ) {$r2_in = $a3; $r2_out = $b3;}
-#
-# # different length stems would create a imbalance in the
-# # unmatched base count, so it needs to be normalized
-# my $left_stem_len_diff  = abs(($a1-$a0) - ($b1-$b0));
-# my $right_stem_len_diff = abs(($a3-$a2) - ($b3-$b2));
-# $left_unmatched   = $l1_in - $l1_out + $l2_out - $l2_in;
-# $left_unmatched -= $left_stem_len_diff;
-#
-# $right_unmatched  = $r1_in - $r1_out + $r2_out - $r2_in,
-# $right_unmatched -= $right_stem_len_diff;
-#
-# my $c1_len = int(($a1-$a0 + 1 + $a3 - $a2 + 1) / 2);  # average of stem length
-# my $c2_len = int(($b1-$b0 + 1 + $b3 - $b2 + 1) / 2);
-# my $min_stem_len = 0;
-# $min_stem_len = $c2_len;
-# if ( $c1_len < $c2_len ) {$min_stem_len = $c1_len;}  # smaller of the two average of stem length
-#
-# $left_matched  = $l2_in - $l1_in + 1;  # atleast two bases have to be matched
-# $right_matched = $r2_in - $r1_in + 1;
-# # it can also determined from stem length or 30% (which ever
-# # is larger). the unmatched parameter become a bit tricky,
-# # when merging a long stem with a smaller stem.
-# my $MIN_MATCH_THRESHOLD = 1;  # for stem length of 3,2
-# if ( $min_stem_len > 3 ) {
-# $MIN_MATCH_THRESHOLD = 2;  # it remains 2, for 4,5,6
-# if ( 0.3 * $min_stem_len > 2 ) {
-# $MIN_MATCH_THRESHOLD = int( 0.3 * $min_stem_len );  # 1/3 of average stem length
-# }
-# }
-#
-# # Unmatched threshold can be 6
-# # unmatch threshold can be 50% of half stem length or which
-# # ever is smaller... Times 2 or 8
-# $threshold = $min_stem_len;  # 50% of base pairs can be unmatched
-#
-# my $stemcenter_diff = abs($bc - $ac);
-#
-# if ( $left_unmatched <= $threshold and
-# $left_matched >= $MIN_MATCH_THRESHOLD and
-# $right_unmatched <= $threshold and
-# $right_matched >= $MIN_MATCH_THRESHOLD and
-# $stemcenter_diff <= $STEM_CENTER_THRESHOLD + 1 ) {
-#
-# printf STDERR "   Case 5: Child node %s [ %d %d %d %d ]merged to",
-# $c1->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
-# printf STDERR "child node %s [ %d %d %d %d ]\n",
-# $c2->{id}, $b0, $b1, $b2, $b3 unless $quiet;
-#
-# treeMergeNodes( $c1, $c2 );
-# $nmerged++;
-# }
-# }
-# }
-# }
-# }
-# return $nmerged;
-# }
-#
-# # end of mergeCase5
+    #     for my i ( nodelist ) {
+    #     # skip already merged stems and the root node
+    #     next if ( i->{id} =~ / x / | | i->{id} == 0 )
+    #
+    #     # the parent stem
+    #     my ( a0, a1, a2, a3, ac ) = ( i->{pos}->[0], i->{pos}->[1],
+    #     i->{pos}->[2], i->{pos}->[3],
+    #     i->{pos}->[4]
+    #     )
+    #
+    #     my children = {i->{children}}
+    #     foreach my child ( children ) {
+    #     next if ( child->{id} =~ / x / )  # skip already merged
+    #     # the child stem
+    #     my ( b0, b1, b2, b3, bc ) = ( child->{pos}->[0], child->{pos}->[1],
+    #     child->{pos}->[2], child->{pos}->[3],
+    #     child->{pos}->[4]
+    #     )
+    #
+    #     if ( (b0 >= a0 & & b0 <= a1 & & b1 < a2) & &
+    #     (b3 >= a2 & & b3 <= a3 & & b2 > a1) & &
+    #     (b1 > a1 | | b2 < a2)                   ) {
+    #     # condition for case 2, has been met,
+    #     # Is there any need to test for unmatched bases? I think not...
+    #     # TODO: check that the loop region is large enough to be a real loop?
+    #
+    #     my stemcenter_diff = abs(bc - ac)
+    #     if ( stemcenter_diff <= stem_center_threshold ) {
+    #     printf STDERR "   Case 2:Child node %s [ %d %d %d %d ] merged into ",
+    #     child->{id}, b0, b1, b2, b3 unless quiet
+    #
+    #     printf STDERR "%s [ %d %d %d %d ]\n",
+    #     i->{id}, a0, a1, a2, a3, ac  unless quiet
+    #
+    #     treeMergeNodes( i, child )
+    #     nmerged++
+    #     }
+    #     }
+    #     }
+    #     }
+    #     return nmerged
+    #     }
+    #
+    #     # end of mergeCase2
+    #
+    #     # ------------------------------------------------------------------------------
+    #     # mergeCase3
+    #     #
+    #     #   |0aaaaaaaa1|                    |2aaaaaaaa3|
+    #     #                |0bbbb1|  |2bbbb3|
+    #     #
+    #     # merges child and parent nodes when
+    #     # 1) the child is completely nested within the parent stem, AND
+    #     # 2) the gap between child and parent stems is not greater than $gap_limit, AND
+    #     # 3) the centers are less than $STEM_CENTER_THRESHOLD apart
+    #     #
+    #     # ( $b0 > $a1 && $b1 < $a2 && $b2 > $a1 && $b3 < $a2 ) and
+    #     #                 $left_halfstem_gap <= $threshold and
+    #     #                 $right_halfstem_gap <= $threshold and
+    #     #                 $stemcenter_diff <= $STEM_CENTER_THRESHOLD
+    #     #
+    #     # ( $b0 > $a1 && $b1 < $a2 && $b2 > $a1 && $b3 < $a2 ) &&
+    #     # ( $b0-$a1 <= $threshold && $a2-$b3 <= $threshold )   &&
+    #     # ( $abs($bc - $ac) <= $STEM_CENTER_THRESHOLD )
+    #     #
+    #     # $b0 - $a1 is the gap between the parent and child left half stems
+    #     # $a2 - $b3 is the gap between the parent and child right half stems
+    #     # abs($bc - $ac) is the difference in the center position of the two stems
+    #     #
+    #     # USAGE
+    #     #   $nmerged = mergeCase3( $gap_limit, $nodelist );
+    #     #   Note: uses global variable $STEM_CENTER_THRESHOLD
+    #     # ------------------------------------------------------------------------------
+    #     sub
+    #     mergeCase3
+    #     {
+    #     my( $threshold,
+    #
+    #     @nodelist
+    #
+    #     ) =
+    #
+    #     @_
+    #
+    #     ;
+    #
+    #     my $nmerged = 0;
+    #     for my $i ( @ nodelist ) {
+    #     # skip already merged stems and the root node
+    #     next if ( $i->{id} =~ / x / | | $i->{id} == 0 );
+    #
+    #     # the parent stem
+    #     my ( $a0, $a1, $a2, $a3, $ac ) = ( $i->{pos}->[0], $i->{pos}->[1],
+    #     $i->{pos}->[2], $i->{pos}->[3],
+    #     $i->{pos}->[4]
+    #     );
+    #
+    #     my @ children = @ {$i->{children}};
+    #     foreach my $child ( @ children ) {
+    #     next if ( $child->{id} =~ / x / );
+    #     my ( $b0, $b1, $b2, $b3, $bc ) = ( $child->{pos}->[0], $child->{pos}->[1],
+    #     $child->{pos}->[2], $child->{pos}->[3],
+    #     $child->{pos}->[4]
+    #     );
+    #
+    #     if ( $b0 > $a1 & & $b1 < $a2 & & $b2 > $a1 & & $b3 < $a2 ) {
+    #     # don't need to check that a loop is physically reasonable since
+    #     # the nested stem has a loop
+    #
+    #     my $stemcenter_diff    = abs($bc - $ac);
+    #     my $left_halfstem_gap  = $b0 - $a1;
+    #     my $right_halfstem_gap = $a2 - $b3;
+    #
+    #     if ( $left_halfstem_gap <= $threshold and
+    #     $right_halfstem_gap <= $threshold and
+    #     $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
+    #
+    #     printf STDERR "   Case 3: Child node %s [ %d %d %d %d ] merged into ",
+    #     $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
+    #
+    #     printf STDERR "%s [ %d %d %d %d ]\n",
+    #     $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
+    #
+    #     treeMergeNodes( $i, $child );
+    #     $nmerged++;
+    #     }
+    #     }
+    #     }
+    #     }
+    #     return $nmerged;
+    #
+    # }
+    #
+    # # end of mergeCase3
+    #
+    # # ------------------------------------------------------------------------------
+    # # mergeCase4
+    # #
+    # #       |0aaaaaaaa1|           |2aaaaaaaa3|
+    # #        |0bbbb1|     |2bbbb3|
+    # #
+    # #       |0aaaaaaaa1|           |2aaaaaaaa3|
+    # #                    |0bbbb1|     |2bbbb3|
+    # #
+    # # merges nested child node with parent nodes when
+    # # 1) one child halfstem overlaps partially/completely with the parent AND
+    # # 2) the other half stem is nested inside the parent half stems AND
+    # # 3) the nested half stem is less than $gap_limit away from the boundaries of
+    # #    the parent AND
+    # # 4) the stem center difference is less than $STEM_CENTER_THRESHOLD
+    # #
+    # # ( $b0 <= $a1 && $b0 >= $a0 && $b3 <  $a2 && $b2 >  $a1 ) ||
+    # # ( $b0 > $a1  && $b1 < $a2  && $b3 >= $a2 && $b3 <= $a3 )
+    # # Either the left halfstem overlap or the right halfstem
+    # #
+    # # USAGE
+    # #   $nmerged = mergeCase3( $gap_limit, $nodelist );
+    # #   Note: uses global variable $STEM_CENTER_THRESHOLD
+    # # ------------------------------------------------------------------------------
+    # sub
+    # mergeCase4
+    # {
+    # my( $threshold,
+    #
+    #
+    # @nodelist
+    #
+    # ) =
+    #
+    # @_
+    #
+    # ;
+    #
+    # my $nmerged = 0;
+    # for my $i ( @ nodelist ) {
+    # # skip already merged stems and the root node
+    # next if ( $i->{id} =~ / x / | | $i->{id} == 0 );  # what does this mean? $i->{id} == 0
+    # # the parent stem
+    # my ( $a0, $a1, $a2, $a3, $ac ) = ( $i->{pos}->[0], $i->{pos}->[1],
+    # $i->{pos}->[2], $i->{pos}->[3],
+    # $i->{pos}->[4]
+    # );
+    #
+    # my @ children = @ {$i->{children}};
+    # foreach my $child ( @ children ) {
+    # next if ( $child->{id} =~ / x / );
+    # my ( $b0, $b1, $b2, $b3, $bc ) = ( $child->{pos}->[0], $child->{pos}->[1],
+    # $child->{pos}->[2], $child->{pos}->[3],
+    # $child->{pos}->[4]
+    # );
+    #
+    # # The left halfstem overlaps, but the right does not, implicit b1< a2
+    # if ($b0 <= $a1 & & $b0 >= $a0 & & $b3 < $a2 & & $b2 > $a1 ) {
+    # my $stemcenter_diff = abs($bc - $ac);
+    # my $right_halfstem_gap = $a2 - $b3;
+    # if ( $right_halfstem_gap <= $threshold and
+    # $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
+    #
+    # printf STDERR "   Case 4: Child node %s [ %d %d %d %d ] merged into ",
+    # $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
+    #
+    # printf STDERR "%s [ %d %d %d %d ]\n",
+    # $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
+    #
+    # treeMergeNodes( $i, $child );
+    # $nmerged++;
+    # }
+    # }
+    #
+    # # The right halfstem overlaps, but the left does not, implicit b2> a1
+    # if ($b0 > $a1 & & $b1 < $a2 & & $b3 >= $a2 & & $b3 <= $a3) {
+    # my $stemcenter_diff = abs($bc - $ac);
+    # my $left_halfstem_gap = $b0 - $a1;
+    # if ( $left_halfstem_gap <= $threshold and
+    # $stemcenter_diff <= $STEM_CENTER_THRESHOLD ) {
+    #
+    # printf STDERR "   Case 4: Child node %s [ %d %d %d %d ] merged into ",
+    # $child->{id}, $b0, $b1, $b2, $b3 unless $quiet;
+    #
+    # printf STDERR "%s [ %d %d %d %d ]\n",
+    # $i->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
+    #
+    # treeMergeNodes( $i, $child );
+    # $nmerged++;
+    # }
+    # }
+    # }
+    # }
+    # return $nmerged;
+    # }
+    #
+    # # end of mergeCase4
+    #
+    # # ------------------------------------------------------------------------------
+    # # mergeCase5
+    # #
+    # #       |0aaaaaaaa1|                    |2aaaaaaaa3|
+    # #     |0bbbb1|                            |2bbbb3|
+    # #
+    # #       |0aaaaaaaa1|                    |2aaaaaaaa3|
+    # #          |0bbbb1|                           |2bbbb3|
+    #
+    # #
+    # # Looks for stems that overlap and are both nested within the same parent.  For
+    # # this case a and b are children of the same parent, d.
+    # #
+    # # merge non-nested stems, when both halfstem overlaps
+    # # number of matched and unmatched bases are below a threshold
+    # #
+    # # The stem center difference also has to be below a threshold
+    # #
+    # # ( $b0 < $a0 && $b1 >= $a0 && $b3 <= $a3 && $b3 >= $a2 ) ||
+    # # ( $b3 > $a3 && $b2 <= $a3 && $b0 >= $a0 && $b0 <= $a1 )
+    # # plus, satisfy, matched, unmatched and stem center threshold
+    # #
+    # # USAGE
+    # #   $nmerged = mergeCase5( $threshold, $nodelist );
+    # # ------------------------------------------------------------------------------
+    # sub
+    # mergeCase5
+    # {
+    # my( $threshold,
+    #
+    #
+    # @nodelist
+    #
+    # ) =
+    #
+    # @_
+    #
+    # ;
+    #
+    # my $nmerged = 0;
+    # for my $i ( @ nodelist ) {
+    # # skip already merged stems
+    # next if ( $i->{id} =~ / x / );
+    #
+    # # parent stem
+    # my ( $d0, $d1, $d2, $d3, $dc ) = ( $i->{pos}->[0], $i->{pos}->[1],
+    # $i->{pos}->[2], $i->{pos}->[3],
+    # $i->{pos}->[4]
+    # );
+    #
+    # my @ children = @ {$i->{children}};
+    # foreach my $c_one ( 0..$  # children ) {
+    # my $c1 = $children[$c_one];
+    # next if ( $c1->{id} =~ / x / );  # skip already merged stems
+    #
+    # # child 1 stem
+    # my ( $a0, $a1, $a2, $a3, $ac ) = ( $c1->{pos}->[0], $c1->{pos}->[1],
+    # $c1->{pos}->[2], $c1->{pos}->[3],
+    # $c1->{pos}->[4]
+    # );
+    #
+    # my ($left_unmatched, $left_matched)   = (0, 0);
+    # my ($right_unmatched, $right_matched) = (0, 0);
+    #
+    # foreach my $c_two ( $c_one+1..$  # children ) {
+    # my $c2 = $children[$c_two];
+    # next if ( $c2->{id} =~ / x / );  # skip already merged stems
+    #
+    # # child 2 stem
+    # my ( $b0, $b1, $b2, $b3, $bc ) = ( $c2->{pos}->[0], $c2->{pos}->[1],
+    # $c2->{pos}->[2], $c2->{pos}->[3],
+    # $c2->{pos}->[4]
+    # );
+    #
+    # #
+    # #
+    # if ( ( $b0 < $a0 & & $b1 >= $a0 & & $b3 <= $a3 & & $b3 >= $a2 ) | |
+    # ( $b3 > $a3 & & $b2 <= $a3 & & $b0 >= $a0 & & $b0 <= $a1 )    ) {
+    #
+    # # _in and _out are inner and outer boundries of the halfstem
+    # # there are two possible cases depending on whether a is to
+    # # the left or to the right of b
+    #
+    # my $l1_in = $b0; my $l1_out = $a0;  # left halfstem, left inner and outer boundries of the halfstem
+    # if ( $a0 > $b0 ) {$l1_in = $a0; $l1_out = $b0;}
+    #
+    # my $l2_in = $b1; my $l2_out = $a1;  # left halfstem, right inner and outer boundries of the halfstem
+    # if ( $a1 < $b1 ) {$l2_in = $a1; $l2_out = $b1;}
+    #
+    # my $r1_in = $b2; my $r1_out = $a2;  # right halfstem, left inner and outer boundries of the halfstem
+    # if ( $a2 > $b2 ) {$r1_in = $a2; $r1_out = $b2;}
+    #
+    # my $r2_in = $b3; my $r2_out = $a3;  # right halfstem, right inner and outer boundries of the halfstem
+    # if ( $a3 < $b3 ) {$r2_in = $a3; $r2_out = $b3;}
+    #
+    # # different length stems would create a imbalance in the
+    # # unmatched base count, so it needs to be normalized
+    # my $left_stem_len_diff  = abs(($a1-$a0) - ($b1-$b0));
+    # my $right_stem_len_diff = abs(($a3-$a2) - ($b3-$b2));
+    # $left_unmatched   = $l1_in - $l1_out + $l2_out - $l2_in;
+    # $left_unmatched -= $left_stem_len_diff;
+    #
+    # $right_unmatched  = $r1_in - $r1_out + $r2_out - $r2_in,
+    # $right_unmatched -= $right_stem_len_diff;
+    #
+    # my $c1_len = int(($a1-$a0 + 1 + $a3 - $a2 + 1) / 2);  # average of stem length
+    # my $c2_len = int(($b1-$b0 + 1 + $b3 - $b2 + 1) / 2);
+    # my $min_stem_len = 0;
+    # $min_stem_len = $c2_len;
+    # if ( $c1_len < $c2_len ) {$min_stem_len = $c1_len;}  # smaller of the two average of stem length
+    #
+    # $left_matched  = $l2_in - $l1_in + 1;  # atleast two bases have to be matched
+    # $right_matched = $r2_in - $r1_in + 1;
+    # # it can also determined from stem length or 30% (which ever
+    # # is larger). the unmatched parameter become a bit tricky,
+    # # when merging a long stem with a smaller stem.
+    # my $MIN_MATCH_THRESHOLD = 1;  # for stem length of 3,2
+    # if ( $min_stem_len > 3 ) {
+    # $MIN_MATCH_THRESHOLD = 2;  # it remains 2, for 4,5,6
+    # if ( 0.3 * $min_stem_len > 2 ) {
+    # $MIN_MATCH_THRESHOLD = int( 0.3 * $min_stem_len );  # 1/3 of average stem length
+    # }
+    # }
+    #
+    # # Unmatched threshold can be 6
+    # # unmatch threshold can be 50% of half stem length or which
+    # # ever is smaller... Times 2 or 8
+    # $threshold = $min_stem_len;  # 50% of base pairs can be unmatched
+    #
+    # my $stemcenter_diff = abs($bc - $ac);
+    #
+    # if ( $left_unmatched <= $threshold and
+    # $left_matched >= $MIN_MATCH_THRESHOLD and
+    # $right_unmatched <= $threshold and
+    # $right_matched >= $MIN_MATCH_THRESHOLD and
+    # $stemcenter_diff <= $STEM_CENTER_THRESHOLD + 1 ) {
+    #
+    # printf STDERR "   Case 5: Child node %s [ %d %d %d %d ]merged to",
+    # $c1->{id}, $a0, $a1, $a2, $a3, $ac  unless $quiet;
+    # printf STDERR "child node %s [ %d %d %d %d ]\n",
+    # $c2->{id}, $b0, $b1, $b2, $b3 unless $quiet;
+    #
+    # treeMergeNodes( $c1, $c2 );
+    # $nmerged++;
+    # }
+    # }
+    # }
+    # }
+    # }
+    # return $nmerged;
+    # }
+    #
+    # # end of mergeCase5
 
     @staticmethod
     def sample(self, n):

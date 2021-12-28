@@ -15,6 +15,7 @@ import time
 
 from topology import RNAstructure
 
+
 def formatter(prog):
     """---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     Set up formatting for help
@@ -72,7 +73,7 @@ def options():
             args.ddG_max = args.ddG_min = int(args.ddG)
         args.ddG_min = int(args.ddG_min)
         args.ddG_max = int(args.ddG_max)
-        
+
     if args.window.find(','):
         minmax = args.window.split(',')
         if len(minmax) > 1:
@@ -81,7 +82,7 @@ def options():
             args.window_max = args.window_min = int(args.window)
         args.window_min = int(args.window_min)
         args.window_max = int(args.window_max)
-        
+
     return args
 
 
@@ -161,7 +162,7 @@ def xios_from_ct(args, ct):
     if xios.rindex('.ct') == l - 3:
         xios = xios[:-3]
     xios += f'.d{args.ddg}'
-    #xios += f'.c{args.mergecase}'
+    # xios += f'.c{args.mergecase}'
 
     xios += '.xios'
     return xios
@@ -263,7 +264,7 @@ def runmergestems(arg, ct, xios, comment):
     xiosout = open(xios, 'w')
 
     exe = args.perl_src + '/ct2xios.py'
-    opt = [ 'python3', exe, ct]
+    opt = ['python3', exe, ct]
     opt += ['-c', f'{args.mergecase}']
     opt += ['-g', f'{args.ddG}']
     subprocess.call(opt, stdout=xiosout)
@@ -328,7 +329,7 @@ if __name__ == '__main__':
     commentfold = {}
     for fasta in fastafiles:
         print(f'processing {fasta}')
-        for window in range(args.window_min, args.window_max+1):
+        for window in range(args.window_min, args.window_max + 1):
             # run fold
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
@@ -339,14 +340,14 @@ if __name__ == '__main__':
     # stems are merged using new rules
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
-    ctfiles = glob.glob(ctdir+'/*.ct')
+    ctfiles = glob.glob(ctdir + '/*.ct')
     # print(f'ctfiles: {ctfiles}')
     for ct in ctfiles:
         i = 0
-        for ddG in range(args.ddG_min, args.ddG_max+1):
+        for ddG in range(args.ddG_min, args.ddG_max + 1):
             args.ddg = int(ddG)
             xios = f'{xiosdir}/{xios_from_ct(args, ct)}'
-            sys.stderr.write( f'filecheck ct={ct}\txios={xios}\n')
+            sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
             runmergestems(args, ct, xios, commentfold[ct])
             i += 1
 
