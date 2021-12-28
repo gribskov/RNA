@@ -77,7 +77,7 @@ def options():
         if len(minmax) > 1:
             [args.window_min, args.window_max] = minmax
         else:
-            args.window_max = args.window_min = int(argw.window)
+            args.window_max = args.window_min = int(args.window)
         args.window_min = int(args.window_min)
         args.window_max = int(args.window_max)
         
