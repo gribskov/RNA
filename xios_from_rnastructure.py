@@ -7,13 +7,13 @@ Steps:
 
 ================================================================================================="""
 import argparse
-import datetime
 import glob
 import os
 import subprocess
 import sys
 import time
 
+from topology import RNAstructure
 
 def formatter(prog):
     """---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -153,14 +153,15 @@ def xios_from_ct(args, ct):
 
     :param args: Namespace, command line arguments
     :param ct: string, name of ct file
+    :param ddG: int, delta deltaG cutoff value
     :return ct: string, name of xios file
     ---------------------------------------------------------------------------------------------"""
     xios = os.path.basename(ct)
     l = len(xios)
     if xios.rindex('.ct') == l - 3:
         xios = xios[:-3]
-    xios += f'.d{args.ddG}'
-    xios += f'.c{args.mergecase}'
+    xios += f'.d{args.ddg}'
+    #xios += f'.c{args.mergecase}'
 
     xios += '.xios'
     return xios
@@ -237,8 +238,8 @@ def runfold(args, fasta, ct):
     opt += ['-w', f'{args.window}']
     subprocess.call(opt)
 
-    comment = f'{exe} -p {args.percent} -m {args.maximum} -w{args.window} {fasta}\n'
-    comment = f"\t{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+    comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
+    comment += f'{time.asctime(time.localtime())}'
 
     return comment
 
@@ -270,7 +271,7 @@ def runmergestems(arg, ct, xios, comment):
 
     rna = RNAstructure()
     rna.comment.append(comment)
-    rna.CTRead(ctfile, ddG=arg.ddG)
+    rna.CTRead(ct, ddG=args.ddg)
     # now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     # rna.comment.append('creation_date {}'.format(now))
     # rna.comment.append('input_file {}'.format(ctfile))
@@ -302,6 +303,7 @@ if __name__ == '__main__':
     print(f'RNAstructure executables: {rnastructure}')
     print(f'Mergestem executable: {perl_src}')
 
+    # write parameters to output
     print('Parameters')
     print(f'\tFold:percent={args.percent}')
     print(f'\tFold:maximum={args.maximum}')
@@ -323,31 +325,29 @@ if __name__ == '__main__':
     safe_mkdir(ctdir)
 
     # run Fold once for each window size to generate the structure CT files
-    commendfold = ''
+    commentfold = {}
     for fasta in fastafiles:
+        print(f'processing {fasta}')
         for window in range(args.window_min, args.window_max+1):
             # run fold
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
-            comment_fold = (args, fasta, ct)
-
-        # run mergestems
-        xios = 'xiosfiles/' + xios_from_ct(args, ct)
+            commentfold[ct] = runfold(args, fasta, ct)
 
     # all output goes to the xiosfiles directory
     # for each ct file we can use different ddG
+    # stems are merged using new rules
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
     ctfiles = glob.glob(ctdir+'/*.ct')
     # print(f'ctfiles: {ctfiles}')
     for ct in ctfiles:
-        sys.stderr.write( f'{ct}\n')
         i = 0
         for ddG in range(args.ddG_min, args.ddG_max+1):
-            xios = f'xiosfiles/file{i}.xios'
-            #TODO construct output file name
-            args.ddG = ddG
-            runmergestems(args, ct, xios, commentfold)
+            args.ddg = int(ddG)
+            xios = f'{xiosdir}/{xios_from_ct(args, ct)}'
+            sys.stderr.write( f'filecheck ct={ct}\txios={xios}\n')
+            runmergestems(args, ct, xios, commentfold[ct])
             i += 1
 
     # compare to curated structures

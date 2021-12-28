@@ -1681,6 +1681,8 @@ class RNAstructure(Topology):
         path = filename.split('/')
         self.filename = path[-1]
 
+        nstruct = 0
+        comment = f'Converting CT file {filename} to XIOS\n'
         for line in ct:
             if not line:
                 # skip blank lines?
@@ -1688,15 +1690,12 @@ class RNAstructure(Topology):
             field = line.split()
 
             if self.is_ctheader(field):
-                # add information to Topology
-                if len(self.comment) > 0:
-                    self.comment[-1] += f'reading structure {line}'
-                else:
-                    self.comment.append(f'reading structure {line}')
-                if not self.pair:
+                # add provenance information to Topology comment
+                comment += f'\t structure {nstruct}: {line}\n'
+                if nstruct == 0:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
-                    mfe = self.energy
+                    mfe = float(self.energy)
                     self.pair = [0] * (self.sequence_length + 1)
 
                 else:
@@ -1706,6 +1705,9 @@ class RNAstructure(Topology):
                     if self.energy > mfe + ddG:
                         break
                     self.pair = [0] * (self.sequence_length + 1)
+
+                nstruct += 1
+
 
             elif self.is_ctdata(field):
                 base = field[1]
@@ -1724,7 +1726,9 @@ class RNAstructure(Topology):
         # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
         dedup_n = self.stemlist_deduplicate()
-        self.comment[-1] += f'{dedup_n} stems after removing duplicates'
+        comment += f'{dedup_n} stems after removing duplicates'
+        self.comment.append(comment)
+
         return nbase
 
     def __str__(self):
