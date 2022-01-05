@@ -4,6 +4,7 @@ compare xios file to xios of a curated file and evaluate overlap
 ================================================================================================="""
 import sys
 import glob
+import os.path
 from topology import Topology
 
 
@@ -165,14 +166,51 @@ def overlap(x1, x2):
 
     return True
 
+def parse(filename, refdir):
+    """---------------------------------------------------------------------------------------------
+    parse the reference name, p, d, and w parameters from the filename
+    expects a name like rnasep_m.M_maripaludus.w1.d3.xios
+
+    :param filename: string
+    :param refdir: string, path to directory with reference files
+    :return: dict, keys = ('name', 'd', 'w' )
+    ---------------------------------------------------------------------------------------------"""
+    base = os.path.basename(filename)
+    field = base.split('.')
+    suffix = field.pop()
+    d = field.pop().lstrip('d')
+    w = field.pop().lstrip('w')
+    field += [suffix]
+
+    reference = refdir + '.'.join(field)
+
+    return {'name':reference, 'd':d, 'w':w}
+
 
 # ===================================================================================================
 # main program
 # ===================================================================================================
 
 if __name__ == '__main__':
-    refname = sys.argv[1]
-    subjectglob = sys.argv[2]
+    # refname = sys.argv[1]
+    # subjectglob = sys.argv[2]
+
+    xiosdir = sys.argv[1]
+    refdir = sys.argv[2]
+    if not refdir.endswith('/'):
+        refdir += '/'
+
+    # for each xios file, determine the reference name from the xios filename and read
+    # for a name like rnasep_m.M_jannaschii.w1.d0.xios
+    # the reference would be rnasep_m.M_jannaschii.xios
+
+    current_ref = None
+    for testfile in glob.glob(xiosdir + '/*.xios'):
+        print(testfile)
+        parsed = parse(testfile, refdir)
+        print(f'xios:{testfile}\treference:{parsed["name"]}')
+
+    exit(0)
 
     # read reference xios (gold standard)
     ref = Topology()
