@@ -442,7 +442,7 @@ class Topology:
             stem.lbegin = int(field[3])
             stem.lend = int(field[4])
             stem.rbegin = int(field[5])
-            stem.right_end = int(field[6])
+            stem.rend = int(field[6])
             if len(field) > 8:
                 stem.lvienna = field[8]
                 stem.rvienna = field[9]
