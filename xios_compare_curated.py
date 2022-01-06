@@ -15,11 +15,10 @@ def summary(xios, title):
     : param title: string, describes file in summary
     :return: True
     ---------------------------------------------------------------------------------------------"""
-    print(f'\n{title} XIOS file of {xios.sequence_id}')
+    print(f'\n{title} XIOS file {xios.sequence_id}')
     print(f'\tstems: {len(xios.stem_list)}')
     for s in xios.stem_list:
-        print(
-            f'\t{s["name"]}\t{s["left_begin"]}\t{s["left_end"]}\t{s["right_begin"]}\t{s["right_end"]}')
+        print(f'\t{s.name}\t{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}')
 
     return True
 
@@ -44,11 +43,11 @@ def check_left(x1, x2, p1, p2):
             break
 
         stem2 = x2.stem_list[pos2]
-        if stem2['left_begin'] > stem1['left_end']:
+        if stem2.lbegin > stem1.lend:
             # end condition for while loop, stem2 is to the right of stem1
             break
 
-        if stem2['left_end'] < stem1['left_begin']:
+        if stem2.lend < stem1.lbegin:
             # stem2 is to the left of stem1
             pos2 += 1
             continue
@@ -77,8 +76,8 @@ def check_right(x1, x2, p1, overlap):
     for p2 in overlap:
         stem2 = x2.stem_list[p2]
 
-        if stem2['right_begin'] > stem1['right_end'] or \
-                stem2['right_end'] < stem1['right_begin']:
+        if stem2.rbegin > stem1.rend or \
+                stem2.rend < stem1.rbegin:
             # no overlap
             continue
 
@@ -126,10 +125,9 @@ def stat_stem(match1, nstem_2):
     precision_1 = tp2 / len(match2)
     recall_2 = tp2 / len(match2)
     precision_2 = tp1 / len(match1)
-    print(f'structure 1: recall={recall_1:.3f}\tprecision={precision_1:.3f}')
-    print(f'structure 2: recall={recall_2:.3f}\tprecision={precision_2:.3f}')
-    print(f'jaccard={(tp1 + tp2) / (len(match1) + len(match2)):.3f}')
-    return True
+    jaccard = (tp1 + tp2) / (len(match1) + len(match2))
+
+    return {'precision': precision_1, 'recall': recall_1, 'jaccard': jaccard}
 
 
 def overlap(x1, x2):
@@ -161,10 +159,8 @@ def overlap(x1, x2):
         #             s2['left_begin'], s2['left_end'], s2['right_begin'], s2['right_end']
         #             ))
 
-    # print(both)
-    stat_stem(both, len(x2.stem_list))
+    return both
 
-    return True
 
 def parse(filename, refdir):
     """---------------------------------------------------------------------------------------------
@@ -184,7 +180,7 @@ def parse(filename, refdir):
 
     reference = refdir + '.'.join(field)
 
-    return {'name':reference, 'd':d, 'w':w}
+    return {'name': reference, 'd': d, 'w': w}
 
 
 # ===================================================================================================
@@ -206,23 +202,28 @@ if __name__ == '__main__':
 
     current_ref = None
     for testfile in glob.glob(xiosdir + '/*.xios'):
-        print(testfile)
+        # print(testfile)
         parsed = parse(testfile, refdir)
-        print(f'xios:{testfile}\treference:{parsed["name"]}')
+        # print(f'xios:{testfile}\treference:{parsed["name"]}')
+        # TODO do something graceful when the reference file doesn't exist
 
-    exit(0)
+        if parsed['name'] != current_ref:
+            # read reference xios (gold standard)
+            ref = Topology()
+            ref.XIOSread(parsed['name'])
+            ref.sequence_id = parsed['name']
+            current_ref = parsed['name']
+            # summary(ref, 'Curated')
 
-    # read reference xios (gold standard)
-    ref = Topology()
-    ref.XIOSread(refname)
-    summary(ref, 'Curated')
-
-    # read subject xios (test structures to compare)
-    for subjectname in glob.glob(subjectglob):
+        # read subject xios (test structures to compare)
         subject = Topology()
-        subject.XIOSread(subjectname)
-        summary(subject, 'Test')
+        subject.XIOSread(testfile)
+        # summary(subject, 'Test')
 
-        overlap(ref, subject)
+        both = overlap(ref, subject)
+        stat = stat_stem(both, len(subject.stem_list))
+        print('{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
+            parsed['d'], parsed['w'], stat['precision'], stat['recall'], stat['jaccard'],
+            len(ref.stem_list), len(subject.stem_list), os.path.basename(parsed['name'])))
 
     exit(0)
