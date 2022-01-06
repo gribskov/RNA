@@ -69,19 +69,19 @@ def options():
         minmax = args.ddG.split(',')
         if len(minmax) > 1:
             [args.ddG_min, args.ddG_max] = minmax
+            args.ddG_min = int(args.ddG_min)
+            args.ddG_max = int(args.ddG_max)
         else:
             args.ddG_max = args.ddG_min = int(args.ddG)
-        args.ddG_min = int(args.ddG_min)
-        args.ddG_max = int(args.ddG_max)
 
     if args.window.find(','):
         minmax = args.window.split(',')
         if len(minmax) > 1:
             [args.window_min, args.window_max] = minmax
+            args.window_min = int(args.window_min)
+            args.window_max = int(args.window_max)
         else:
             args.window_max = args.window_min = int(args.window)
-        args.window_min = int(args.window_min)
-        args.window_max = int(args.window_max)
 
     return args
 
