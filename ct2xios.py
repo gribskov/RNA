@@ -7,21 +7,51 @@
 #   ct2xios <ct_file> > <XIOS file>
 ####################################################################################################
 import sys
+import argparse
 from datetime import datetime
 from topology import RNAstructure
+
+def formatter(prog):
+    """---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    Set up formatting for help
+    :param prog:
+    :return: argparse formatter class
+    ---------------------------------------------------------------------------------------------"""
+    return argparse.HelpFormatter(prog, max_help_position=50, width=120)
+
+
+def options():
+    """---------------------------------------------------------------------------------------------
+    Command line options parsed with argparse
+
+    :return: argparse Namespace (similar to a dictionary)
+    ---------------------------------------------------------------------------------------------"""
+    commandline = argparse.ArgumentParser(
+        description='Convert CT file to XIOS file',
+        formatter_class=formatter)
+
+    commandline.add_argument('ctfile')
+    commandline.add_argument('-d', '--ddG',
+                             help='delta deltaG limit for supoptimal structures (%(''default)s) ',
+                             type=int,
+                             default='5')
+
+    args = commandline.parse_args()
+    return args
 
 # ===================================================================================================
 # main
 # ===================================================================================================
 if __name__ == '__main__':
-    ctfile = sys.argv[1]
-    sys.stderr.write('CT file: {}'.format(ctfile))
+
+    args = options()
+    sys.stderr.write('CT file: {}'.format(args.ctfile))
 
     rna = RNAstructure()
-    rna.CTRead(ctfile, ddG=3)
+    rna.CTRead(args.ctfile, ddG=args.ddG)
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     rna.comment.append('creation_date {}'.format(now))
-    rna.comment.append('input_file {}'.format(ctfile))
+    rna.comment.append('input_file {}'.format(args.ctfile))
     if rna.energy:
         rna.comment.append('input_format unifold')
     else:
