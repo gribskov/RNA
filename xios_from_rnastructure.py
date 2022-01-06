@@ -266,7 +266,7 @@ def runmergestems(arg, ct, xios, comment):
     exe = args.perl_src + '/ct2xios.py'
     opt = ['python3', exe, ct]
     opt += ['-c', f'{args.mergecase}']
-    opt += ['-g', f'{args.ddG}']
+    opt += ['-d', f'{args.ddG}']
     subprocess.call(opt, stdout=xiosout)
     xiosout.close()
 
