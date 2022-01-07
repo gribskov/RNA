@@ -265,8 +265,8 @@ def runmergestems(arg, ct, xios, comment):
 
     exe = args.perl_src + '/ct2xios.py'
     opt = ['python3', exe, ct]
-    opt += ['-c', f'{args.mergecase}']
-    opt += ['-d', f'{args.ddG}']
+    # opt += ['-c', f'{args.mergecase}']
+    opt += ['-d', f'{args.ddg}']
     subprocess.call(opt, stdout=xiosout)
     xiosout.close()
 
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
     ctfiles = glob.glob(ctdir + '/*.ct')
-    # print(f'ctfiles: {ctfiles}')
+    #print(f'ctfiles: {ctfiles}')
     for ct in ctfiles:
         i = 0
         for ddG in range(args.ddG_min, args.ddG_max + 1):
