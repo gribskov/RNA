@@ -96,9 +96,10 @@ def safe_mkdir(dirname):
         os.mkdir(dirname)
         return True
     except FileExistsError:
-        sys.stderr.write(f'Directory {dirname} already exists, move or delete {dirname}')
-        exit(2)
+        sys.stderr.write(f'Directory {dirname} already exists, using existing directory')
+    #    exit(2)
 
+    return True
 
 def safe_file(filename, mode):
     """---------------------------------------------------------------------------------------------
@@ -165,6 +166,7 @@ def xios_from_ct(args, ct):
     # xios += f'.c{args.mergecase}'
 
     xios += '.xios'
+    print(f'ddg file:{xios}')
     return xios
 
 
@@ -232,7 +234,7 @@ def runfold(args, fasta, ct):
     safe_file(fasta, 'r')
     safe_file(ct, 'w')
 
-    exe = args.rnastructure + '/Fold'
+    exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{args.percent}']
     opt += ['-m', f'{args.maximum}']
@@ -297,9 +299,10 @@ if __name__ == '__main__':
     args = options()
 
     # code locations, add to args
-    rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure/exe"
+    rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure"
     args.rnastructure = rnastructure
     os.environ['DATAPATH'] = rnastructure + '/data_tables'
+    print(f'DATAPATH = {os.environ["DATAPATH"]}')
     perl_src = "/scratch/bell/mgribsko/rna/RNA"
     args.perl_src = perl_src
     print(f'RNAstructure executables: {rnastructure}')
@@ -328,12 +331,14 @@ if __name__ == '__main__':
 
     # run Fold once for each window size to generate the structure CT files
     commentfold = {}
+    ctlist = []
     for fasta in fastafiles:
         print(f'processing {fasta}')
         for window in range(args.window_min, args.window_max + 1):
             # run fold
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
+            ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct)
 
     # all output goes to the xiosfiles directory
@@ -341,9 +346,9 @@ if __name__ == '__main__':
     # stems are merged using new rules
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
-    ctfiles = glob.glob(ctdir + '/*.ct')
+    #ctfiles = glob.glob(ctdir + '/*.ct')
     # print(f'ctfiles: {ctfiles}')
-    for ct in ctfiles:
+    for ct in ctlist:
         i = 0
         for ddG in range(args.ddG_min, args.ddG_max + 1):
             args.ddg = int(ddG)
