@@ -299,6 +299,7 @@ if __name__ == '__main__':
     # code locations, add to args
     rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure/exe"
     args.rnastructure = rnastructure
+    os.environ['DATAPATH'] = rnastructure + '/data_tables'
     perl_src = "/scratch/bell/mgribsko/rna/RNA"
     args.perl_src = perl_src
     print(f'RNAstructure executables: {rnastructure}')
@@ -341,7 +342,7 @@ if __name__ == '__main__':
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
     ctfiles = glob.glob(ctdir + '/*.ct')
-    #print(f'ctfiles: {ctfiles}')
+    # print(f'ctfiles: {ctfiles}')
     for ct in ctfiles:
         i = 0
         for ddG in range(args.ddG_min, args.ddG_max + 1):
