@@ -179,7 +179,9 @@ class Topology:
         string = ' ' * fieldwidth
         adj = self.adjacency
 
-        fmt = '{{:>{}}}'.format(fieldwidth)
+        size = max( len(str(len(adj))) + 1, fieldwidth )
+        fmt = '{{:>{}}}'.format(size)
+
         string += ''.join([fmt.format(i) for i in range(len(adj))])
         r = 0
         for row in adj:
