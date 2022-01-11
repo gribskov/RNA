@@ -201,19 +201,32 @@ if __name__ == '__main__':
     # the reference would be rnasep_m.M_jannaschii.xios
 
     current_ref = None
+    overall = {}
+
     for testfile in glob.glob(xiosdir + '/*.xios'):
         # print(testfile)
         parsed = parse(testfile, refdir)
-        # print(f'xios:{testfile}\treference:{parsed["name"]}')
-        # TODO do something graceful when the reference file doesn't exist
 
-        if parsed['name'] != current_ref:
+        if os.path.exists(parsed['name']):
             # read reference xios (gold standard)
-            ref = Topology()
-            ref.XIOSread(parsed['name'])
-            ref.sequence_id = parsed['name']
-            current_ref = parsed['name']
-            # summary(ref, 'Curated')
+            if parsed['name'] != current_ref:
+                ref = Topology()
+                ref.XIOSread(parsed['name'])
+        else:
+            # skip if there is no reference file
+            continue
+
+        ref.sequence_id = parsed['name']
+        current_ref = os.path.basename(parsed['name'])
+        # split on whatever comes first, . or _
+        family = current_ref.split('.')[0]
+        family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
+        all = f'all.w{parsed["w"]}.d{parsed["d"]}'
+        if family not in overall:
+            overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+        if all not in overall:
+            overall[all] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+        # summary(ref, 'Curated')
 
         # read subject xios (test structures to compare)
         subject = Topology()
@@ -222,8 +235,26 @@ if __name__ == '__main__':
 
         both = overlap(ref, subject)
         stat = stat_stem(both, len(subject.stem_list))
-        print('{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
-            parsed['d'], parsed['w'], stat['precision'], stat['recall'], stat['jaccard'],
-            len(ref.stem_list), len(subject.stem_list), os.path.basename(parsed['name'])))
+        overall[family]['precision'] += stat['precision']
+        overall[family]['recall'] += stat['recall']
+        overall[family]['jaccard'] += stat['jaccard']
+        overall[family]['n'] += 1
+        overall[all]['precision'] += stat['precision']
+        overall[all]['recall'] += stat['recall']
+        overall[all]['jaccard'] += stat['jaccard']
+        overall[all]['n'] += 1
+        # print('{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
+        #     family, parsed['d'], parsed['w'], stat['precision'],
+        #     stat['recall'], stat['jaccard'],
+        #     len(ref.stem_list), len(subject.stem_list), current_ref))
+
+    for k in sorted(overall):
+        (id, w, d) = k.split('.')
+        w = int(w[1])
+        d = int(d[1])
+        n = overall[k]['n']
+        print('{}\t{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}'.format(
+            id, w, d, n,
+            overall[k]['precision'] / n, overall[k]['recall'] / n, overall[k]['jaccard'] / n))
 
     exit(0)
