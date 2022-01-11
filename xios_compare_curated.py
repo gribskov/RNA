@@ -203,8 +203,9 @@ if __name__ == '__main__':
     current_ref = None
     overall = {}
 
-    for testfile in glob.glob(xiosdir + '/*.xios'):
-        # print(testfile)
+    for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
+        #sys.stderr.write(testfile)
+        print(testfile, flush=True)
         parsed = parse(testfile, refdir)
 
         if os.path.exists(parsed['name']):
