@@ -950,55 +950,76 @@ class Topology:
     # # end of mergeCase5
 
     @staticmethod
-    def sample(self, n):
+    def sample(adj, n):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
-        connected by non-s edges, but size may be less than n if the graph being sampled is smaller
-        than size or has disconnected segmentsSampling is based on the adjacency matrix.
+        connected by non-s (and currently non-x) edges, but size may be less than n if the graph
+        being sampled is smaller than size or has disconnected segments. Sampling is based on the
+        adjacency matrix.
         
-        TODO: as a static method, self should not be required.  The intent is probably to pass in 
-        the adjacency matrix
+        # TODO: as a static method, self should not be required.  The intent is probably to pass in
+        # the adjacency matrix
 
         :param n: int, size of graph to sample
         :return: topology
         -----------------------------------------------------------------------------------------"""
-        # randomly determine starting vertex
-        adj = self.adjacency
         nvertex = len(adj)
 
-        vlist = []
-        neighbor = []
-        v0 = random.randrange(nvertex)
-        size = 0
+        list_is_not_long_enough = True
 
-        while size < n:
+        while list_is_not_long_enough:
+            # this makes sure a graph with at least one edge is returned
+            vlist = []
+            neighbor = []
+            # randomly determine starting vertex
+            v0 = random.randrange(nvertex)
+            size = 0
+            list_is_not_long_enough = False
 
-            vlist.append(v0)
-            size += 1
+            while size < n:
 
-            # update list of neighbors
-            for v1 in range(nvertex):
-                if adj[v0][v1] == 's' or v1 == v0:
-                    # skip s edges and self
-                    continue
+                vlist.append(v0)
+                size += 1
 
-                if v1 in vlist:
-                    # don't add already selected vertices to neighbors
-                    continue
+                # update list of neighbors
+                is_x = False
+                for v1 in range(nvertex):
+                    if adj[v0][v1] in 'sx' or v1 == v0:
+                        # skip s edges and self
+                        tt = adj[v0][v1]
+                        continue
 
-                if v1 not in neighbor:
-                    # existing neighbor
-                    neighbor.append(v1)
+                    if v1 in vlist:
+                        # don't add already selected vertices to neighbors
+                        continue
 
-            if len(neighbor) == 0:
-                # if there are no neighbors, you must stop
-                break
+                    # exclude edge if it is exclusive with any previous edges
+                    # because otherwise you can end up with graphs that are not ioj connected
+                    is_x = False
+                    for v in vlist:
+                        if adj[v][v1] == 'x':
+                            is_x = True
+                    if is_x:
+                        continue
 
-            # select new vertex and remove from current neighbor list
-            v0 = random.choice(neighbor)
-            neighbor.remove(v0)
+                    if v1 not in neighbor:
+                        # existing neighbor
+                        neighbor.append(v1)
+                        size += 1
 
-        # end of vertex selection loop
+                if len(neighbor) == 0:
+                    # if there are no more neighbors, you must stop and start again
+                    list_is_not_long_enough = True
+                    break
+
+                # select new vertex and remove from current neighbor list
+                v0 = random.choice(neighbor)
+                neighbor.remove(v0)
+
+                # end of size < n loop
+
+        # end of vertex selection loop, len(vlist) >= 2
+
         vlist.sort()
 
         return vlist
@@ -1092,24 +1113,34 @@ class Topology:
 
     def sample_xios(self, n):
         """-----------------------------------------------------------------------------------------
-        Return a xios structure sampled from the current topology.
+        Return a xios structure sampled from the current topology. From the selected vertices
+        find all the edges that connect those vertices.
 
         :param n: int, number of stems to sample
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = self.sample(self, n)
+        vlist =Topology.sample(self.adjacency, n)
 
         adj = self.adjacency
         struct = []
-        for row in vlist:
-            for col in vlist:
-                if col <= row:
-                    continue
-                if adj[row][col] in ('i', 'j', 'o'):
+
+        # identify all the edges between the vertices in vlist
+        for r in range(len(vlist)):
+            row = vlist[r]
+            for c in range(r+1,len(vlist)):
+                col = vlist[c]
+                # if col <= row:
+                #     continue
+                if adj[row][col] in 'ijo':
                     struct.append([row, col, edge[adj[row][col]]])
 
         # print(struct)
+        # TODO remove after debugging vertex==None
+        for s in struct:
+            for i in range(3):
+                if s[i] is None:
+                    print('found none in sample')
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):

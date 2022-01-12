@@ -76,14 +76,14 @@ opt = process_command_line()
 # opt.fpt_file = 'data/test2.fpt'
 print('fingerprint_random - Sample XIOS fingerprint from RNA topology {}'.format(runstart))
 print('\tRNA structure: {}'.format(opt.rna.name))
-print('\tMotif database: {}'.format(opt.motifdb.name))
+# print('\tMotif database: {}'.format(opt.motifdb.name))
 print('\tFingerprint: {}'.format(opt.fpt.name))
 print('\tSubgraph size: {}'.format(opt.subgraphsize))
 print('\tCoverage (minimum): {}'.format(opt.coverage))
 print('\tOmit parents: {}'.format(opt.noparent))
 
 # read in the motif database and RNA structure
-motif = MotifDB(json=opt.motifdb)
+# motif = MotifDB(json=opt.motifdb)
 rna = Topology(xml=opt.rna)
 
 # this is an unweighted sampling strategy.  Others were tried, sampling:
@@ -95,9 +95,9 @@ rna = Topology(xml=opt.rna)
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
 fingerprint.information['File'] = opt.fpt.name
-fingerprint.information['Motif database'] = opt.motifdb.name
-fingerprint.information['Motif database checksum'] = motif.information['checksum']
-fingerprint.information['Motif database description'] = motif.information['name']
+# fingerprint.information['Motif database'] = opt.motifdb.name
+# fingerprint.information['Motif database checksum'] = motif.information['checksum']
+# fingerprint.information['Motif database description'] = motif.information['name']
 fingerprint.information['RNA structure'] = opt.rna.name
 
 subgraph = opt.subgraphsize
@@ -107,6 +107,7 @@ count_threshold = opt.coverage
 xios = rna.sample_xios(subgraph)
 gspan = Gspan(graph=xios)
 dfs = gspan.minDFS().human_encode()
+print( dfs)
 fingerprint.add(dfs)
 minmotif = fingerprint.minkey()
 
@@ -115,12 +116,15 @@ while True:
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
     # minimum is expensive)
     xios = rna.sample_xios(subgraph)
-    if len(xios) < 1:
-        # in case the sample graph is empty
+    if len(xios) < subgraph:
+        # in case the sampled graph is empty
         continue
 
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
+    if not fingerprint.total % 10000:
+        print(fingerprint.total, dfs)
+        fingerprint.writeYAML(sys.stderr)
     fingerprint.add(dfs)
 
     if dfs == minmotif:

@@ -361,6 +361,10 @@ class Xios(list):
 
         string = ''
         for edge in self:
+            for t in edge:
+                # TODO Remove after debugging problem with vertex==None
+                if t is None:
+                    print('edge is none')
             v0 = fmt.format(edge[0])
             v1 = fmt.format(edge[1])
             e = edge[2]
@@ -477,7 +481,7 @@ class MotifDB():
             else:
                 sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
 
-    def add_with_len(self, motif):
+    def add_with_len(self, motif, x):
         """-----------------------------------------------------------------------------------------
         Add a single motif to the database
 
@@ -946,7 +950,7 @@ class Gspan:
 
         # convert edge numbers, flip directed edges so they are all 0 (i) not 1 (j)
         for edge in self.graph:
-            for i in range(0, 2):
+            for i in range(2):
                 edge[i] = v.index(edge[i])
             if edge[2] == 1:
                 edge.reverse()
@@ -1239,7 +1243,11 @@ class Gspan:
             # check to see if the graph is a possible minimum, or if this graph is done
             if not self.minimum(first) or self.row == len(graph):
                 searching = self.restore()
-
+        # TODO remove after debugging vertex==None
+        for s in self.mindfs:
+            for i in range(3):
+                if s[i] is None:
+                    print('found none in mindfs')
         return self.mindfs
 
     def minimum(self, first):
@@ -1657,9 +1665,9 @@ if __name__ == '__main__':
 
     def test_Main():
         # test_XiosEdge()
-        test_Xios()
+        # test_Xios()
         # test_Gspan()
-        # test_MotifDB()
+        test_MotifDB()
 
         return
 

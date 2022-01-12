@@ -32,7 +32,7 @@ class Fingerprint(dict):
 
     def add(self, string, count=1):
         """-----------------------------------------------------------------------------------------
-        Adss a motif to the fingerprint, creating a new entry if needed.  Agnostic as to the
+        Adds a motif to the fingerprint, creating a new entry if needed.  Agnostic as to the
         encoding of the motif string
 
         :param string: str, encoded motifs string
