@@ -115,7 +115,7 @@ def safe_mkdir(dirname):
         os.mkdir(dirname)
         return True
     except FileExistsError:
-        sys.stderr.write(f'Directory {dirname} already exists, using existing directory')
+        sys.stderr.write(f'Directory {dirname} already exists, using existing directory\n')
     #    exit(2)
 
     return True
@@ -132,12 +132,12 @@ def safe_file(filename, mode):
     ---------------------------------------------------------------------------------------------"""
     if mode is 'r':
         if not os.access(filename, os.R_OK):
-            sys.stderr.write(f'File {filename} cannot be read')
+            sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
 
     else:
         if os.path.exists(filename):
-            sys.stderr.write(f'File {filename} already exists, move or delete {filename}')
+            sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
             exit(4)
 
     return True
@@ -186,7 +186,7 @@ def xios_from_ct(args, ct):
     # xios += f'.c{args.mergecase}'
 
     xios += '.xios'
-    print(f'ddg file:{xios}')
+    # print(f'ddg file:{xios}')
     return xios
 
 
@@ -197,14 +197,17 @@ def get_mfe_from_ct(CT):
     :param ct: string, filename
     :return: float, MFE
     ---------------------------------------------------------------------------------------------"""
-    ct = safe_file(CT, 'r')
+    if safe_file(CT, 'r'):
+        ct = open(CT, 'r')
+
     for line in ct:
         if line.find('ENERGY'):
             field = line.split()
 
     ct.close()
+    os.remove(CT)
 
-    return field[3]
+    return abs(float(field[3]))
 
 
 def runfold(args, fasta, ct, percent):
@@ -277,7 +280,7 @@ def runfold(args, fasta, ct, percent):
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
-    subprocess.call(opt)
+    subprocess.call(opt, stdout=subprocess.DEVNULL)
 
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
@@ -287,16 +290,12 @@ def runfold(args, fasta, ct, percent):
 
 def runmergestems(arg, ct, xios, comment):
     """---------------------------------------------------------------------------------------------
-    mergestem.pl [-c <mergecases>] [-g <ddG>] [l <int>] [-p <plot_file>]  [-q] [-m <curated_file>] 
-            <CT_file>
+    CT files are converted using CTread in Topology.
     
-    Mergestem compares that multiple structures in the CT file and converts them to a single XIOS
-    structure.
-    
-    :param mergecases: string, list of mergecases to apply
+    :param mergecases: string, list of mergecases to apply (no longer used)
     :param ddG: maximum delta delta G for suboptimal structures
     :param ct: string, readable ct file
-    :param commen: string, string to add to XIOS comment block
+    :param comment: string, string to add to XIOS comment block
     :return: 
     ---------------------------------------------------------------------------------------------"""
     safe_file(xios, 'w')
@@ -323,7 +322,7 @@ def runmergestems(arg, ct, xios, comment):
     rna.adjacency_from_stemlist()
     rna.edgelist_from_adjacency(include="ijo", whole=False)
 
-    rna.XIOSwrite(sys.stdout)
+    # rna.XIOSwrite(sys.stdout)
 
     return
 
@@ -355,7 +354,7 @@ if __name__ == '__main__':
     print('Inputs and outputs')
     print(f'\tFasta files: {input}')
     print(f'\tCT files: {args.ctdir}')
-    print(f'\tXIOS files: {args.xiosdir}')
+    print(f'\tXIOS files: {args.xiosdir}\n')
 
     # check if there are inputs and create directories
 
@@ -382,12 +381,12 @@ if __name__ == '__main__':
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
-            ctlist.append(ct)
+            # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
             mfe = get_mfe_from_ct(ct)
             try:
-                percent = int(100 * args.ddG / mfe)
+                percent = int(100 * args.ddG_max / mfe)
             except ZeroDivisionError:
                 percent = args.percent
 
