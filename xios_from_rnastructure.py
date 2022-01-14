@@ -405,7 +405,7 @@ if __name__ == '__main__':
                 xios_n += 1
 
     # final report
-    print(f'FastA files processed: {fa_n}')
+    print(f'\nFastA files processed: {fa_n}')
     print(f'CT files processed: {ct_n}')
     print(f'XIOS files produced: {xios_n}')
 
