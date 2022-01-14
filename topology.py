@@ -1362,6 +1362,11 @@ class SerialRNA(list):
 ####################################################################################################
 class PairRNA:
     """=============================================================================================
+    think of a topology with n stems linear set of coordinates from 0 to n-1 pair format lists the
+    coordinates or each stem in this abstract coordinate system.  For instance, the abstract
+    structure (()()) would be (0,5) (1,2) (3,4) or the pseudoknotted structur {[(])) would be
+    (0,5) (1,3) (2,4).  This representation makes it very simple to add new stems to an existing
+    structure.
 
     Synopsis
         from graph import PairRNA
