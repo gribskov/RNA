@@ -51,10 +51,10 @@ def options():
                              default='*.fa')
     commandline.add_argument('-p', '--percent',
                              help='Fold: percent cutoff for suboptimal structures (%(default)s)',
-                             default=4)
+                             default=10)
     commandline.add_argument('-m', '--maximum',
                              help='Fold: maximum number of suboptimal structures (%(default)s)',
-                             default=20)
+                             default=100)
     commandline.add_argument('-w', '--window',
                              help='Fold: window for suboptimal structures (%(default)s) or comma separated',
                              default='4')
@@ -190,8 +190,26 @@ def xios_from_ct(args, ct):
     return xios
 
 
-def runfold(args, fasta, ct):
+def get_mfe_from_ct(CT):
     """---------------------------------------------------------------------------------------------
+    Read the first energy from the CT file the first energy is the MFE
+
+    :param ct: string, filename
+    :return: float, MFE
+    ---------------------------------------------------------------------------------------------"""
+    ct = safe_file(CT, 'r')
+    for line in ct:
+        if line.find('ENERGY'):
+            field = line.split()
+
+    ct.close()
+
+    return field[3]
+
+
+def runfold(args, fasta, ct, percent):
+    """---------------------------------------------------------------------------------------------
+    Run the RNAstructure Fold program
     USAGE: Fold <sequence file> <CT file> [options]
     All flags are case-insensitive, and grouping of flags is not allowed.
 
@@ -256,7 +274,7 @@ def runfold(args, fasta, ct):
 
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
-    opt += ['-p', f'{args.percent}']
+    opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
     subprocess.call(opt)
@@ -339,7 +357,7 @@ if __name__ == '__main__':
     print(f'\tCT files: {args.ctdir}')
     print(f'\tXIOS files: {args.xiosdir}')
 
-  # check if there are inputs and create directories
+    # check if there are inputs and create directories
 
     fastafiles = glob.glob(input)
     if not fastafiles:
@@ -349,36 +367,47 @@ if __name__ == '__main__':
     safe_mkdir(args.ctdir)
     safe_mkdir(args.xiosdir)
 
-    # run Fold once for each window size to generate the structure CT files
+    # for each FastA file, generate the CT file, then convert to XIOS
     commentfold = {}
     ctlist = []
+    fa_n = 0
+    ct_n = 0
+    xios_n = 0
     for fasta in fastafiles:
-        if not quiet:
+        fa_n += 1
+        if not args.quiet:
             print(f'processing {fasta}')
 
         for window in range(args.window_min, args.window_max + 1):
-            # run fold
+            # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = 'ctfiles/' + ct_from_fasta(args, fasta)
             ctlist.append(ct)
-            commentfold[ct] = runfold(args, fasta, ct)
+            commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
-    # all output goes to the xiosfiles directory
-    # for each ct file we can use different ddG
-    # stems are merged using new rules
-    xiosdir = 'xiosfiles'
-    safe_mkdir(xiosdir)
-    # ctfiles = glob.glob(ctdir + '/*.ct')
-    # print(f'ctfiles: {ctfiles}')
-    for ct in ctlist:
-        i = 0
-        for ddG in range(args.ddG_min, args.ddG_max + 1):
-            args.ddg = int(ddG)
-            xios = f'{xiosdir}/{xios_from_ct(args, ct)}'
-            sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
-            runmergestems(args, ct, xios, commentfold[ct])
-            i += 1
+            mfe = get_mfe_from_ct(ct)
+            try:
+                percent = int(100 * args.ddG / mfe)
+            except ZeroDivisionError:
+                percent = args.percent
 
-    # compare to curated structures
+            commentfold[ct] = runfold(args, fasta, ct, percent=percent)
+            ct_n += 1
+
+            # all XIOS output goes to the args.xiosdir
+            # for each ct file we can use different ddG
+            # the stems that are the same in structures with different ddG are merged
+
+            for ddG in range(args.ddG_min, args.ddG_max + 1):
+                args.ddg = int(ddG)
+                xios = f'{args.xiosdir}/{xios_from_ct(args, ct)}'
+                # sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
+                runmergestems(args, ct, xios, commentfold[ct])
+                xios_n += 1
+
+    # final report
+    print(f'FastA files processed: {fa_n}')
+    print(f'CT files processed: {ct_n}')
+    print(f'XIOS files produced: {xios_n}')
 
     exit(0)
