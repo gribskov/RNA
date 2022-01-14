@@ -179,7 +179,7 @@ class Topology:
         string = ' ' * fieldwidth
         adj = self.adjacency
 
-        size = max( len(str(len(adj))) + 1, fieldwidth )
+        size = max(len(str(len(adj))) + 1, fieldwidth)
         fmt = '{{:>{}}}'.format(size)
 
         string += ''.join([fmt.format(i) for i in range(len(adj))])
@@ -489,8 +489,6 @@ class Topology:
         """-----------------------------------------------------------------------------------------
         Parse the adjacency section of the XIOS formatted topology file. If the section is absent,
         return False, otherwise True
-        
-        TODO: initialize adjacency outside of loop
 
         :param text: str
         :return: logical
@@ -950,66 +948,61 @@ class Topology:
     # # end of mergeCase5
 
     @staticmethod
-    def sample(adj, n):
+    def sample(adj, n, min_n=3):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
         connected by non-s (and currently non-x) edges, but size may be less than n if the graph
-        being sampled is smaller than size or has disconnected segments. Sampling is based on the
-        adjacency matrix.
-        
-        # TODO: as a static method, self should not be required.  The intent is probably to pass in
-        # the adjacency matrix
+        being sampled is smaller than size or has disconnected segments. Because there 9 graphs
+        with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
+        the adjacency matrix.
 
         :param n: int, size of graph to sample
+        :param min_n: int, minimum size for sampled graph
         :return: topology
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
-        list_is_not_long_enough = True
-
-        while list_is_not_long_enough:
-            # this makes sure a graph with at least one edge is returned
+        random.seed()
+        size = 0
+        while size < min_n:
+            # this makes sure a graph with at least three vertices is returned
             vlist = []
             neighbor = []
             # randomly determine starting vertex
             v0 = random.randrange(nvertex)
             size = 0
-            list_is_not_long_enough = False
 
             while size < n:
 
-                vlist.append(v0)
-                size += 1
-
                 # update list of neighbors
-                is_x = False
-                for v1 in range(nvertex):
-                    if adj[v0][v1] in 'sx' or v1 == v0:
-                        # skip s edges and self
-                        tt = adj[v0][v1]
+                v0adj = adj[v0]
+                for a in range(len(v0adj)):
+                    if v0adj[a] in 'sx0':
+                        # skip s and x edges, and self
                         continue
 
-                    if v1 in vlist:
-                        # don't add already selected vertices to neighbors
+                    if a in neighbor or a in vlist:
+                        # skip if already in neighbor or vlist
                         continue
 
-                    # exclude edge if it is exclusive with any previous edges
-                    # because otherwise you can end up with graphs that are not ioj connected
                     is_x = False
                     for v in vlist:
-                        if adj[v][v1] == 'x':
+                        # exclude edge if it is exclusive with any previous edges
+                        # because otherwise you can end up with graphs that are not ioj connected
+                        if adj[v][a] == 'x':
                             is_x = True
                     if is_x:
                         continue
 
-                    if v1 not in neighbor:
-                        # existing neighbor
-                        neighbor.append(v1)
-                        size += 1
+                    # passed all tests, add a to neighbor list
+                    neighbor.append(a)
+
+                vlist.append(v0)
+                size += 1
 
                 if len(neighbor) == 0:
-                    # if there are no more neighbors, you must stop and start again
-                    list_is_not_long_enough = True
+                    # if there are no more neighbors, you must stop and start again, the outer
+                    # loop checks to make sure the sample graph is at least size == min_n
                     break
 
                 # select new vertex and remove from current neighbor list
@@ -1018,27 +1011,25 @@ class Topology:
 
                 # end of size < n loop
 
-        # end of vertex selection loop, len(vlist) >= 2
+        # end of test for size >= min_n
 
         vlist.sort()
 
         return vlist
 
     @staticmethod
-    def samplebyweight(self, n, w):
+    def samplebyweight(adj, n, w):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology weighted by w.  The sampled
         graph will be
         connected by non-s edges, but size may be less than n if the graph being sampled is smaller
         than size or has disconnected segmentsSampling is based on the adjacency matrix.
-        
-        TODO: as a static method, self should not be required.  The intent is probably to pass in the adjacency matrix
 
         :param n:
         :return: topology
         -----------------------------------------------------------------------------------------"""
         # randomly determine starting vertex
-        adj = self.adjacency
+        # adj = self.adjacency
         nvertex = len(adj)
 
         vlist = []
@@ -1116,17 +1107,18 @@ class Topology:
         Return a xios structure sampled from the current topology. From the selected vertices
         find all the edges that connect those vertices.
 
+        :param self: Xios object
         :param n: int, number of stems to sample
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist =Topology.sample(self.adjacency, n)
+        vlist = Topology.sample(self.adjacency, n)
 
         adj = self.adjacency
         struct = []
 
         # identify all the edges between the vertices in vlist
-        for r in range(len(vlist)):
+        for r in range(len(vlist)-1):
             row = vlist[r]
             for c in range(r+1,len(vlist)):
                 col = vlist[c]
@@ -1135,12 +1127,7 @@ class Topology:
                 if adj[row][col] in 'ijo':
                     struct.append([row, col, edge[adj[row][col]]])
 
-        # print(struct)
-        # TODO remove after debugging vertex==None
-        for s in struct:
-            for i in range(3):
-                if s[i] is None:
-                    print('found none in sample')
+
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):
@@ -1152,7 +1139,7 @@ class Topology:
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = self.samplebyweight(self, n, w)
+        vlist = self.samplebyweight(n, w)
 
         adj = self.adjacency
         struct = []
@@ -1488,7 +1475,7 @@ class PairRNA:
         :return: integer, number of stems
         TODO implement
         -----------------------------------------------------------------------------------------"""
-        pass
+        return 0
 
     def to_vienna(self, pad=' '):
         """-----------------------------------------------------------------------------------------
@@ -1955,27 +1942,6 @@ class RNAstructure(Topology):
 
         self.adjacency = a
         return edges
-
-    def adjacency_format(self):
-        """-----------------------------------------------------------------------------------------
-
-        :return: string, formatted version of adjacency matrix
-        -----------------------------------------------------------------------------------------"""
-        adjstr = ''
-        # TODO set width based on matrix size?
-        width = 4
-        if not self.adjacency:
-            adjstr = 'None'
-            return adjstr
-
-        size = len(self.adjacency)
-        for i in range(size):
-            for j in range(size):
-                # must cast to str so zeros format correctly
-                adjstr += '{:{}}'.format(str(self.adjacency[i][j]), width)
-            adjstr += '\n'
-
-        return adjstr
 
     def edgelist_from_adjacency(self, include="ijo", whole=False):
         """-----------------------------------------------------------------------------------------
