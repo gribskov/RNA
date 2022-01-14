@@ -85,6 +85,7 @@ print('\tOmit parents: {}'.format(opt.noparent))
 # read in the motif database and RNA structure
 # motif = MotifDB(json=opt.motifdb)
 rna = Topology(xml=opt.rna)
+# print(rna.format_edge_list())
 
 # this is an unweighted sampling strategy.  Others were tried, sampling:
 #   inversely proportional to number of times previously sampled
@@ -103,11 +104,10 @@ fingerprint.information['RNA structure'] = opt.rna.name
 subgraph = opt.subgraphsize
 count_threshold = opt.coverage
 
-# sample the first subgraph to have a motif with minimum occurance
+# sample the first subgraph to have a motif with minimum occurence
 xios = rna.sample_xios(subgraph)
 gspan = Gspan(graph=xios)
 dfs = gspan.minDFS().human_encode()
-print( dfs)
 fingerprint.add(dfs)
 minmotif = fingerprint.minkey()
 
@@ -116,18 +116,17 @@ while True:
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
     # minimum is expensive)
     xios = rna.sample_xios(subgraph)
-    if len(xios) < subgraph:
-        # in case the sampled graph is empty
-        continue
 
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
-    if not fingerprint.total % 10000:
+    # print(dfs)
+    if not fingerprint.total % 1000:
         print(fingerprint.total, dfs)
         fingerprint.writeYAML(sys.stderr)
     fingerprint.add(dfs)
 
     if dfs == minmotif:
+        # if the new dfs is the one with the lowest count, update the lowest count
         minmotif = fingerprint.minkey()
         mincount = fingerprint.mincount()
         print('{}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif, fingerprint.mincount()))
@@ -136,10 +135,10 @@ while True:
 
 print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif,
                                               fingerprint.mincount()))
-if not opt.noparent:
-    fingerprint.add_parents(motif)
-    print('Extended fingerprint: {}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif,
-                                                    fingerprint.mincount()))
+# if not opt.noparent:
+#     fingerprint.add_parents(motif)
+#     print('Extended fingerprint: {}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif,
+#                                                     fingerprint.mincount()))
 
 # print(fingerprint.toYAML())
 fingerprint.writeYAML(opt.fpt)
