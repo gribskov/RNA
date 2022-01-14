@@ -34,9 +34,18 @@ def options():
     commandline = argparse.ArgumentParser(
         description='Create XIOS from FastaA sequence using the RNAstructure fold program',
         formatter_class=formatter)
+    commandline.add_argument('-q', '--quiet',
+                             help='Run with minimal output to terminal',
+                             action='store_true')
     commandline.add_argument('-i', '--indir',
-                             help='Directory containing FastA files',
+                             help='Directory containing FastA files (%(default)s)',
                              default='./')
+    commandline.add_argument('-c', '--ctdir',
+                             help='Directory for output CT files (%(default)s)',
+                             default='./ctfiles')
+    commandline.add_argument('-x', '--xiosdir',
+                             help='Directory for output XIOS files (%(default)s)',
+                             default='./xiosfiles')
     commandline.add_argument('-f', '--fasta',
                              help='FastA filename, can be a glob (%(default)s)',
                              default='*.fa')
@@ -47,22 +56,32 @@ def options():
                              help='Fold: maximum number of suboptimal structures (%(default)s)',
                              default=20)
     commandline.add_argument('-w', '--window',
-                             help='Fold: window for suboptimal structures (%(default)s) or comma '
-                                  'separated',
-                             default=4)
+                             help='Fold: window for suboptimal structures (%(default)s) or comma separated',
+                             default='4')
     commandline.add_argument('-d', '--ddG',
-                             help='Mergestems: delta deltaG limit for supoptimal structures (%('
-                                  'default)s) or comma separated',
+                             help='Mergestems: delta deltaG limit for supoptimal structures (%(default)s) '
+                                  'or comma separated',
                              default='5')
-    commandline.add_argument('-c', '--mergecase',
-                             help='Mergestems: merging cases (rules) for combining suboptimal '
-                                  'structures (%(default)s). Not implemented for now.',
-                             default='12345')
+    commandline.add_argument('-y', '--python',
+                             help='Directory path for python executables such as ct2xios (%(default)s)',
+                             default='/scratch/bell/mgribsko/rna/RNA/')
+    commandline.add_argument('-r', '--rnastructure',
+                             help='Directory path for RNAstructure executables such as Fold (%(default)s)',
+                             default='/scratch/bell/mgribsko/rna/RNAstructure/')
+    # mergecase currently unused
+    # commandline.add_argument('-c', '--mergecase',
+    #                          help='Mergestems: merging cases (rules) for combining suboptimal '
+    #                               'structures (%(default)s). Not implemented for now.',
+    #                          default='12345')
 
     # process command line arguments
     args = commandline.parse_args()
-    if not args.indir.endswith('/'):
-        args.indir += '/'
+
+    # make sure paths end in /
+    # d = args.__dict__
+    for path in ('indir', 'ctdir', 'xiosdir', 'python', 'rnastructure'):
+        if not args.__dict__[path].endswith('/'):
+            args.__dict__[path] += '/'
 
     # ddG and window may be comma separated ranges
     if args.ddG.find(','):
@@ -100,6 +119,7 @@ def safe_mkdir(dirname):
     #    exit(2)
 
     return True
+
 
 def safe_file(filename, mode):
     """---------------------------------------------------------------------------------------------
@@ -252,7 +272,7 @@ def runmergestems(arg, ct, xios, comment):
     mergestem.pl [-c <mergecases>] [-g <ddG>] [l <int>] [-p <plot_file>]  [-q] [-m <curated_file>] 
             <CT_file>
     
-    Mergestem compares that multiple structures in the CT file and convertss them to a single XIOS 
+    Mergestem compares that multiple structures in the CT file and converts them to a single XIOS
     structure.
     
     :param mergecases: string, list of mergecases to apply
@@ -265,7 +285,7 @@ def runmergestems(arg, ct, xios, comment):
 
     xiosout = open(xios, 'w')
 
-    exe = args.perl_src + '/ct2xios.py'
+    exe = args.python + '/ct2xios.py'
     opt = ['python3', exe, ct]
     # opt += ['-c', f'{args.mergecase}']
     opt += ['-d', f'{args.ddg}']
@@ -295,45 +315,47 @@ def runmergestems(arg, ct, xios, comment):
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     now = time.localtime()
-    print(f'xios_from_rnastructure {time.asctime(now)}')
     args = options()
 
-    # code locations, add to args
-    rnastructure = "/scratch/bell/mgribsko/rna/RNAstructure"
-    args.rnastructure = rnastructure
-    os.environ['DATAPATH'] = rnastructure + '/data_tables'
-    print(f'DATAPATH = {os.environ["DATAPATH"]}')
-    perl_src = "/scratch/bell/mgribsko/rna/RNA"
-    args.perl_src = perl_src
-    print(f'RNAstructure executables: {rnastructure}')
-    print(f'Mergestem executable: {perl_src}')
+    # code locations, see options() to alter defaults
+    os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
+    print(f'xios_from_rnastructure {time.asctime(now)}\n')
+    if not args.quiet:
+        print('Paths')
+        print(f'\tRNAstructure DATAPATH = {os.environ["DATAPATH"]}')
+        print(f'\tRNAstructure executables: {args.rnastructure}')
+        print(f'\tPython executables: {args.python}')
 
-    # write parameters to output
     print('Parameters')
     print(f'\tFold:percent={args.percent}')
     print(f'\tFold:maximum={args.maximum}')
-    print(f'\tFold:window={args.window}\n')
-    print(f'\tmergstems:delta deltaG={args.ddG}')
-    print(f'\tmergstems:mergecases={args.mergecase}')
-
-    # check if there are inputs and create directories
+    print(f'\tFold:window={args.window}')
+    print(f'\tdelta deltaG={args.ddG}')
+    # print(f'\tmergstems:mergecases={args.mergecase}')
 
     input = args.indir + args.fasta
-    print(f'FastaA input: {input}')
-    fastafiles = glob.glob(input)
+    print('Inputs and outputs')
+    print(f'\tFasta files: {input}')
+    print(f'\tCT files: {args.ctdir}')
+    print(f'\tXIOS files: {args.xiosdir}')
 
+  # check if there are inputs and create directories
+
+    fastafiles = glob.glob(input)
     if not fastafiles:
         sys.stderr.write('No files match the specified input ({})\n'.format(input))
         exit(1)
 
-    ctdir = 'ctfiles'
-    safe_mkdir(ctdir)
+    safe_mkdir(args.ctdir)
+    safe_mkdir(args.xiosdir)
 
     # run Fold once for each window size to generate the structure CT files
     commentfold = {}
     ctlist = []
     for fasta in fastafiles:
-        print(f'processing {fasta}')
+        if not quiet:
+            print(f'processing {fasta}')
+
         for window in range(args.window_min, args.window_max + 1):
             # run fold
             args.window = window
@@ -346,7 +368,7 @@ if __name__ == '__main__':
     # stems are merged using new rules
     xiosdir = 'xiosfiles'
     safe_mkdir(xiosdir)
-    #ctfiles = glob.glob(ctdir + '/*.ct')
+    # ctfiles = glob.glob(ctdir + '/*.ct')
     # print(f'ctfiles: {ctfiles}')
     for ct in ctlist:
         i = 0
