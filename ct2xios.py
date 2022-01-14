@@ -45,7 +45,7 @@ def options():
 if __name__ == '__main__':
 
     args = options()
-    sys.stderr.write('CT file: {}\n'.format(args.ctfile))
+    # sys.stderr.write('CT file: {}\n'.format(args.ctfile))
 
     rna = RNAstructure()
     rna.CTRead(args.ctfile, ddG=args.ddG)
