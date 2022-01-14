@@ -361,10 +361,7 @@ class Xios(list):
 
         string = ''
         for edge in self:
-            for t in edge:
-                # TODO Remove after debugging problem with vertex==None
-                if t is None:
-                    print('edge is none')
+
             v0 = fmt.format(edge[0])
             v1 = fmt.format(edge[1])
             e = edge[2]
@@ -591,6 +588,7 @@ class MotifDB():
         -----------------------------------------------------------------------------------------"""
         # check the argument, if it is a file pointer (open file) it can just be used
         # otherwise, open the file
+        fp = None
         if isinstance(fpin, str):
             try:
                 fp = open(fpin, 'r')
@@ -610,7 +608,7 @@ class MotifDB():
         checksum_is_ok = old_checksum == self.information['checksum']
         if checksum_is_ok is False:
             sys.stderr.write('MotifDB::fromJSON - checksums do not match (file:{} new:{}'.
-                             format(oldchecksum, self.information['checksum']))
+                             format(old_checksum, self.information['checksum']))
 
         return checksum_is_ok
 
@@ -966,7 +964,7 @@ class Gspan:
 
     def graph_randomize(self):
         """-----------------------------------------------------------------------------------------
-        randomly relaable the graph vertices.  this isw usful for generating graphs that have the
+        randomly relaable the graph vertices.  this isw useful for generating graphs that have the
         same canonical form.
 
         TODO move to Xios object
@@ -1176,8 +1174,9 @@ class Gspan:
 
         :return: int, size of unexplored list
         -----------------------------------------------------------------------------------------"""
-        row = 0
+        self.row = row = 0
         self.sort(begin=row)
+        self.unexplored = []
 
         first_edge_type = self.graph[row][2]
         if first_edge_type == 2:
@@ -1243,11 +1242,7 @@ class Gspan:
             # check to see if the graph is a possible minimum, or if this graph is done
             if not self.minimum(first) or self.row == len(graph):
                 searching = self.restore()
-        # TODO remove after debugging vertex==None
-        for s in self.mindfs:
-            for i in range(3):
-                if s[i] is None:
-                    print('found none in mindfs')
+
         return self.mindfs
 
     def minimum(self, first):
@@ -1448,8 +1443,6 @@ if __name__ == '__main__':
         if e2 < e1:
             print('e2 smaller')
 
-        print('x=', x)
-
         return
 
 
@@ -1477,7 +1470,6 @@ if __name__ == '__main__':
         for rna in rnas:
             x = Xios(string=rna)
             print('\t{}\t =>\t{}'.format(rna, x))
-
 
         print('\nRead from Pair format (no normalization)')
         rnapairs = [[[0, 1], [2, 3]],
@@ -1609,7 +1601,7 @@ if __name__ == '__main__':
             # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
             # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]],
             [[1, 5, 0], [1, 3, 0], [1, 4, 0], [1, 2, 0], [1, 0, 2], [2, 0, 2]]
-        ]
+            ]
         # testing reading graphs from string
         gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
         # g = Gspan(gstr)
