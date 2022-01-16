@@ -1527,10 +1527,14 @@ class PairRNA:
         of first coordinate
 
         :return: None
-        TODO test
         -----------------------------------------------------------------------------------------"""
         m = self.nstem * 2 - 1
+        rev = [0, 0]
+
         for i in range(self.nstem):
+            # rev[0] = m - self.pairs[i][0]
+            # rev[1] = m - self.pairs[i][1]
+            # self.pairs[i][0], self.pairs[i][1] = rev[1], rev[0]
             self.pairs[i][0], self.pairs[i][1] = m - self.pairs[i][1], m - self.pairs[i][0]
 
         self.pairs.sort(key=lambda k: k[0])
@@ -1553,7 +1557,7 @@ class PairRNA:
 
         :return: True
         -----------------------------------------------------------------------------------------"""
-        self.pairs = sorted(self.pairs, key=lambda p:p[0])
+        self.pairs = sorted(self.pairs, key=lambda p: p[0])
         return True
 
     def push_pair(self, pair):
@@ -1564,7 +1568,7 @@ class PairRNA:
         :return: int, number of stems in list
         -----------------------------------------------------------------------------------------"""
         self.pairs.insert(0, pair)
-        self.nstem += 1
+        self.nstem = len(self.pairs)
 
         return self.nstem
 
