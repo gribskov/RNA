@@ -830,7 +830,7 @@ class Gspan:
         self.mindfs = Xios()
         self.mindfslen = 0
         self.mindfsg2d = []
-        self.g2G = []  # list to convert g laberls (indices) to original labels
+        self.g2G = []  # list to convert g labels (indices) to original labels
         self.g2d = []  # list to covert g labels to dfs labels
         self.d2g = []  # list to conver dfs labels to g labels
         self.unexplored = []  # stack of partial solutions that need to be searched
