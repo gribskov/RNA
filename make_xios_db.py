@@ -1,6 +1,38 @@
 from topology import Topology, PairRNA
+from xios import Gspan
+
+
+def check_uniqueness(unique, topo):
+    """---------------------------------------------------------------------------------------------
+    some duplicates can be distinguished simply by checking the string representation of the pairs.
+    check in forward and reverse direction since XIOS does not distinguish orientation. unique is
+    simple a dictionary with keys corresponding to the already seen pair topologies stored in both
+    forward and reverse directions
+
+    :param unique: dict of PairRNA
+    :param topo: PairRNA
+    :return: boolean, True if structure appears unique (check further with Gspan)
+    ---------------------------------------------------------------------------------------------"""
+    s = str(topo)
+    r = str(topo.reverse())
+    if s in unique:
+        unique[s] += 1
+        unique[r] += 1
+        return False
+
+    # if unseen store both forward and reverse, this minimizes the number of reversals
+    unique[s] = 1
+    unique[r] = 1
+    topo.reverse()  # change back to original orientation
+
+    return True
+
 
 if __name__ == '__main__':
+
+    unique = {}  # index of unique pair graphs
+    gparent = {}
+    gchild = {}
 
     level_max = 3
     stack = [[] for _ in range(level_max + 1)]
@@ -45,7 +77,11 @@ if __name__ == '__main__':
 
                 child.push_pair([left, right])
                 child.reorder()
-                stack[child_level].append(child)
+                if check_uniqueness(unique, child):
+                    # g = Gspan(child.pairs)
+                    serial = child.to_SerialRNA()
+                    stack[child_level].append(child)
+
                 print(f'\t{child}')
 
     exit(0)
