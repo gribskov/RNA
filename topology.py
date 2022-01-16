@@ -1118,15 +1118,14 @@ class Topology:
         struct = []
 
         # identify all the edges between the vertices in vlist
-        for r in range(len(vlist)-1):
+        for r in range(len(vlist) - 1):
             row = vlist[r]
-            for c in range(r+1,len(vlist)):
+            for c in range(r + 1, len(vlist)):
                 col = vlist[c]
                 # if col <= row:
                 #     continue
                 if adj[row][col] in 'ijo':
                     struct.append([row, col, edge[adj[row][col]]])
-
 
         return Xios(list=struct)
 
@@ -1364,7 +1363,7 @@ class PairRNA:
     """=============================================================================================
     think of a topology with n stems linear set of coordinates from 0 to n-1 pair format lists the
     coordinates or each stem in this abstract coordinate system.  For instance, the abstract
-    structure (()()) would be (0,5) (1,2) (3,4) or the pseudoknotted structur {[(])) would be
+    structure (()()) would be (0,5) (1,2) (3,4) or the pseudoknotted structure {[(])) would be
     (0,5) (1,3) (2,4).  This representation makes it very simple to add new stems to an existing
     structure.
 
@@ -1537,6 +1536,37 @@ class PairRNA:
         self.pairs.sort(key=lambda k: k[0])
 
         return self.pairs
+
+    def duplicate(self):
+        """-----------------------------------------------------------------------------------------
+        Make a deep copy of the current topology (self)
+        :return: Topology.PairRNA object
+        -----------------------------------------------------------------------------------------"""
+        new = PairRNA()
+        new.pairs = copy.deepcopy(self.pairs)
+
+        return new
+
+    def reorder(self):
+        """-----------------------------------------------------------------------------------------
+        reorder the step pairs based on the first coordinate of the pair
+
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        self.pairs = sorted(self.pairs, key=lambda p:p[0])
+        return True
+
+    def push_pair(self, pair):
+        """-----------------------------------------------------------------------------------------
+        add a pair (two element list) to the beginning of the pairs list
+
+        :param pair: list, two element list describing the paired positions of a stem
+        :return: int, number of stems in list
+        -----------------------------------------------------------------------------------------"""
+        self.pairs.insert(0, pair)
+        self.nstem += 1
+
+        return self.nstem
 
     def connected(self):
         """-----------------------------------------------------------------------------------------
