@@ -33,6 +33,13 @@ class XiosEdge(list):
         else:
             super(XiosEdge, self).__init__(edge)
 
+    def copy(self):
+        """
+
+        :return:
+        """
+        return XiosEdge(edge=self[0:3])
+
     def reverse(self):
         """-----------------------------------------------------------------------------------------
         reverse the direction of the edge. Completely agnostic about whether the edges are in alpha
@@ -787,12 +794,15 @@ class Edge(list):
 
     def reverse(self):
         """-----------------------------------------------------------------------------------------
-        reverse the direction of the edge
+        reverse the direction of the edge, edge type 0 (i) and 1 (j) are inverses of each other.
+        o and s edges are undirected so just vertex 0 and 1 change.
 
         :return: True
         -----------------------------------------------------------------------------------------"""
+        # swap vertex 0 and 1
         self[0], self[1] = self[1], self[0]
         if self[2] < 2:
+            # ^ is XOR
             self[2] ^= 1
 
         return True
@@ -860,7 +870,7 @@ class Gspan:
             if isinstance(graph, PairRNA):
                 self.from_pair(graph)
 
-            if isinstance(graph, list):
+            elif isinstance(graph, list):
                 self.from_list(graph)
 
             elif isinstance(graph, str):
@@ -1001,7 +1011,7 @@ class Gspan:
 
     def graph_randomize(self):
         """-----------------------------------------------------------------------------------------
-        randomly relaable the graph vertices.  this isw useful for generating graphs that have the
+        randomly relabel the graph vertices.  this is useful for generating graphs that have the
         same canonical form.
 
         TODO move to Xios object
@@ -1222,8 +1232,10 @@ class Gspan:
                 if edge[2] != first_edge_type:
                     break
                 self.save(edge.copy())
+                # erev = self.graph[row].copy()
                 erev = self.graph[row].copy()
                 erev.reverse()
+
                 self.save(erev)
         else:
             # first edge type is not undirected, save just one orientation
