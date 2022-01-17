@@ -95,7 +95,11 @@ class Xios(list):
         super().__init__()
 
         for arg in kwargs:
-            if arg == 'list':
+            if arg == 'pair':
+                self.len = self.from_pair(kwargs['pair'])
+            elif arg == 'PairRNA':
+                self.len = self.from_pair(kwargs['PairRNA'])
+            elif arg == 'list':
                 self.len = self.from_list(kwargs['list'])
             elif arg == 'string':
                 self.len = self.from_string(kwargs['string'])
@@ -157,41 +161,56 @@ class Xios(list):
 
         return len(self)
 
-    def from_graph(self, graph):
+    def from_pair(self, graph, sedge=False):
         """-----------------------------------------------------------------------------------------
-        Converts a Graph object to Xios. This requires determining the nesting relationships between
-        each pair of stems.
-
-        TODO should have a switch to add serial or exclusive edges if desired
+        Converts a PairRNA object to Xios. This requires determining the nesting relationships
+        between each pair of stems.
 
         :param graph: Graph object from RNA/graph.py
         :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
+        from topology import PairRNA
+
         self.clear()
-        for stem1 in range(len(graph)):
-            for stem2 in range(stem1 + 1, len(graph)):
-                if graph[stem1][0] < graph[stem2][0]:
-                    if graph[stem1][1] < graph[stem2][0]:
-                        # serial edge
-                        pass
-                    elif graph[stem1][1] > graph[stem2][1]:
-                        # stem 2 is nested in stem 1
-                        self.append(XiosEdge([stem1, stem2, 0]))
-                    else:
-                        # pseudoknot
-                        self.append(XiosEdge([stem1, stem2, 2]))
+
+        begin = 0
+        end = 1
+        for si in range(len(graph)):
+            s1 = graph.pairs[si]
+            for sj in range(si + 1, len(graph)):
+                s2 = graph.pairs[sj]
+
+                # assuming that s1[begin] is always < s2[begin], i.e., that the PairRNA is canonical
+
+                if s1[end] < s2[begin]:
+                    # serial edge
+                    if sedge:
+                        self.append(XiosEdge([si, sj, 3]))
+
+                elif s1[end] > s2[end]:
+                    # i edge, s2 is nested inside s1
+                    self.append(XiosEdge([si, sj, 0]))
+
                 else:
-                    if graph[stem2][1] < graph[stem1][0]:
-                        # serial edge
-                        pass
-                    elif graph[stem2][1] > graph[stem1][1]:
-                        # stem 1 is nested in stem 2
-                        self.append(XiosEdge([stem2, stem1, 0]))
-                    else:
-                        # pseudoknot
-                        self.append(XiosEdge([stem1, stem2, 2]))
+                    # pseudoknot
+                    self.append(XiosEdge([si, sj, 2]))
 
         return len(self)
+
+    # def from_pair(self, pair):
+    #     """-----------------------------------------------------------------------------------------
+    #     creates a Xios object from a PairRNA object, which is defined in topology.py.  In PairRNA
+    #     format, each element in the pairlist is a stem, and the pair of values indicate the
+    #     locations of the half-stems in the overall structure. For example, [[0,2], [1,3]] is a
+    #     pseudoknot.
+    #
+    #     :param graph:
+    #     :return: Xios object
+    #     -----------------------------------------------------------------------------------------"""
+    #     # convert to pair form
+    #     self.from_serial(pair.to_SerialRNA())
+    #
+    #     return self
 
     def from_serial(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -820,6 +839,8 @@ class Gspan:
 
         unexplored, the stack of partial solutions stores [g2d, edge, row], see save()/restore()
         -----------------------------------------------------------------------------------------"""
+        from topology import PairRNA
+
         self.graph = Xios()  # graph in normalized labelling
         self.nforward = 0  # number of forward edges in sorted graph
         self.nbackward = 0  # number of backward edges in sorted graph
@@ -836,6 +857,9 @@ class Gspan:
         self.unexplored = []  # stack of partial solutions that need to be searched
 
         if graph:
+            if isinstance(graph, PairRNA):
+                self.from_pair(graph)
+
             if isinstance(graph, list):
                 self.from_list(graph)
 
@@ -911,6 +935,19 @@ class Gspan:
         self.vnum = v
 
         return v
+
+    def from_pair(self, pair_rna):
+        """-----------------------------------------------------------------------------------------
+        Read a topology as PairRNA object (see Topology). since it is stored in Gspan as a Xios
+        object, read the PairRNA object into Xios and store in Gspan
+
+        :param pair: PairRNA
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        xios = Xios(pair=pair_rna)
+        self.graph = xios
+
+        return True
 
     def flip(self, row=0):
         """-----------------------------------------------------------------------------------------
