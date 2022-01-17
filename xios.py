@@ -34,10 +34,11 @@ class XiosEdge(list):
             super(XiosEdge, self).__init__(edge)
 
     def copy(self):
-        """
+        """-----------------------------------------------------------------------------------------
+        Creates and returns an independent copy of type XiosEdge
 
         :return:
-        """
+        -----------------------------------------------------------------------------------------"""
         return XiosEdge(edge=self[0:3])
 
     def reverse(self):
