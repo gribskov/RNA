@@ -1111,6 +1111,8 @@ class Topology:
         :param n: int, number of stems to sample
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
+        from xios import Xios
+
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         vlist = Topology.sample(self.adjacency, n)
 
@@ -1137,6 +1139,8 @@ class Topology:
         :param w: list of weights
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
+        from xios import Xios
+
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         vlist = self.samplebyweight(n, w)
 
