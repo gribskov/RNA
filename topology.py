@@ -64,7 +64,7 @@ import copy
 from datetime import datetime
 import random
 from lxml import etree
-from xios import Xios
+
 
 
 ####################################################################################################
@@ -1470,8 +1470,7 @@ class PairRNA:
     def to_SerialRNA(self):
         """-----------------------------------------------------------------------------------------
         return the structure in list format (s a list)
-        :return g: list, structure in list format
-        TODO convert to SerialRNA object
+        :return g: SerialRNA, structure in list format
         -----------------------------------------------------------------------------------------"""
         g = [0 for _ in range(self.nstem * 2)]
 
@@ -1481,7 +1480,7 @@ class PairRNA:
             g[pair[1]] = stem
             stem += 1
 
-        return g
+        return SerialRNA(g)
 
     def from_vienna(self):
         """-----------------------------------------------------------------------------------------
@@ -1584,21 +1583,31 @@ class PairRNA:
 
     def connected(self):
         """-----------------------------------------------------------------------------------------
-        Returns True if graph is i-o connected
+        Returns True if graph is i-o connected.  Assumes that the PairRNA is in canonical form, i.e.,
+        that the starting coordinate of the stem always increases for each stem.
+
         :return: True / False
-
-        TODO test
         -----------------------------------------------------------------------------------------"""
-        pos = 1
-        for d in self.depth():
-            if pos == 0:
-                continue
-            pos += 1
-            if d == 0:
-                break
-
-        if pos < len(self) * 2:
-            return False
+        # old code maybe useful for SerialRNA?
+        # pos = 1
+        # for d in self.depth():
+        #     if pos == 0:
+        #         continue
+        #     pos += 1
+        #     if d == 0:
+        #         break
+        #
+        # if pos < len(self) * 2:
+        #     return False
+        begin = 0
+        end = 0
+        for stem in self.pairs:
+            if stem[0] <= end:
+                begin = min( begin, stem[0])
+                end = max( end, stem[1])
+            else:
+                # disconnected
+                return False
 
         return True
 
