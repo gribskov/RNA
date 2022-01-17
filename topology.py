@@ -1077,7 +1077,7 @@ class Topology:
         :param n: int, number of stems to sample
         :return: Topology
         -----------------------------------------------------------------------------------------"""
-        vlist = self.sample(self, n)
+        vlist = self.sample(self.adjacency, n)
 
         # build the new topology from the current one
         newtopo = Topology()
@@ -1158,6 +1158,16 @@ class SerialRNA(list):
     """=============================================================================================
     for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
     ============================================================================================="""
+
+    def __init__(self, list=[]):
+        """-----------------------------------------------------------------------------------------
+        SerialRNA is a list with some extra methods.  Technically it doesn't need a constructor
+        since it inherits one from list, but just in case attributes need to be added, this
+        constructor just calls the parent's
+        -----------------------------------------------------------------------------------------"""
+        super(SerialRNA, self).__init__(list)
+
+        # add additional attributes
 
     def connected(self):
         """-----------------------------------------------------------------------------------------
@@ -2151,6 +2161,8 @@ if __name__ == '__main__':
         print('canonical form')
         noncanonical = [[3, 3, 0, 0, 1, 1], [1, 1, 2, 2, 3, 3], [1, 1, 2, 2, 4, 4],
                         [3, 2, 0, 2, 0, 3]]
+        empty = SerialRNA()
+
         for testcase in noncanonical:
             rna = SerialRNA(testcase)
             print('RNA {}'.format(rna))
