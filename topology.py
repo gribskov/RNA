@@ -1611,6 +1611,7 @@ class PairRNA:
                 end = max( end, stem[1])
             else:
                 # disconnected
+                print(f'\tnot connected {self}')
                 return False
 
         return True
