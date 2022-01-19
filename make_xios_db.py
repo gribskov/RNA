@@ -16,7 +16,7 @@ def check_uniqueness(unique, topo):
     s = str(topo)
     r = str(topo.reverse())
     if s in unique:
-        print(f'\tnotunique {s}')
+        # print(f'\tnotunique {s}')
         unique[s] += 1
         unique[r] += 1
         return False
@@ -32,42 +32,44 @@ def check_uniqueness(unique, topo):
 if __name__ == '__main__':
 
     unique = {}  # index of unique pair graphs
-    ucount = [0]
+    ucount = [0,1]
     gparent = {}
     parentdfs = None
     gchild = {}
 
-    level_max = 3
-    stack = [[] for _ in range(level_max + 2)]
+    level_max = 4
+    # stack = [[] for _ in range(level_max + 2)]
 
     # initialize stack with a single stem
     topo = PairRNA(inlist=[0, 0])
-    stack[0].append(topo)
-    print(topo)
-
-    parent_level = 0
-    child_level = parent_level + 1
+    stack = [topo]
+    ucount = [0]
+    # print(topo)
+    # parent_level = 0
+    # child_level = parent_level + 1
+    parent_old = 0
     while True:
 
-        if stack[parent_level]:
-            # if the stack is not empty, pop a parent topology from the stack
-            parent = stack[parent_level].pop()
-        else:
-            # otherwise, increment the level
-            parent_level = child_level
-            ucount.append(0)
-            child_level += 1
-            if parent_level > level_max:
-                # quit when maximum level is reached
-                break
-            else:
-                # if max is not reached, go head and pop
-                parent = stack[parent_level].pop()
+        # if parent_level >= level_max:
+        #     # if the stack is not empty, pop a parent topology from the stack
+        #     break
+
+        try:
+            parent = stack.pop()
+            parent_level = len(parent)
+            child_level = parent_level + 1
+
+        except IndexError:
+            print('got here')
+            break
 
         g = Gspan(graph=parent)
         parentdfs = g.minDFS()
         parentstr = str(parentdfs)
-        print(f'level: {parent_level}     parent: {parent}     dfs: {parentstr}')
+        if parent_level > parent_old:
+            print(f'level: {parent_level}     parent: {parent}     dfs: {parentstr}')
+            parent_old = parent_level
+            ucount.append(0)
 
         for left in range(len(parent) * 2 + 1):
             for right in range(left + 1, len(parent) * 2 + 2):
@@ -85,22 +87,29 @@ if __name__ == '__main__':
 
                 child.push_pair([left, right])
                 child.reorder()
-                print(f'\t{child}', end=' ')
+                print(f'\tchecking {child}')
 
-                if not child.connected():
-                    # save unconnected graphs to stack (because their children can become connected later)
-                    stack[child_level].append(child)
-                    continue
+                # if not child.connected():
+                #     # save unconnected graphs to stack (because their children can become connected later)
+                #     if len(child) < level_max:
+                #         stack.append(child)
+                #     continue
 
                 if check_uniqueness(unique, child):
-                    stack[child_level].append(child)
-                    print(f'\tunique {child}', end=' ')
+                    if len(child) < level_max:
+                        stack.append(child)
+                    print(f'\t\tunique')
                     ucount[parent_level] += 1
 
+                    if not child.connected():
+                        # do not run gspan on disconnected graphs
+                        continue
+
+                    print('\t\tconnected')
                     g = Gspan(graph=child)
                     childdfs = g.minDFS()
                     childstr = str(childdfs)
-                    print(f'dfs:{childstr}')
+                    print(f'\t\tdfs:{childstr}')
                     if parentstr in gparent:
                         # parent is known
                         if childstr not in gparent[parentstr]:
@@ -117,11 +126,17 @@ if __name__ == '__main__':
                         # unknown child
                         gchild[childstr] = [parentstr]
 
-
-
-
         # end of loop over adding possible new stems
 
-        print(ucount)
+    print(ucount)
+    cc = [0]*100
+    for cs in gchild:
+        for letter in ('[',']',',',"'"):
+            cs.replace(letter,'')
+        l = len(cs)
+        print(l, l/3)
+        cc[len(cs)] += 1
+
+    print(cc)
 
     exit(0)
