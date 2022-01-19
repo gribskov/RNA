@@ -1200,7 +1200,7 @@ class Gspan:
 
     def graph2dfs(self, first):
         """-----------------------------------------------------------------------------------------
-        convert the node labels in the graph to dfs labels and sotre in mindfs
+        convert the node labels in the graph to dfs labels and store in mindfs
 
         :first: integer, first row to convert/copy
         :return: list of edges
@@ -1210,7 +1210,11 @@ class Gspan:
         dfs = self.mindfs
         for i in range(first, row):
             edge = self.graph[i]
-            dfs[i] = [g2d[edge[0]], g2d[edge[1]], edge[2]]
+            try:
+                dfs[i] = [g2d[edge[0]], g2d[edge[1]], edge[2]]
+            except IndexError:
+                # dfs needs to be extended
+                dfs.append([g2d[edge[0]], g2d[edge[1]], edge[2]])
 
         self.mindfslen = self.row
 
@@ -1253,6 +1257,9 @@ class Gspan:
 
         :return:
         -----------------------------------------------------------------------------------------"""
+        if len(self.graph) < 1:
+            return []
+
         self.initDFS()
         searching = self.restore()
         graph = self.graph
@@ -1408,8 +1415,11 @@ class Gspan:
         :return: string, 'f' or 'b'
         -----------------------------------------------------------------------------------------"""
         direction = 'b'
-        if edge[0] < edge[1]:
-            direction = 'f'
+        try:
+            if edge[0] < edge[1]:
+                direction = 'f'
+        except TypeError:
+            print(f'edge0:{edge[0]}   edge1: {edge[1]}')
 
         return direction
 
