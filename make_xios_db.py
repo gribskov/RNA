@@ -131,7 +131,7 @@ if __name__ == '__main__':
     print(ucount)
     cc = [0]*100
     for cs in gchild:
-        for letter in ('[',']',',',"'"):
+        for letter in ('[',']',',',"'",' '):
             cs.replace(letter,'')
         l = len(cs)
         print(l, l/3)
