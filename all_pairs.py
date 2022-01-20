@@ -21,29 +21,34 @@ if __name__ == '__main__':
 
     while stack:
         pairs, avail = stack.pop()
-        #the left location in the next pair is always the next lowest location
+        # the left location in the next pair is always the next lowest location
+        # for the first pair, left is always 0
         left = avail.pop()
 
-        for right in avail:
+        rp = len(avail) - 1
+        # rp = 0
+        # for rp in range(len(avail)):
+        while rp >= 0:
+            right = avail[rp]
+            rp -= 1
             # all other locations are available for the right position, push all on the stack
             newpairs = pairs[:] + [left, right]
             # newavail = avail[:].remove(right)
             newavail = avail[:]
             newavail.remove(right)
             if newavail:
-                next = 1
-                con = True
-                for i in range(len(newpairs) - 1):
-                    if newpairs[i] == next:
-                        print(f'\tdisconnected {newpairs})')
-                        con = False
-                        break
-                    else:
-                        next = max(next, newpairs[i] + 1)
+                # check if the graph is/will be disconnected, the graph is disconnected all
+                # positions less than the current length have been used,
+                # i.e. avail[-1] == next available position
+                if len(newpairs) == newavail[-1]:
+                    print(f'\tdisconnected {newpairs})')
+                    continue
 
-                if con:
+                else:
+                    # connected, push on stack
                     stack.append([newpairs, newavail])
             else:
+                # reached the desired size, don't push
                 print(newpairs)
 
     exit(0)
