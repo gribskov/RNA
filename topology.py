@@ -66,7 +66,6 @@ import random
 from lxml import etree
 
 
-
 ####################################################################################################
 ####################################################################################################
 class Topology:
@@ -1381,6 +1380,9 @@ class PairRNA:
     (0,5) (1,3) (2,4).  This representation makes it very simple to add new stems to an existing
     structure.
 
+    Internally stored as a simple list instead of a list of lists (pairs).  so the above stuctures
+    are simply [0,5,1,2,3,4] and [0,5,1,3,2,4]
+
     Synopsis
         from graph import PairRNA
 
@@ -1416,9 +1418,9 @@ class PairRNA:
         -----------------------------------------------------------------------------------------"""
 
         s = ''
-        for p in self.pairs:
+        for i in range(0, len(self.pairs), 2):
             try:
-                s += '({},{}) '.format(p[0], p[1])
+                s += '({},{}) '.format(self.pairs[i], self.pairs[i + 1])
             except IndexError:
                 # undefined stem
                 s += '(.,.) '
@@ -1429,26 +1431,39 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         length is the number of stems
         -----------------------------------------------------------------------------------------"""
-        return len(self.pairs)
+        return len(self.pairs) // 2
 
-    def from_SerialRNA(self, g):
+    def from_SerialRNA(self, serial):
         """"----------------------------------------------------------------------------------------
-        read a graph in list format as a list.  returns a list of lists with the begin/end position
-        of each stem (pair format)
+        read in a graph as a SerialRNA object.  A Serial RNA list will look like [0,1,1,2,2,0]
+        which is the structure (()()) and the PairRNA [0,5,1,2,3,4]
 
-        :param g: list, structure in list format
+        :param g: SerialRNA object, structure in list format
         :return: int, number of stems
         -----------------------------------------------------------------------------------------"""
-        self.nstem = int(len(g) / 2)
-        self.pairs = [[] for _ in range(self.nstem)]
+        self.nstem = int(len(serial) // 2)
+        self.pairs = [0 for _ in range(len(serial))]
+
+        # make sure the graph is canonically numbered
+        next = 0
+        seen = {}
+        for i in range(len(serial)):
+            pos = serial[i]
+            if pos not in seen:
+                seen[pos] = next
+                next += 1
+            serial[i] = seen[pos]
 
         # the values indicate the stem number, the index indicates the position
-        for i in range(len(g)):
-            self.pairs[g[i]].append(i)
+        pos = [p * 2 for p in range(self.nstem)]
+        for i in range(len(serial)):
+            stem = serial[i]
+            self.pairs[pos[stem]] = i
+            pos[stem] += 1
 
         return self.nstem
 
-    def from_SerialRNA_string(self, g, sep=' '):
+    def from_SerialRNA_string(self, serialstr, sep=' '):
         """-----------------------------------------------------------------------------------------
         the input list is a string separated by sep, e.g. '0 1 1 0'
 
@@ -1457,17 +1472,26 @@ class PairRNA:
         :return: integer, number of stems
         -----------------------------------------------------------------------------------------"""
         pairs = self.pairs
-        pairs.clear()
-        nstem = 0
+        serial = []
+        for s in serialstr.split(sep):
+            serial.append(int(s))
 
-        value = g.split(sep)
-        for n in range(len(value)):
-            i = int(value[n])
-            while i >= nstem:
-                # create stems if seen for the first time
-                pairs.append([])
-                nstem += 1
-            pairs[i].append(n)
+        # make sure the graph is canonically numbered
+        next = 0
+        seen = {}
+        for i in range(len(serial)):
+            pos = serial[i]
+            if pos not in seen:
+                seen[pos] = next
+                next += 1
+            serial[i] = seen[pos]
+
+        self.pairs = [0 for p in range(len(serial))]
+        pos = [p * 2 for p in range(self.nstem)]
+        for i in range(len(serial)):
+            stem = int(serial[i])
+            self.pairs[pos[stem]] = i
+            pos[stem] += 1
 
         return len(pairs)
 
@@ -1564,13 +1588,37 @@ class PairRNA:
 
         return new
 
-    def reorder(self):
+    def canonical(self):
         """-----------------------------------------------------------------------------------------
         reorder the step pairs based on the first coordinate of the pair
 
         :return: True
         -----------------------------------------------------------------------------------------"""
-        self.pairs = sorted(self.pairs, key=lambda p: p[0])
+        l = len(self.pairs)
+
+        # make numbering sequential
+        map = []
+        for s in sorted(self.pairs, key=lambda p: p):
+            if s not in map:
+                map.append(s)
+
+        for i in range(l):
+            # renumber sequentially
+            self.pairs[i] = map.index(self.pairs[i])
+            if i % 2:
+                # check that beginning and end are in increasing order
+                if self.pairs[i] < self.pairs[i-1]:
+                    self.pairs[i], self.pairs[i - 1] = self.pairs[i-1],self.pairs[i]
+
+        # sort by first position in pair
+        new = map
+        n = 0
+        for i in sorted(range(0,l,2), key = lambda p: self.pairs[p]):
+            new[n], new[n+1] = self.pairs[i], self.pairs[i+1]
+            n += 2
+
+        self.pairs = new
+
         return True
 
     def push_pair(self, pair):
@@ -1607,11 +1655,11 @@ class PairRNA:
         end = 0
         for stem in self.pairs:
             if stem[0] <= end:
-                begin = min( begin, stem[0])
-                end = max( end, stem[1])
+                begin = min(begin, stem[0])
+                end = max(end, stem[1])
             else:
                 # disconnected
-                print(f'\tnot connected {self}')
+                # print(f'\tnot connected {self}')
                 return False
 
         return True
@@ -2116,17 +2164,23 @@ if __name__ == '__main__':
 
         :return:
         -----------------------------------------------------------------------------------------"""
+        pairgraphs = [[2, 3, 0, 4], [0, 3, 1, 2], [0, 2, 1, 4, 3, 5], [0, 4, 2, 3], [1, 0, 3, 5]]
+        serialgraphs = [[0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 2, 2], [3, 1, 1, 3], [3, 2, 0, 2, 0, 3]]
 
         # PairRNA
         print('Testing PairRNA')
-        g = [0, 1, 1, 0]
-        pair = PairRNA()
-        pair.from_SerialRNA(g)
-        print('Serial {} => {}'.format(g, pair))
+        print('\nPairRNA graphs')
+        for g in pairgraphs:
+            print(f'Pair {g} =>', end=' ')
+            pair = PairRNA()
+            pair.pairs = g
+            pair.canonical()
+            print(f'{pair.pairs}')
 
-        gstring = '0 1 1 0'
-        pair.from_SerialRNA_string(gstring)
-        print('Serial string {} => {}'.format(gstring, pair))
+        print('\nSerialRNA graphs')
+        for g in serialgraphs:
+            pair.from_SerialRNA(g)
+            print('Serial {} => {}'.format(g, pair))
 
         gstring = '0,2,2,0'
         pair.from_SerialRNA_string(gstring, sep=',')
