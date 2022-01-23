@@ -1,5 +1,5 @@
 from topology import Topology, PairRNA
-from xios import Gspan
+from xios import Gspan, MotifDB
 
 
 def check_uniqueness(unique, topo):
@@ -29,114 +29,87 @@ def check_uniqueness(unique, topo):
     return True
 
 
+def all_pairs(n):
+    """---------------------------------------------------------------------------------------------
+    Generate all connected graphs with n stems as a pair list
+    :param n: int, number of stems
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    maxpos = n * 2
+
+    # available locations in descending order
+    available = [maxpos - x - 1 for x in range(maxpos)]
+
+    # each item on the stack is a list of pairs and a list of the still available positions
+    # initialize stack with empty list and all locations
+    stack = [[[], available]]
+
+    while stack:
+        pairs, avail = stack.pop()
+        # the left location in the next pair is always the next lowest location
+        # for the first pair, left is always 0
+        left = avail.pop()
+
+        rp = len(avail) - 1
+        # rp = 0
+        # for rp in range(len(avail)):
+        while rp >= 0:
+            right = avail[rp]
+            rp -= 1
+            # all other locations are available for the right position, push all on the stack
+            topo = pairs[:] + [left, right]
+            newpairs = PairRNA(topology=topo)
+            # newavail = avail[:].remove(right)
+            newavail = avail[:]
+            newavail.remove(right)
+            if newavail:
+                # check if the graph is/will be disconnected, the graph is disconnected all
+                # positions less than the current length have been used,
+                # i.e. avail[-1] == next available position
+                if len(newpairs.pairs) == newavail[-1]:
+                    # print(f'\tdisconnected {newpairs})')
+                    continue
+
+                else:
+                    # connected, push on stack
+                    stack.append([newpairs.pairs, newavail])
+            else:
+                # reached the desired size, don't push
+                yield newpairs
+
+
+# ===================================================================================================
+# main
+# ===================================================================================================
 if __name__ == '__main__':
 
     unique = {}  # index of unique pair graphs
-    ucount = [0,1]
+    ucount = [0, 1]
     gparent = {}
     parentdfs = None
     gchild = {}
 
     level_max = 4
-    # stack = [[] for _ in range(level_max + 2)]
+    motif = MotifDB()
 
-    # initialize stack with a single stem
-    topo = PairRNA(inlist=[0, 0])
-    stack = [topo]
-    ucount = [0]
-    # print(topo)
-    # parent_level = 0
-    # child_level = parent_level + 1
-    parent_old = 0
-    while True:
-
-        # if parent_level >= level_max:
-        #     # if the stack is not empty, pop a parent topology from the stack
-        #     break
-
-        try:
-            parent = stack.pop()
-            parent_level = len(parent)
-            child_level = parent_level + 1
-
-        except IndexError:
-            print('got here')
-            break
-
-        g = Gspan(graph=parent)
-        parentdfs = g.minDFS()
-        parentstr = str(parentdfs)
-        if parent_level > parent_old:
-            print(f'level: {parent_level}     parent: {parent}     dfs: {parentstr}')
-            parent_old = parent_level
-            ucount.append(0)
-
-        for left in range(len(parent) * 2 + 1):
-            for right in range(left + 1, len(parent) * 2 + 2):
-
-                # add the new stem in all possible locations
-                child = parent.duplicate()
-                for pair in child.pairs:
-                    # add 1 or 2 to the previous stem coordinates to account for
-                    # the new stem being added
-                    for j in (0, 1):
-                        if pair[j] >= left:
-                            pair[j] += 1
-                        if pair[j] >= right:
-                            pair[j] += 1
-
-                child.push_pair([left, right])
-                child.reorder()
-                print(f'\tchecking {child}')
-
-                # if not child.connected():
-                #     # save unconnected graphs to stack (because their children can become connected later)
-                #     if len(child) < level_max:
-                #         stack.append(child)
-                #     continue
-
-                if check_uniqueness(unique, child):
-                    if len(child) < level_max:
-                        stack.append(child)
-                    print(f'\t\tunique')
-                    ucount[parent_level] += 1
-
-                    if not child.connected():
-                        # do not run gspan on disconnected graphs
-                        continue
-
-                    print('\t\tconnected')
-                    g = Gspan(graph=child)
-                    childdfs = g.minDFS()
-                    childstr = str(childdfs)
-                    print(f'\t\tdfs:{childstr}')
-                    if parentstr in gparent:
-                        # parent is known
-                        if childstr not in gparent[parentstr]:
-                            gparent[parentstr].append(childstr)
-                    else:
-                        # unknown parent
-                        gparent[parentstr] = [childstr]
-
-                    if childstr in gchild:
-                        # known child
-                        if parentstr not in gchild[childstr]:
-                            gchild[childstr].append(parentstr)
-                    else:
-                        # unknown child
-                        gchild[childstr] = [parentstr]
-
-        # end of loop over adding possible new stems
+    count = [0, 0]
+    for i in range(2, level_max):
+        count.append(0)
+        # stage = time.process_time()
+        for p in all_pairs(i):
+            rp = p.reverse()
+            if rp.pairs > p.pairs:
+                # print(i, p, rp, 'R')
+                pass
+            else:
+                print(i, p, rp)
+                g = Gspan(graph=p)
+                dfs = g.minDFS().human_encode()
+                if dfs not in motif.db:
+                    motif.add_with_len(dfs, i)
+                    count[i] += 1
+            # count += 1
 
     print(ucount)
-    cc = [0]*100
-    for cs in gchild:
-        for letter in ('[',']',',',"'",' '):
-            cs.replace(letter,'')
-        l = len(cs)
-        print(l, l/3)
-        cc[len(cs)] += 1
-
-    print(cc)
 
     exit(0)
