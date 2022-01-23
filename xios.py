@@ -184,9 +184,9 @@ class Xios(list):
         begin = 0
         end = 1
         for si in range(len(graph)):
-            s1 = graph.pairs[si]
+            s1 = [graph.pairs[si],graph.pairs[si+1]]
             for sj in range(si + 1, len(graph)):
-                s2 = graph.pairs[sj]
+                s2 = [graph.pairs[sj], graph.pairs[sj+1]]
 
                 # assuming that s1[begin] is always < s2[begin], i.e., that the PairRNA is canonical
 
@@ -489,15 +489,17 @@ class MotifDB():
         motifdb.information = metadata, standard info has accessors, but any notes can be added
         motifdb.db[nstem] = [dfshex, dfshex, dfshex ...]
         motifdb.lenidx = list, index is number of stems
-    ============================================================================================="""
 
+    The motif database is indexed by the minimum dfs string. The dfs string could be text (current)
+    or use previous hexadecimal encodings to save space. Since the minimum dfs is unique, a
+    dictionary can be used.
+    ============================================================================================="""
     def __init__(self, **kwds):
         self.fields = ['information', 'n', 'db', 'lenidx', 'parent']
         self.information = {}  # for metadata
         self.n = 0
-        self.db = []
+        self.db = {}
         self.parent = {}
-        self.lenidx = []  # lists of motifs indexed by number of stems (motif length)
 
         for key in kwds:
             if key == 'json':
@@ -505,26 +507,16 @@ class MotifDB():
             else:
                 sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
 
-    def add_with_len(self, motif, x):
+    def add_with_len(self, motif, n_stems):
         """-----------------------------------------------------------------------------------------
         Add a single motif to the database
 
-        :param motif:
-        :return: int, number of motifs
+        :param motif: string, text string describing the dfs
+        :param n_stems: int, number of stems (not edges) in the motif
+        :return: int, number of motifs in database
         -----------------------------------------------------------------------------------------"""
-        db = self.db
-        n = len(db)
-        # for ascii_encode
-        # nstem = len(motif) // 2
-        # for human_encode
-        nstem = motif.count('.') + 1
-        if nstem > len(self.lenidx):
-            for i in range(len(self.lenidx), nstem):
-                self.lenidx.append([])
-
-        db.append(motif)
-        self.lenidx[nstem - 1].append(db[n])
-        self.n = len(db)
+        self.db[motif] = n_stems
+        self.n = len(self.db)
 
         return self.n
 
@@ -532,6 +524,8 @@ class MotifDB():
         """-----------------------------------------------------------------------------------------
         add parent to the parent list of child, and add all the parents of parent to the parent
         list of child
+
+        TODO: return to this later
 
         :param parent:
         :return:
@@ -582,6 +576,7 @@ class MotifDB():
         calculate a checksum.  The checksum is based on the JSON string of the db, parent, and
         lenidx fields so it should not be affected by changes to comments.
 
+        TODO later?
         :return: str, hexadecimal md5 checksum
         -----------------------------------------------------------------------------------------"""
         content = json.dumps(self.db) + json.dumps(self.parent) + json.dumps(self.lenidx)
