@@ -451,39 +451,6 @@ class Topology:
 
         return True
 
-    def parse_edge_list(self, text):
-        """-----------------------------------------------------------------------------------------
-        The edge_list section is for human reading purposes only.  It contains the same
-        information, and is written from, the adjacency matrix.
-        
-        TODO: currently not implemented
-
-        <edge_list>
-             0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
-             1:  2i  3o  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
-             2:
-             3:  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i
-             4:  5o  6i  7i  8i  9i 10i 11i 12i
-             5:  6i  7i  8i  9i 10i 11i 12i 13o 14o 15o
-             6:  7i  8i  9i 10i 11i 12i
-             7:
-             8:
-             9: 10i 11i 12i
-            10:
-            11:
-            12:
-            13: 14i 15i
-            14: 15i
-            15:
-            16:
-        </edge_list>
-
-        :param text: str
-        :return: True
-        -----------------------------------------------------------------------------------------"""
-
-        return True
-
     def parse_adjacency(self, text):
         """-----------------------------------------------------------------------------------------
         Parse the adjacency section of the XIOS formatted topology file. If the section is absent,
@@ -1394,7 +1361,7 @@ class PairRNA:
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self, inlist=None):
+    def __init__(self, topology=[], topology_type='pair'):
         """-----------------------------------------------------------------------------------------
         Internal data structure is a list of lists:
         each element in the list of the begin, end position of a stem.  The stems
@@ -1408,15 +1375,19 @@ class PairRNA:
         self.pairs = []
         self.nstem = 0
 
-        if inlist:
-            self.from_SerialRNA(inlist)
+        if topology:
+            if topology_type == 'pair':
+                self.pairs = topology
+            elif topology_type == 'serial':
+                self.from_SerialRNA(topology)
+            else:
+                sys.stderr.write(f'PairRNA.init - unknown topology type {topology_type}\n')
 
     def __str__(self, sep='_'):
         """-----------------------------------------------------------------------------------------
         Return a serialized version of the pair structure
         :return: string
         -----------------------------------------------------------------------------------------"""
-
         s = ''
         for i in range(0, len(self.pairs), 2):
             try:
@@ -1497,7 +1468,8 @@ class PairRNA:
 
     def to_SerialRNA(self):
         """-----------------------------------------------------------------------------------------
-        return the structure in list format (s a list)
+        return the structure in SerialRNA format
+
         :return g: SerialRNA, structure in list format
         -----------------------------------------------------------------------------------------"""
         g = [0 for _ in range(self.nstem * 2)]
@@ -1510,51 +1482,84 @@ class PairRNA:
 
         return SerialRNA(g)
 
-    def from_vienna(self):
+    def from_vienna(self, vienna):
         """-----------------------------------------------------------------------------------------
-        Read structure in Vienna format
-        :return: integer, number of stems
-        TODO implement
-        -----------------------------------------------------------------------------------------"""
-        return 0
+        Read structure in Vienna format, e.g., (()) or ([)]. each stem should be represented as a
+        single pair of brackets so this is basically the abstract shapes format with pseudoknots.
+        Dots are optional, they will produce a struture with non-consecutive positions which can be
+        fixed with canonical()
 
-    def to_vienna(self, pad=' '):
+        :param vienna: string, structure in Vienna dot-bracket format
+        :return: integer, number of stems
+        -----------------------------------------------------------------------------------------"""
+        left = {'(': ')', '[': ']', '{': '}', '<': '>'}
+        right = ')]}>'
+
+        # find length by count opening brackets
+        nstem = 0
+        for bracket in vienna:
+            if bracket in left:
+                nstem += 1
+        pairs = [0] * nstem * 2
+
+        stack = {ch: [] for ch in right}
+        level = []
+        stem = 0
+        pos = 0
+        for bracket in vienna:
+            if bracket in left:
+                # opening bracket
+                pairs[stem * 2] = pos
+                stack[left[bracket]].append(stem)
+                stem += 1
+            else:
+                s = stack[bracket].pop()
+                pairs[s * 2 + 1] = pos
+
+            pos += 1
+
+        self.pairs = pairs
+        self.nstem = len(self.pairs) // 2
+
+        return self.nstem
+
+    def to_vienna(self, pad=''):
         """-----------------------------------------------------------------------------------------
         return a string with the structure in vienna format.  This is basically the abstract shapes
         format with support for pseudoknots.
 
+        :param pad: string, separator to put between brackets
         :return: string
-        TODO test
         -----------------------------------------------------------------------------------------"""
-        bracket = [['(', ')'], ['[', ']'], ['{', '}'], ['<', '>'], [':', ':']]
-        vienna = ['.' for _ in range(self.nstem * 2)]
-        # list_format = self.to_SerialRNA()
+        level = {'(': 0, ')': 0, '[': 1, ']': 1, '{': 2, '}': 2, '<': 3, '>': 3}
+        left = '([{<'
+        right = ')]}>'
+        nbracket = len(left)
 
-        level = []
-        knot = True
-        for stemi in self.pairs:
-            for l in range(len(level)):
-                knot = True
-                for stem_num in range(len(level[l])):
-                    stemj = self.pairs[stem_num]
-                    if stemi[0] > stemj[1] or (stemi[0] > stemj[0] and stemi[1] < stemj[1]):
-                        # stemi is nested or serial with the stem using this level (stemj)
-                        knot = False
-                    else:
-                        knot = True
-                        break
+        pairs = self.pairs
+        vienna = [None for _ in range(self.nstem * 2)]
 
-                if not knot:
-                    level[l].append(stemi)
+        for pos in range(0, len(pairs), 2):
+            lpos = pairs[pos]
+            rpos = pairs[pos + 1]
+
+            count = [0] * nbracket
+            for pos in range(lpos, rpos):
+                # look at the range of this stem and count the number of each
+                # type brackets that are in use
+                if vienna[pos]:
+                    count[level[vienna[pos]]] += 1
+
+            lbracket = rbracket = ''
+            for i in range(nbracket):
+                if not count[i] % 2:
+                    # if the count is even, this bracket type can be used. otherwise it's a pknot
+                    lbracket = left[i]
+                    rbracket = right[i]
                     break
-            if knot:
-                level.append([])
-                level[-1].append(stemi)
 
-        for l in range(len(level)):
-            for stem in level[l]:
-                vienna[stem[0]] = bracket[l][0]
-                vienna[stem[1]] = bracket[l][1]
+            vienna[lpos] = lbracket
+            vienna[rpos] = rbracket
 
         return pad.join(vienna)
 
@@ -1562,21 +1567,21 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         reverse the positions of the stems by converting to maxpos-pos and resorting in order
         of first coordinate
-
-        :return: None
+None
+        :return: PairRNA object, a new object in reversed order
         -----------------------------------------------------------------------------------------"""
         m = self.nstem * 2 - 1
-        rev = [0, 0]
+        new = self.duplicate()
 
         for i in range(self.nstem):
             # rev[0] = m - self.pairs[i][0]
             # rev[1] = m - self.pairs[i][1]
             # self.pairs[i][0], self.pairs[i][1] = rev[1], rev[0]
-            self.pairs[i][0], self.pairs[i][1] = m - self.pairs[i][1], m - self.pairs[i][0]
+            new.pairs[i][0], new.pairs[i][1] = m - self.pairs[i][1], m - self.pairs[i][0]
 
-        self.pairs.sort(key=lambda k: k[0])
+        new.canonical()
 
-        return self.pairs
+        return new
 
     def duplicate(self):
         """-----------------------------------------------------------------------------------------
@@ -1585,12 +1590,13 @@ class PairRNA:
         -----------------------------------------------------------------------------------------"""
         new = PairRNA()
         new.pairs = copy.deepcopy(self.pairs)
+        new.nstem = len(new.pairs) // 2
 
         return new
 
     def canonical(self):
         """-----------------------------------------------------------------------------------------
-        reorder the step pairs based on the first coordinate of the pair
+        reorder the stem pairs based on the first coordinate of the pair
 
         :return: True
         -----------------------------------------------------------------------------------------"""
@@ -1607,14 +1613,14 @@ class PairRNA:
             self.pairs[i] = map.index(self.pairs[i])
             if i % 2:
                 # check that beginning and end are in increasing order
-                if self.pairs[i] < self.pairs[i-1]:
-                    self.pairs[i], self.pairs[i - 1] = self.pairs[i-1],self.pairs[i]
+                if self.pairs[i] < self.pairs[i - 1]:
+                    self.pairs[i], self.pairs[i - 1] = self.pairs[i - 1], self.pairs[i]
 
         # sort by first position in pair
         new = map
         n = 0
-        for i in sorted(range(0,l,2), key = lambda p: self.pairs[p]):
-            new[n], new[n+1] = self.pairs[i], self.pairs[i+1]
+        for i in sorted(range(0, l, 2), key=lambda p: self.pairs[p]):
+            new[n], new[n + 1] = self.pairs[i], self.pairs[i + 1]
             n += 2
 
         self.pairs = new
@@ -1628,8 +1634,8 @@ class PairRNA:
         :param pair: list, two element list describing the paired positions of a stem
         :return: int, number of stems in list
         -----------------------------------------------------------------------------------------"""
-        self.pairs.insert(0, pair)
-        self.nstem = len(self.pairs)
+        self.pairs = pair + self.pairs
+        self.nstem = len(self.pairs) // 2
 
         return self.nstem
 
@@ -1640,17 +1646,6 @@ class PairRNA:
 
         :return: True / False
         -----------------------------------------------------------------------------------------"""
-        # old code maybe useful for SerialRNA?
-        # pos = 1
-        # for d in self.depth():
-        #     if pos == 0:
-        #         continue
-        #     pos += 1
-        #     if d == 0:
-        #         break
-        #
-        # if pos < len(self) * 2:
-        #     return False
         begin = 0
         end = 0
         for stem in self.pairs:
@@ -1670,23 +1665,15 @@ class PairRNA:
         useful for mountain plots and determining connectivity.  If the level reaches zero before
         the last position, the graph is disconnected.
 
-        :return: list
-        TODO test
+        :return: list, number of stems each position of the pseudo sequence is contained in
         -----------------------------------------------------------------------------------------"""
-        depth = []
-        d = 0
-        stem = []
+        pairs = self.pairs
+        l = len(self.pairs)
+        depth = [0 for _ in range(l)]
 
-        for s in self.to_SerialRNA():
-            if s in stem:
-                # stem seen before
-                d -= 1
-            else:
-                # new stem
-                stem.append(s)
-                d += 1
-
-            depth.append(d)
+        for pos in range(0, l, 2):
+            for p in range(pairs[pos], pairs[pos + 1] + 1):
+                depth[p] += 1
 
         return depth
 
@@ -1697,9 +1684,6 @@ class RNAstructure(Topology):
     """=============================================================================================
     RNA structure class is for working with output from the RNAStructure package
     a single RNA structure
-
-    TODO needs testing after refactoring
-
     ============================================================================================="""
 
     def __init__(self, *args, **kwargs):
@@ -1878,7 +1862,7 @@ class RNAstructure(Topology):
         Remove stems from the stemlist that are identical or perfectly nested.  The nesting test is
         based only on ranges so the base-pairing may differ slightly
 
-        TODO: move to Topology since this is a genric function useful for any Topology
+        TODO: move to Topology since this is a generic function useful for any Topology
 
         :return: int, number of stems in revised stemlist
         -----------------------------------------------------------------------------------------"""
@@ -2166,6 +2150,7 @@ if __name__ == '__main__':
         -----------------------------------------------------------------------------------------"""
         pairgraphs = [[2, 3, 0, 4], [0, 3, 1, 2], [0, 2, 1, 4, 3, 5], [0, 4, 2, 3], [1, 0, 3, 5]]
         serialgraphs = [[0, 0, 1, 1, 2, 2], [0, 1, 0, 1, 2, 2], [3, 1, 1, 3], [3, 2, 0, 2, 0, 3]]
+        viennagraphs = ['(())', '()(())', '([)]', '<([>])', '<[(>])', '([)(])']
 
         # PairRNA
         print('Testing PairRNA')
@@ -2185,6 +2170,13 @@ if __name__ == '__main__':
         gstring = '0,2,2,0'
         pair.from_SerialRNA_string(gstring, sep=',')
         print('Serial string {} => {}'.format(gstring, pair))
+
+        print('\nVienna format')
+        for v in viennagraphs:
+            pair.from_vienna(v)
+            print(f'Vienna {v} => {pair.pairs}', end='')
+            vienna = pair.to_vienna()
+            print(f' => {vienna}   depth={pair.depth()}')
 
         return True
 
@@ -2280,7 +2272,7 @@ if __name__ == '__main__':
 
     exit(0)
 
-    # TODO convert this section
+    # TODO convert this section, or delete
     # for rna in graphs:
     #     g = RNAGraph(rna)
     #     three = RNAstructure()
