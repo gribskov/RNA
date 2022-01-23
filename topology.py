@@ -3,9 +3,8 @@
     Stem object contain information about a single stem. The begin and end positions of the left
     and right halves of the stem and the Vienna (dot-bracket) structure.
     ================================================================================================
-    Topology and its extensions RNAstructure, PairRNA, and SerialRNA describe topologies.
-    Topologies are sets of stems and may include stems that are mutually exclusive (or even
-    identical)
+    Topology describes topologies are sets of stems that may include stems that are mutually
+    exclusive (or even identical).RNAstructure, PairRNA, and SerialRNA describe single structures.
 
     Topology is the base class and provides functions for reading, parsing, and writing the XIOS
     format.  Topology is the ultimate arbiter of the XIOS format
@@ -14,8 +13,8 @@
     mfold/unafold).  Multiple structures can be read to creat a single topology if the CT file is
     produced by the Fold program
 
+    TODO: check if PairRNA and SerialRNA completely populated a usable Topology object
     PairRNA produces Topology objects from the pair representation (see below)
-
     SerialRNA produces Topology objects from the serial format (see below)
 
     ================================================================================================
@@ -38,7 +37,7 @@
     abstract shape (level 3) [ [ ] [ ] [ ] ]    (spaces added for readability)
     serial format   1 2 2 3 3 4 4 1             index indicates position, value indicates stem
     pair format   (1,8) (2,3) (4,5) (6,7)       each item is a stem, values are the positions
-                  1 8 2 3 4 5 6 7               (serialized pair format)
+                  1 8 2 3 4 5 6 7               (represented internall in serialized pair form)
 
     example with a pseudoknot added
     GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUUUGGAGGUCCUGUGUUCGAUCCACAGAAUUCGCA
@@ -2209,7 +2208,11 @@ if __name__ == '__main__':
 
     def test_SerialRNA():
         """-----------------------------------------------------------------------------------------
-        # SerialRNA
+        SerialRNA format is a list showing the begin and end points of each numbered stem in an
+        abstract sequentially numbered sequence. Examples
+        (()) = [0,1,1,0]
+        ([)] = [0,1,0,1]
+        ([)(]) = [0,1,0,2,1,2]
         -----------------------------------------------------------------------------------------"""
         rnas = [[0, 0, 1, 1, 2, 2],
                 [0, 1, 0, 1, 2, 2],
