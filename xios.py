@@ -184,9 +184,9 @@ class Xios(list):
         begin = 0
         end = 1
         for si in range(len(graph)):
-            s1 = [graph.pairs[si],graph.pairs[si+1]]
+            s1 = [graph.pairs[si*2],graph.pairs[si*2+1]]
             for sj in range(si + 1, len(graph)):
-                s2 = [graph.pairs[sj], graph.pairs[sj+1]]
+                s2 = [graph.pairs[sj*2], graph.pairs[sj*2+1]]
 
                 # assuming that s1[begin] is always < s2[begin], i.e., that the PairRNA is canonical
 
