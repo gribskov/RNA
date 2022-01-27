@@ -31,7 +31,8 @@ def check_uniqueness(unique, topo):
 
 def all_pairs(n):
     """---------------------------------------------------------------------------------------------
-    Generate all connected graphs with n stems as a pair list
+    Generator that yields all connected graphs with n stems as PairRNA objects.
+
     :param n: int, number of stems
     :return:
     ---------------------------------------------------------------------------------------------"""
@@ -77,39 +78,59 @@ def all_pairs(n):
                 # reached the desired size, don't push
                 yield newpairs
 
+    return
+
 
 # ===================================================================================================
 # main
 # ===================================================================================================
 if __name__ == '__main__':
 
-    unique = {}  # index of unique pair graphs
-    ucount = [0, 1]
-    gparent = {}
-    parentdfs = None
-    gchild = {}
+    pair_idx = {}  # index of unique pair graphs
 
-    level_max = 4
+    level_max = 7
     motif = MotifDB()
 
     count = [0, 0]
-    for i in range(2, level_max):
+    cumul = 0
+
+    for i in range(2, level_max + 1):
         count.append(0)
-        # stage = time.process_time()
+        possible = 0
+        assymetric = 0
+
         for p in all_pairs(i):
+            possible += 1
             rp = p.reverse()
             if rp.pairs > p.pairs:
+                # > test makes sure that symmetric structures get processed
                 # print(i, p, rp, 'R')
-                pass
+                continue
             else:
-                print(i, p, rp)
+                assymetric += 1
+                # print(i, p, rp)
                 g = Gspan(graph=p)
                 dfs = g.minDFS().human_encode()
+                pair_idx[p] = dfs
+                pair_idx[rp] = dfs
+
                 if dfs not in motif.db:
                     motif.add_with_len(dfs, i)
                     count[i] += 1
-            # count += 1
+                    cumul += 1
+                    # parents(pair_idx, motif, p)
+                    # print(f'unique {p}  {rp}  {dfs}')
+                # else:
+                # print(f'\tnot unique {p}  {rp}  {dfs}')
 
-    print(ucount)
+        print(f'level:{i}\tpossible:{possible}\tassymetric:{assymetric}\tunique:{count[i]}\tcumulative'
+              f':{cumul}')
+
+    # store as pickled binary file
+    ptest = open('pickletest.pkl', 'wb')
+    motif.pickle(ptest)
+    ptest.close()
+
+    pt = MotifDB.unpickle('pickletest.pkl')
 
     exit(0)
