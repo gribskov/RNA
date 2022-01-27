@@ -89,6 +89,8 @@ def parents(pair_idx, motif, pair):
     :param motif: MotifDB
     :param pair: PairRNA, current structure
 
+    TODO: add minlevel instead of just assuming starting at level 3
+
     :return:
     ---------------------------------------------------------------------------------------------"""
     parentlist = []
@@ -116,7 +118,7 @@ if __name__ == '__main__':
     pair_idx = {}  # index of unique pair graphs
 
     level_max = 8
-    level_min = 3
+    level_min = 2
     motif = MotifDB()
 
     count = [0] * level_min
