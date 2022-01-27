@@ -184,9 +184,9 @@ class Xios(list):
         begin = 0
         end = 1
         for si in range(len(graph)):
-            s1 = [graph.pairs[si*2],graph.pairs[si*2+1]]
+            s1 = [graph.pairs[si * 2], graph.pairs[si * 2 + 1]]
             for sj in range(si + 1, len(graph)):
-                s2 = [graph.pairs[sj*2], graph.pairs[sj*2+1]]
+                s2 = [graph.pairs[sj * 2], graph.pairs[sj * 2 + 1]]
 
                 # assuming that s1[begin] is always < s2[begin], i.e., that the PairRNA is canonical
 
@@ -541,6 +541,38 @@ class MotifDB():
                 self.parent[child].append(p)
 
         return len(self.parent)
+
+    def pickle(self, fh):
+        """-----------------------------------------------------------------------------------------
+        Pickle the object and save to file.  Use filehandle instead of filename so that multiple
+        objects can be pickled
+
+        :param fh: filehandle, open file for writing
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        import pickle
+
+        pickle.dump(self, fh)
+
+        return
+
+    @staticmethod
+    def unpickle(filename):
+        """-----------------------------------------------------------------------------------------
+        Restore pickle database
+
+        :param filename:
+        :return: boolean, True if sucessful
+        -----------------------------------------------------------------------------------------"""
+        import pickle
+
+        fh = None
+        try:
+            fh = open( filename, 'rb')
+        except OSError:
+            sys.stderr.write(f"MotifDB - can't open pickle file ({filename})" )
+
+        return pickle.load(fh)
 
     def setdate(self):
         """-----------------------------------------------------------------------------------------
