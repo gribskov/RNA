@@ -1566,17 +1566,17 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         reverse the positions of the stems by converting to maxpos-pos and resorting in order
         of first coordinate
-None
+
         :return: PairRNA object, a new object in reversed order
         -----------------------------------------------------------------------------------------"""
-        m = self.nstem * 2 - 1
+        m = len(self.pairs) - 1
         new = self.duplicate()
 
-        for i in range(self.nstem):
+        for i in range(0, m, 2):
             # rev[0] = m - self.pairs[i][0]
             # rev[1] = m - self.pairs[i][1]
             # self.pairs[i][0], self.pairs[i][1] = rev[1], rev[0]
-            new.pairs[i][0], new.pairs[i][1] = m - self.pairs[i][1], m - self.pairs[i][0]
+            new.pairs[i], new.pairs[i + 1] = m - self.pairs[i + 1], m - self.pairs[i]
 
         new.canonical()
 
