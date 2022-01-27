@@ -1,5 +1,6 @@
 from topology import Topology, PairRNA
 from xios import Gspan, MotifDB
+from githash import get_git_revision_short_hash
 
 
 def check_uniqueness(unique, topo):
@@ -80,6 +81,32 @@ def all_pairs(n):
 
     return
 
+def parents(pair_idx, motif, pair):
+    """---------------------------------------------------------------------------------------------
+    Find all parents by deleting one stem from pair, canonicalizing and looking up in pair_idx
+
+    :param pair_idx: dict, key is PairRNA string, value is minDFS string
+    :param motif: MotifDB
+    :param pair: PairRNA, current structure
+
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    parentlist = []
+    if len(pair.pairs) < 6:
+        # need at least three stems to have an edge in the parent
+        return parentlist
+
+    new = pair.duplicate()
+    for i in range(0, len(pair.pairs), 2):
+        new.pairs = pair.pairs[0:i]+pair.pairs[i+2:]
+        new.canonical()
+        if new.connected() :
+            p = pair_idx[str(new)]
+            # print(f'{i}  {pair}: {new}  {new}  {p}')
+            if p not in parentlist:
+                parentlist.append(p)
+
+    return parentlist
 
 # ===================================================================================================
 # main
@@ -88,13 +115,14 @@ if __name__ == '__main__':
 
     pair_idx = {}  # index of unique pair graphs
 
-    level_max = 7
+    level_max = 8
+    level_min = 3
     motif = MotifDB()
 
     count = [0, 0]
     cumul = 0
 
-    for i in range(2, level_max + 1):
+    for i in range(level_min, level_max + 1):
         count.append(0)
         possible = 0
         assymetric = 0
@@ -111,26 +139,30 @@ if __name__ == '__main__':
                 # print(i, p, rp)
                 g = Gspan(graph=p)
                 dfs = g.minDFS().human_encode()
-                pair_idx[p] = dfs
-                pair_idx[rp] = dfs
+                pair_idx[str(p)] = dfs
+                pair_idx[str(rp)] = dfs
 
                 if dfs not in motif.db:
                     motif.add_with_len(dfs, i)
                     count[i] += 1
                     cumul += 1
-                    # parents(pair_idx, motif, p)
-                    # print(f'unique {p}  {rp}  {dfs}')
-                # else:
-                # print(f'\tnot unique {p}  {rp}  {dfs}')
+                    motif.parent[dfs] = parents(pair_idx, motif, p)
+                    # print(f'{p}     {dfs}     {motif.parent[dfs]}')
 
         print(f'level:{i}\tpossible:{possible}\tassymetric:{assymetric}\tunique:{count[i]}\tcumulative'
               f':{cumul}')
 
     # store as pickled binary file
-    ptest = open('pickletest.pkl', 'wb')
-    motif.pickle(ptest)
-    ptest.close()
+    motif.setdate()
+    motif.setname(f'{level_min} to {level_max} stem motifs')
+    githash = get_git_revision_short_hash()
+    motif.information['source'] = f'make_xios_db:v{githash}'
+    filename = f'{level_min}to{level_max}stem.mdb.pkl'
+    motif.information['file'] = filename
+    pkl = open(filename, 'wb')
+    motif.pickle(pkl)
+    pkl.close()
 
-    pt = MotifDB.unpickle('pickletest.pkl')
+    print(motif.toJSON())
 
     exit(0)
