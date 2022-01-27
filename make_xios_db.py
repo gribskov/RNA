@@ -119,7 +119,7 @@ if __name__ == '__main__':
     level_min = 3
     motif = MotifDB()
 
-    count = [0, 0]
+    count = [0] * level_min
     cumul = 0
 
     for i in range(level_min, level_max + 1):
