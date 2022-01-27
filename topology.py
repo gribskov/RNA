@@ -1645,12 +1645,12 @@ class PairRNA:
 
         :return: True / False
         -----------------------------------------------------------------------------------------"""
+        pairs = self.pairs
         begin = 0
         end = 0
-        for stem in self.pairs:
-            if stem[0] <= end:
-                begin = min(begin, stem[0])
-                end = max(end, stem[1])
+        for i in range(0, len(pairs), 2):
+            if pairs[i] <= end:
+                end = max(end, pairs[i+1])
             else:
                 # disconnected
                 # print(f'\tnot connected {self}')
