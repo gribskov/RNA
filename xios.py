@@ -487,17 +487,17 @@ class MotifDB():
     could be used.
         motifdb.fields = list of fields in order for serialization
         motifdb.information = metadata, standard info has accessors, but any notes can be added
-        motifdb.db[nstem] = [dfshex, dfshex, dfshex ...]
-        motifdb.lenidx = list, index is number of stems
+        motifdb.db = {dfs_string:n_stem, ...}
+        MotifDB.parent = {dfsstring:[parent_dfsstring0-, parent_dfsstring1, ...], ...
 
     The motif database is indexed by the minimum dfs string. The dfs string could be text (current)
     or use previous hexadecimal encodings to save space. Since the minimum dfs is unique, a
     dictionary can be used.
     ============================================================================================="""
+
     def __init__(self, **kwds):
-        self.fields = ['information', 'n', 'db', 'lenidx', 'parent']
+        self.fields = ['information', 'db', 'parent']
         self.information = {}  # for metadata
-        self.n = 0
         self.db = {}
         self.parent = {}
 
@@ -519,28 +519,6 @@ class MotifDB():
         self.n = len(self.db)
 
         return self.n
-
-    def add_parent(self, child, parent):
-        """-----------------------------------------------------------------------------------------
-        add parent to the parent list of child, and add all the parents of parent to the parent
-        list of child
-
-        TODO: return to this later
-
-        :param parent:
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        # if child not in self.parent:
-        #     self.parent[child] = []
-
-        if parent not in self.parent[child]:
-            self.parent[child].append(parent)
-
-        for p in self.parent[parent]:
-            if p not in self.parent[child]:
-                self.parent[child].append(p)
-
-        return len(self.parent)
 
     def pickle(self, fh):
         """-----------------------------------------------------------------------------------------
@@ -568,9 +546,9 @@ class MotifDB():
 
         fh = None
         try:
-            fh = open( filename, 'rb')
+            fh = open(filename, 'rb')
         except OSError:
-            sys.stderr.write(f"MotifDB - can't open pickle file ({filename})" )
+            sys.stderr.write(f"MotifDB - can't open pickle file ({filename})")
 
         return pickle.load(fh)
 
@@ -605,13 +583,12 @@ class MotifDB():
 
     def checksum(self):
         """-----------------------------------------------------------------------------------------
-        calculate a checksum.  The checksum is based on the JSON string of the db, parent, and
-        lenidx fields so it should not be affected by changes to comments.
+        calculate a checksum.  The checksum is based on the JSON string of the db and parent
+        so it should not be affected by changes to comments.
 
-        TODO later?
         :return: str, hexadecimal md5 checksum
         -----------------------------------------------------------------------------------------"""
-        content = json.dumps(self.db) + json.dumps(self.parent) + json.dumps(self.lenidx)
+        content = json.dumps(self.db) + json.dumps(self.parent)
         result = hashlib.md5(content.encode())
 
         return result.hexdigest()
@@ -657,6 +634,7 @@ class MotifDB():
         for i in self.fields:
             # look up the values of each field and add to dispatch list
             setattr(self, i, j[i])
+
         old_checksum = self.information['checksum']
         self.information['checksum'] = self.checksum()
         checksum_is_ok = old_checksum == self.information['checksum']
@@ -681,32 +659,16 @@ class MotifDB():
         for i in range(len(fields)):
             data = getattr(self, fields[i])
             if fields[i] == 'information':
+                # metadata fields
                 for tag in data:
-                    fp.write('{}\t{}\n'.format(tag, data[tag]))
-            elif fields[i] == 'n':
-                fp.write('{}\t{}\n'.format('motifs', data))
+                    fp.write(f'{tag}\t{data[tag]}\n')
+                # number of motifs
+                fp.write(f'motifs:\t{len(self.db)}\n')
             elif fields[i] == 'db':
                 for m in data:
-                    x = Xios()
-                    x.human_decode(m)
-                    fp.write('\t{}\t{}\n'.format(m, x))
+                    fp.write(f'\t{self.db[m]}\t{m}\n')
                     for p in self.parent[m]:
-                        x = Xios()
-                        x.human_decode(p)
-                        fp.write('\t\t{}\t{}\n'.format(p, x))
-            elif fields[i] == 'lenidx':
-                fp.write('{}\n'.format('length index'))
-                l = 0
-                for m in data:
-                    l += 1
-                    if not m:
-                        continue
-
-                    fp.write('\tlength\t{}\n'.format(l))
-                    for motif in m:
-                        x = Xios()
-                        x.human_decode(motif)
-                        fp.write('\t{}\t{}\n'.format(motif, x))
+                        fp.write(f'\t\t\t{p}\n')
 
         return
 
