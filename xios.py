@@ -585,6 +585,10 @@ class MotifDB():
         """-----------------------------------------------------------------------------------------
         calculate a checksum.  The checksum is based on the JSON string of the db and parent
         so it should not be affected by changes to comments.
+        jason dumps causes memory issu for large databases.  could try
+        return hashlib.md5(content.encode()).hexdigest()
+
+        zlib.adler3, unlike hash(), returns the same code every time
 
         :return: str, hexadecimal md5 checksum
         -----------------------------------------------------------------------------------------"""
@@ -592,14 +596,11 @@ class MotifDB():
         # result = hashlib.md5(content.encode())
         from functools import reduce
         import zlib
-        result = reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in self.db.items()])
-        result = result ^ reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in
-                                                      self.parent.items()])
+        checksum = reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in self.db.items()])
+        checksum = checksum ^ reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8'))
+                                                                    for t in self.parent.items()])
 
-        return result
-    # try
-    #     return hashlib.md5(content.encode()).hexdigest()
-    # or sha256
+        return checksum
 
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
