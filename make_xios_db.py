@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     pair_idx = {}  # index of unique pair graphs
 
-    level_max = 8
+    level_max = 5
     level_min = 2
     motif = MotifDB()
 
@@ -159,12 +159,12 @@ if __name__ == '__main__':
     motif.setname(f'{level_min} to {level_max} stem motifs')
     githash = get_git_revision_short_hash()
     motif.information['source'] = f'make_xios_db:v{githash}'
+    motif.information['checksum'] = motif.checksum()
+    print(motif.information['checksum'])
     filename = f'{level_min}to{level_max}stem.mdb.pkl'
     motif.information['file'] = filename
     pkl = open(filename, 'wb')
     motif.pickle(pkl)
     pkl.close()
-
-    print(motif.toJSON())
 
     exit(0)
