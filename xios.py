@@ -588,10 +588,18 @@ class MotifDB():
 
         :return: str, hexadecimal md5 checksum
         -----------------------------------------------------------------------------------------"""
-        content = json.dumps(self.db) + json.dumps(self.parent)
-        result = hashlib.md5(content.encode())
+        # content = json.dumps(self.db) + json.dumps(self.parent)
+        # result = hashlib.md5(content.encode())
+        from functools import reduce
+        import zlib
+        result = reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in self.db.items()])
+        result = result ^ reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in
+                                                      self.parent.items()])
 
-        return result.hexdigest()
+        return result
+    # try
+    #     return hashlib.md5(content.encode()).hexdigest()
+    # or sha256
 
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
