@@ -184,7 +184,7 @@ class Fingerprint(dict):
         :return: datetime
         -----------------------------------------------------------------------------------------"""
         daytime = datetime.datetime.now()
-        self.information['date'] = daytime.strftime('%Y-%m-%d %H:%M:%S')
+        self.information['Date'] = daytime.strftime('%Y-%m-%d %H:%M:%S')
 
         return daytime
 
