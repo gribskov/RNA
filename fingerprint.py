@@ -109,7 +109,7 @@ class Fingerprint(dict):
 
         return json.dumps({fields[i]: root[i] for i in range(len(fields))}, indent=4)
 
-    def toYAML(self):
+    def toYAML(self, sort='len'):
         """-----------------------------------------------------------------------------------------
         Convert fingerprint to JSON string
 
@@ -117,12 +117,19 @@ class Fingerprint(dict):
         -----------------------------------------------------------------------------------------"""
         fields = ['information', 'total', 'nmotif', 'motif']
 
+        m = self.motif
+        if sort == 'len':
+            m = {}
+            for k in sorted(self.motif, key=lambda x: self.motif[x], reverse=True):
+                m[k] = self.motif[k]
+
         root = [{'fingerprint': [{'information': self.information},
                                  {'total': self.count},
                                  {'nmotif': self.n},
-                                 {'motif': self.motif}]}]
+                                 {'motif': m}]
+                 }]
 
-        return yaml.dump(root, indent=2, default_flow_style=False)
+        return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
 
     def writeYAML(self, file):
         """-----------------------------------------------------------------------------------------
@@ -334,9 +341,8 @@ class FingerprintSet(list):
                 for motif in m1:
                     union += m1[motif]
 
-
                 try:
-                    bc.append([idx[i], idx[j], 2 * intersect / union] )
+                    bc.append([idx[i], idx[j], 2 * intersect / union])
                 except ZeroDivisionError:
                     sys.stderr.write(f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
                                      f' {idx[j]}\n')
