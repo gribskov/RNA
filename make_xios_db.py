@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     pair_idx = {}  # index of unique pair graphs
 
-    level_max = 5
+    level_max = 7
     level_min = 2
     motif = MotifDB()
 
