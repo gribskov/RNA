@@ -122,7 +122,7 @@ class Fingerprint(dict):
                                  {'nmotif': self.n},
                                  {'motif': self.motif}]}]
 
-        return yaml.dump(root, indent=2)
+        return yaml.dump(root, indent=2, default_flow_style=False)
 
     def writeYAML(self, file):
         """-----------------------------------------------------------------------------------------
@@ -194,16 +194,23 @@ class Fingerprint(dict):
         count of each parent is incremented for each of its children.  for nested children this may
         not make perfect sense
 
-        :param motifdb:
+        :param motifdb: MotifDB object with motifs and parents
         :return: int, total number of motifs
         -----------------------------------------------------------------------------------------"""
         children = list(self.motif.keys())
+        # print(f'children:{self.n}')
+        i = 0
         for child in children:
-            for parent in motifdb.parent[child]:
-                # print('child {}\t\tparent {} {}'.format(child, parent, self.motif[child]))
-                self.add(parent, count=self.motif[child])
+            i += 1
+            try:
+                for parent in motifdb.parent[child]:
+                    # print('child {}\t\tparent {} {}'.format(child, parent, self.motif[child]))
+                    self.add(parent, n=self.motif[child])
+            except KeyError:
+                # shouldn't see this, of course
+                print(f'{i}\tadd_parents error:{child}')
 
-        return self.nmotif
+        return self.n
 
 
 class FingerprintSet(list):
