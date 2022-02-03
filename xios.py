@@ -504,6 +504,7 @@ class MotifDB():
         for key in kwds:
             if key == 'json':
                 self.fromJSON(kwds[key])
+
             else:
                 sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
 
@@ -547,8 +548,15 @@ class MotifDB():
         fh = None
         try:
             fh = open(filename, 'rb')
+        except TypeError:
+            # probably a filehandle
+            fh = filename
         except OSError:
             sys.stderr.write(f"MotifDB - can't open pickle file ({filename})")
+
+        # a = pickle.load(fh)
+        # fh.close()
+        # return a
 
         return pickle.load(fh)
 
