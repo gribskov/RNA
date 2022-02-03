@@ -222,6 +222,40 @@ class Topology:
 
         return nline
 
+    def edgelist_from_adjacency(self, include="ijo", whole=False):
+        """-----------------------------------------------------------------------------------------
+        An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
+        tuples with the number and type of nodes with edges.  This function populates the edge_list
+        of the topology object
+
+        :param include: string, edge types to include
+        :param whole: boolean, include self edges, why??
+        :return: int, number of edges
+        -----------------------------------------------------------------------------------------"""
+        elist = []
+        if not self.adjacency:
+            return 0
+
+        size = len(self.adjacency)
+        a = self.adjacency
+        for i in range(size):
+            e = []
+            elist.append(e)
+            begin = i + 1
+            if whole:
+                begin = 0
+
+            for j in range(begin, size):
+                if i == j:
+                    continue
+                if a[i][j] in include:
+                    e.append([j, a[i][j]])
+
+        self.edge_list = elist
+
+        return len(self.edge_list)
+
+
     def XIOSwrite(self, fp):
         """-----------------------------------------------------------------------------------------
         Write the topology in XIOS XML format. The file comprises four sections
@@ -311,7 +345,8 @@ class Topology:
                 self.parse_stem_list(section.text)
 
             elif section.tag == 'edge_list':
-                self.parse_edge_list(section.text)
+                pass
+                # self.parse_edge_list(section.text)
 
             elif section.tag == 'adjacency':
                 self.parse_adjacency(section.text)
@@ -319,6 +354,7 @@ class Topology:
             else:
                 sys.stderr.write('Topology::XIOSread - unknown XML tag ({})\n'.format(section.tag))
 
+        self.edgelist_from_adjacency()
         return 1
 
     def parse_information(self, x, clear=True):
@@ -931,10 +967,11 @@ class Topology:
         size = 0
         while size < min_n:
             # this makes sure a graph with at least three vertices is returned
-            vlist = []
-            neighbor = []
+
             # randomly determine starting vertex
             v0 = random.randrange(nvertex)
+            vlist = []
+            neighbor = []
             size = 0
 
             while size < n:
@@ -942,7 +979,7 @@ class Topology:
                 # update list of neighbors
                 v0adj = adj[v0]
                 for a in range(len(v0adj)):
-                    if v0adj[a] in 'sx0':
+                    if v0adj[a] in 'sx0-':
                         # skip s and x edges, and self
                         continue
 
@@ -2037,36 +2074,6 @@ class RNAstructure(Topology):
         self.adjacency = a
         return edges
 
-    def edgelist_from_adjacency(self, include="ijo", whole=False):
-        """-----------------------------------------------------------------------------------------
-        An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
-        tuples with the number and type of nodes with edges.  This function populates the edge_list
-        of the topology opbject
-
-        :return: int, number of edges
-        -----------------------------------------------------------------------------------------"""
-        elist = []
-        if not self.adjacency:
-            return 0
-
-        size = len(self.adjacency)
-        a = self.adjacency
-        for i in range(size):
-            e = []
-            elist.append(e)
-            begin = i + 1
-            if whole:
-                begin = 0
-
-            for j in range(begin, size):
-                if i == j:
-                    continue
-                if a[i][j] in include:
-                    e.append([j, a[i][j]])
-
-        self.edge_list = elist
-
-        return len(self.edge_list)
 
     def edgelist_format(self, include='ijo', whole=False):
         """-----------------------------------------------------------------------------------------
