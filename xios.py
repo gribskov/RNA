@@ -521,6 +521,21 @@ class MotifDB():
 
         return self.n
 
+    def sort_by_len(self):
+        """
+        Since python dictionaries now retain the entry order it should be possible to make a new
+        order database
+
+        :return:
+        """
+        newdb = {}
+        for k in sorted(self.db, key=lambda x: self.db[x]):
+            newdb[k] = self.db[k]
+
+        self.db = newdb
+
+        return True
+
     def pickle(self, fh):
         """-----------------------------------------------------------------------------------------
         Pickle the object and save to file.  Use filehandle instead of filename so that multiple
@@ -553,10 +568,6 @@ class MotifDB():
             fh = filename
         except OSError:
             sys.stderr.write(f"MotifDB - can't open pickle file ({filename})")
-
-        # a = pickle.load(fh)
-        # fh.close()
-        # return a
 
         return pickle.load(fh)
 
@@ -606,7 +617,7 @@ class MotifDB():
         import zlib
         checksum = reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in self.db.items()])
         checksum = checksum ^ reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8'))
-                                                                    for t in self.parent.items()])
+                                                          for t in self.parent.items()])
 
         return checksum
 
