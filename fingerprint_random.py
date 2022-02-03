@@ -41,7 +41,7 @@ def process_command_line():
     cl.add_argument('--motifdb',
                     help='RNA motif file',
                     type=argparse.FileType('r'))
-    cl.add_argument('--rna',
+    cl.add_argument('-r','--rna',
                     help='RNA topology in XIOS XML format',
                     type=argparse.FileType('r'))
     cl.add_argument('--fpt',
@@ -82,8 +82,7 @@ print('\tSubgraph size: {}'.format(opt.subgraphsize))
 print('\tCoverage (minimum): {}'.format(opt.coverage))
 print('\tOmit parents: {}'.format(opt.noparent))
 
-# read in the motif database and RNA structure
-# motif = MotifDB(json=opt.motifdb)
+# read in the RNA structure
 rna = Topology(xml=opt.rna)
 # print(rna.format_edge_list())
 
@@ -120,8 +119,8 @@ while True:
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
     # print(dfs)
-    if not fingerprint.total % 1000:
-        print(fingerprint.total, dfs)
+    if not fingerprint.count % 10000:
+        print(fingerprint.count, dfs)
         fingerprint.writeYAML(sys.stderr)
     fingerprint.add(dfs)
 
@@ -129,22 +128,27 @@ while True:
         # if the new dfs is the one with the lowest count, update the lowest count
         minmotif = fingerprint.minkey()
         mincount = fingerprint.mincount()
-        print('{}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif, fingerprint.mincount()))
-        if mincount >= count_threshold:
+        print('{}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
+        if mincount >= count_threshold or fingerprint.count>sample_threshold:
             break
 
-print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif,
+print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
                                               fingerprint.mincount()))
-# if not opt.noparent:
-#     fingerprint.add_parents(motif)
-#     print('Extended fingerprint: {}\t{}\t{}'.format(fingerprint.total, fingerprint.nmotif,
-#                                                     fingerprint.mincount()))
+
+# to include parent, you must read a motif database
+if not opt.noparent:
+# read in the motif database and RNA structure
+    # TODO change pickled file to opt.motifdb when done testing
+    motif = MotifDB.unpickle('2to7stem.mdb.pkl')
+    fingerprint.add_parents(motif)
+    print('Extended fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
+                                                    fingerprint.mincount()))
 
 # print(fingerprint.toYAML())
 fingerprint.writeYAML(opt.fpt)
 
 daytime = datetime.datetime.now()
 runend = daytime.strftime('%Y-%m-%d %H:%M:%S')
-sys.stdout.write('Completed: {}'.format(runend))
+sys.stdout.write('\nCompleted: {}'.format(runend))
 
 exit(0)
