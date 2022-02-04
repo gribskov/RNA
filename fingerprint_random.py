@@ -91,6 +91,7 @@ else:
     print('\tFingerprint: {}'.format(opt.fpt.name))
     print('\tSubgraph size: {}'.format(opt.subgraphsize))
     print('\tCoverage (minimum): {}'.format(opt.coverage))
+    print(f'\tMaximum sample: {opt.limit}')
     print('\tOmit parents: {}'.format(opt.noparent))
 
 # read in the RNA structure
@@ -126,7 +127,7 @@ while True:
     # print(dfs)
     if not opt.quiet and not fingerprint.count % 10000:
         print(fingerprint.count, dfs)
-        fingerprint.writeYAML(sys.stderr)
+        # fingerprint.writeYAML(sys.stderr)
     fingerprint.add(dfs)
 
     if dfs == minmotif:
