@@ -172,17 +172,16 @@ class Fingerprint(dict):
             # file is not str, assume it is a file pointer
             fp = file
 
-        f = yaml.load(fp)
+        f = yaml.load(fp, Loader=yaml.FullLoader)
         root = f[0]['fingerprint']
 
         # fields = ['information', 'total', 'nmotif', 'motif']
 
         self.information = root[0]['information']
-        self.total = root[1]['total']
-        self.nmotif = root[2]['nmotif']
+        self.count = root[1]['total']
         self.motif = root[3]['motif']
 
-        return self.nmotif
+        return self.n
 
     def setdate(self):
         """-----------------------------------------------------------------------------------------
@@ -237,7 +236,7 @@ class FingerprintSet(list):
     def fill(self):
         """-----------------------------------------------------------------------------------------
         compare the motif lists for all the fingerprint in the set and fill in any missing  motifs
-        with zeroes.  After running fill, all fingerprints will have the same motfif lists
+        with zeroes.  After running fill, all fingerprints will have the same motif lists
 
         :return: int, number of motifs
         -----------------------------------------------------------------------------------------"""
