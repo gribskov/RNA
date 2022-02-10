@@ -130,7 +130,7 @@ def safe_file(filename, mode):
     :param mode: string, 'r' or 'w'
     :return:
     ---------------------------------------------------------------------------------------------"""
-    if mode is 'r':
+    if mode == 'r':
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -306,7 +306,12 @@ def runmergestems(arg, ct, xios, comment):
     opt = ['python3', exe, ct]
     # opt += ['-c', f'{args.mergecase}']
     opt += ['-d', f'{args.ddg}']
-    subprocess.call(opt, stdout=xiosout)
+    try:
+        subprocess.call(opt, stdout=xiosout)
+    except Exception as err:
+        sys.stderr.write(f'{err} {exe} {opt}\n')
+        print(f'error in mergestems {exe} {opt}')
+
     xiosout.close()
 
     rna = RNAstructure()
