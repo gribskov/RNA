@@ -31,6 +31,8 @@ def options():
 
     :return: argparse Namespace (similar to a dictionary)
     ---------------------------------------------------------------------------------------------"""
+    # print(sys.argv)
+
     commandline = argparse.ArgumentParser(
         description='Create XIOS from FastaA sequence using the RNAstructure fold program',
         formatter_class=formatter)
@@ -163,7 +165,7 @@ def ct_from_fasta(args, fasta):
 
     ct += f'.w{args.window}'
     ct += '.ct'
-    return ct
+    return f'{args.ctdir}{ct}'
 
 
 def xios_from_ct(args, ct):
@@ -357,7 +359,7 @@ if __name__ == '__main__':
 
     input = args.indir + args.fasta
     print('Inputs and outputs')
-    print(f'\tFasta files: {input}')
+    print(f'\tFasta files: {args.indir}')
     print(f'\tCT files: {args.ctdir}')
     print(f'\tXIOS files: {args.xiosdir}\n')
 
@@ -385,7 +387,8 @@ if __name__ == '__main__':
         for window in range(args.window_min, args.window_max + 1):
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
-            ct = args.ctdir_from_fasta(args, fasta)
+            ct = ct_from_fasta(args, fasta)
+            print(f'xios_from_rnastructure ct={ct}')
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
