@@ -380,7 +380,7 @@ if __name__ == '__main__':
         for window in range(args.window_min, args.window_max + 1):
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
-            ct = 'ctfiles/' + ct_from_fasta(args, fasta)
+            ct = args.ctdir_from_fasta(args, fasta)
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
