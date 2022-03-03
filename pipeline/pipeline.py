@@ -1,6 +1,11 @@
 """=================================================================================================
-Run multiple jobs using subprocess.Popen()
-Poll jobs until all jobs are done
+Run multiple jobs using subprocess.Popen(). This version will run on windows (tested) and should
+run on unix (not tested)
+
+total is the total number of jobs to run.
+run is the number to keep running at the same time
+
+3 March 2022    Michael Gribskov
 ================================================================================================="""
 import subprocess as sub
 import random
@@ -13,7 +18,9 @@ log = open('sleep.log', 'wb')
 total = 14
 total_finished = 0
 total_started = 0
-run = 3
+
+# number of jobs to run simultaneously
+run = 5
 running = 0
 delay = 2  # time to wait after polling
 
@@ -59,5 +66,4 @@ while total_finished < total:
     print(f'\nrunning:{running}\tfinished: {total_finished}')
     sleep(delay)
 
-log.flush()
 log.close()
