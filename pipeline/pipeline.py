@@ -6,45 +6,57 @@ import subprocess as sub
 import random
 from time import sleep
 
-jobs = []
-n = 3
-
 # logfile for output
 log = open('sleep.log', 'wb')
 
+# total number of jobs and number to run simultaneously
+total = 14
+total_finished = 0
+total_started = 0
+run = 3
+running = 0
+delay = 2  # time to wait after polling
+
 # start n jobs, each job sleeps a random number of seconds, then terminates
-for i in range(n):
-    sec = random.randrange(15)
-    command = ['py', 'sleep.py', f'{sec}']
-    print(f'job {i}: {sec} seconds')
-    # job = sub.Popen(command, shell=True, stdout=sub.DEVNULL, stderr=sub.DEVNULL)
-    job = sub.Popen(command, shell=True, stdout=log, stderr=log)
-    # job = sub.Popen(command, shell=True)
-    jobs.append(job)
+joblist = []
+job_id= 0
+while total_finished < total:
 
-# poll until all jobs finish
-done = 0
-delay = 2  # number of seconds to wait between polls
-while done < n:
+    while running < run and total_started < total:
+        job_id += 1
+        sec = random.randrange(15)
+        command = ['py', 'sleep.py', f'{sec}']
+        print(f'starting job {job_id}: {sec} seconds')
+        job = sub.Popen(command, shell=True, stdout=log, stderr=log)
+        joblist.append([job_id, job])
+        running += 1
+        total_started += 1
+
+    # poll all jobs in joblist
     print('\nPolling')
-    for i in range(n):
-        if jobs[i] == 'Done':
-            continue
+    to_remove = []
+    for j in joblist:
+        id, job = j
 
-        print('    job {} ...'.format(i), end='')
-        result = jobs[i].poll()
-        # out, err = jobs[i].communicate()
-
+        print(f'\tjob {id} ...', end='')
+        result = job.poll()
 
         if result != None:
+            # None indicates job is still running
             print('finished')
-            jobs[i] = 'Done'
-            done += 1
+            to_remove.append(j)
 
         else:
             print('still running')
-            # print('job {}:result={}'.format(i, result))
 
+    # remove all finished jobs. Can't do it above because it shortens the joblist
+    # and some jobs don't get polled
+    for j in to_remove:
+        joblist.remove(j)
+        running -= 1
+        total_finished += 1
+
+    print(f'\nrunning:{running}\tfinished: {total_finished}')
     sleep(delay)
 
 log.flush()
