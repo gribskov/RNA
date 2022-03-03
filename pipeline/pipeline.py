@@ -18,8 +18,8 @@ for i in range(n):
     command = ['py', 'sleep.py', f'{sec}']
     print(f'job {i}: {sec} seconds')
     # job = sub.Popen(command, shell=True, stdout=sub.DEVNULL, stderr=sub.DEVNULL)
-    # job = sub.Popen(command, shell=True, stdout=log, stderr=log)
-    job = sub.Popen(command, shell=True)
+    job = sub.Popen(command, shell=True, stdout=log, stderr=log)
+    # job = sub.Popen(command, shell=True)
     jobs.append(job)
 
 # poll until all jobs finish

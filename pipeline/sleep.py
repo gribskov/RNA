@@ -20,14 +20,16 @@ import uuid
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
+    sec = int(sys.argv[1])
+
     u = uuid.uuid1()
     uid = u.hex[:5]
 
     t = time.localtime()
     now = time.strftime("%I:%M:%S ", t)
-    sys.stdout.write(f'{uid} started {now}\n')
+    sys.stdout.write(f'{uid} started {now} request={sec} seconds\n')
 
-    time.sleep(int(sys.argv[1]))
+    time.sleep(sec)
 
     t = time.localtime()
     now = time.strftime("%I:%M:%S ", t)
