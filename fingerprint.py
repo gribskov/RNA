@@ -379,5 +379,5 @@ if __name__ == '__main__':
     fset += [finger1, finger2, finger3]
     print(f'Jaccard Similaity:{fset.jaccard_sim()}')
     print(f'Bray-Curtis Dissimilarity:{fset.bray_curtis_dis()}')
-    print(f'intesect:{fset.jaccard_sim(idx=[0, 3])}')
+    print(f'intersect:{fset.jaccard_sim(idx=[0, 3])}')
     exit(0)
