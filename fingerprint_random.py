@@ -4,6 +4,7 @@ sample a random fingerprint from a structure in XIOS XML format
 10 July 2019     Michael Gribskov
 ================================================================================================="""
 import sys
+import os
 import datetime
 import argparse
 from topology import Topology
@@ -50,9 +51,8 @@ def process_command_line():
                     help='RNA topology in XIOS XML format',
                     type=argparse.FileType('r'))
     cl.add_argument('-f', '--fpt',
-                    help='Fingerprint output file (default=STDOUT)',
-                    type=argparse.FileType('w'),
-                    default=sys.stdout)
+                    help='Fingerprint output file (default=STDOUT, auto=calculate from xios)',
+                    default='auto')
     cl.add_argument('-s', '--subgraphsize',
                     help='Size subgraph to sample (default=%(default)s)',
                     type=int,
@@ -72,7 +72,32 @@ def process_command_line():
                     help='Minimal output on stdout (default=%(default)s)',
                     action='store_true')
 
-    return cl.parse_args()
+    args = cl.parse_args()
+
+    print(f'auto={args.fpt}')
+    if str(args.fpt) == 'auto':
+        args.fpt = fpt_from_xios(args)
+
+    return args
+
+
+def fpt_from_xios(args):
+    '''---------------------------------------------------------------------------------------------
+    create a name for the output file by
+        1) removing directory path
+        2) changing the suffix .xios to .fpt
+        
+    :param xiosfile: string - input xios file
+    :return: string - name for fingerprint file
+    ---------------------------------------------------------------------------------------------'''
+    fpt = os.path.basename(args.rna.name)
+    l = len(fpt)
+    if fpt.rindex('.xios') == l - 5:
+        fpt = fpt[:-5]
+
+    fpt += '.fpt'
+
+    return fpt
 
 
 # ##################################################################################################
@@ -83,7 +108,7 @@ runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
 
 if opt.quiet:
-    print(f'fingerprint_random: {daytime} : {opt.rna.name} : {opt.fpt.name}', end=' ')
+    print(f'fingerprint_random: {daytime} : {opt.rna.name} : {opt.fpt}', end=' ')
 else:
     print('fingerprint_random - Sample XIOS fingerprint from RNA topology {}'.format(runstart))
     print('\tRNA structure: {}'.format(opt.rna.name))
@@ -99,13 +124,13 @@ rna = Topology(xml=opt.rna)
 # print(rna.format_edge_list())
 
 # this is an unweighted sampling strategy.  Others were tried, sampling:
-#   inversely proportional to number of times previously sampled scaled by 1/n and 1/rank
-#   proportional to number of neighbors
-#   inversely proportional to number of neighbors
+# inversely proportional to number of times previously sampled scaled by 1/n and 1/rank
+# proportional to number of neighbors
+# inversely proportional to number of neighbors
 
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
-fingerprint.information['File'] = opt.fpt.name
+fingerprint.information['File'] = opt.fpt
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
 
@@ -144,7 +169,6 @@ if opt.noparent:
         print(f'fpt: {fingerprint.n} : {fingerprint.count}')
     else:
         print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
-
 
 # to include parent, you must read a motif database
 if not opt.noparent:
