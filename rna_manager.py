@@ -33,7 +33,6 @@ class Pipeline():
         self.fpt = self.base + 'fpt/'
 
         self.args = self.arg_get()
-        print('hi')
 
     @staticmethod
     def arg_formatter(prog):
@@ -98,15 +97,15 @@ class Pipeline():
                                  help='Base directory for project (%(default)s)',
                                  default=f'{base}')
 
-        commandline.parse_args()
-        self.rnastructure = args.rnastructure
+        args = commandline.parse_args()
+        self.RNAastructure = args.RNAstructure
         self.python = args.python
 
         self.log = args.log if args.log else self.log
         self.fasta = args.fasta if args.fasta else self.fasta
-        self.ct = args.ct if args.ct else self.ct
-        self.xios = args.xios if args.xios else self.xios
-        self.fpt = args.fpt if args.fpt else self.fpt
+        self.ct = args.ctdir if args.ctdir else self.ct
+        self.xios = args.xiosdir if args.xiosdir else self.xios
+        self.fpt = args.fingerprint if args.fingerprint else self.fpt
 
         # commandline.add_argument('-p', '--percent',
         #                          help='Fold: percent cutoff for suboptimal structures (%(default)s)',
@@ -123,6 +122,43 @@ class Pipeline():
         #                          default='5')
 
         return args
+
+    def check_directory(self, dirname):
+        """-----------------------------------------------------------------------------------------
+        Check if the name directory exists, if it does, return the name of the most recent files
+
+        :param dirname:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        dir = getattr(self,dirname)
+
+        if os.path.isdir(dir):
+            # logs exist, assume we are restarting
+            # TODO this should return a list of completed analyses from the manager log
+            # startwith = check_logs(base, filelist)
+            pass
+        else:
+            # if directory doesn't exist, create it
+            os.mkdir(dir)
+
+        if dirname == 'log':
+            #create log directories for the current run
+            timestamp = Pipeline.logtime()
+
+            startwith = 0
+
+        return
+
+    @staticmethod
+    def logtime():
+        """
+        Create a time string for use in logs year month day hour min sec
+        concatenated
+
+        :return:
+        """
+        t = time.localtime()
+        return time.strftime('%Y%m%d%H%M%S')
 
 
 def current_time():
@@ -310,12 +346,7 @@ Initializes directory, gets list of files from get_file_list(), checks if there 
 reads it to find last fasta file worked on, and sends to manager()
 -------------------------------------------------------------------------------------------------"""
 workflow = Pipeline(base='base12')
-# workflow = Pipeline()
-
-base = sys.argv[1]  # base directory
-pythonexe = sys.argv[2]  # directory of python executables
-rnaexe = sys.argv[3]  # directory of RNAstructure executables
-
+workflow.check_directory('log')
 # open log files
 # create directory for log files if one does not exist
 
