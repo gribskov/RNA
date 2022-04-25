@@ -4,13 +4,125 @@ total is the total number of jobs to run.
 run is the number to keep running at the same time
 Ben Iovino    19 April 2022
 
-from githum.com/biovino/biol494/rna_manager.py commit 7615726bdcc439741db9ebca8805da54b2b386c2
+from github.com/biovino/biol494/rna_manager.py commit 7615726bdcc439741db9ebca8805da54b2b386c2
 ================================================================================================="""
 
 import subprocess as sub
 import time
 import os
 import sys
+import argparse
+
+
+class Pipeline():
+    '''=============================================================================================
+    =============================================================================================='''
+
+    def __init__(self, base='./'):
+        '''-----------------------------------------------------------------------------------------
+        manager object holds locations of files and directories
+        -----------------------------------------------------------------------------------------'''
+        self.base = base
+        if not self.base.endswith('/'):
+            self.base += '/'
+
+        self.log = self.base + 'log/'
+        self.fasta = self.base + 'fasta/'
+        self.ct = self.base + 'ct/'
+        self.xios = self.base + 'xios/'
+        self.fpt = self.base + 'fpt/'
+
+        self.args = self.arg_get()
+        print('hi')
+
+    @staticmethod
+    def arg_formatter(prog):
+        """---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        Set up formatting for help
+        :param prog:
+        :return: argparse formatter class
+        ---------------------------------------------------------------------------------------------"""
+        return argparse.HelpFormatter(prog, max_help_position=60, width=120)
+
+    def arg_get(self):
+        """-----------------------------------------------------------------------------------------
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        base = self.base
+
+        commandline = argparse.ArgumentParser(
+            description='Run XIOS fingerprint pipeline', formatter_class=Pipeline.arg_formatter)
+
+        commandline.add_argument('-q', '--quiet',
+                                 help='run with minimal output to terminal',
+                                 action='store_true')
+        commandline.add_argument('-p', '--passthrough',
+                                 metavar='COMMAND_STRING',
+                                 help='command options to pass through to pipeline executables (%(default)s)',
+                                 default='NONE')
+        # # paths to executables
+
+        commandline.add_argument('-R', '--RNAstructure',
+                                 metavar='DIRECTORY',
+                                 help='directory with RNAstructure package executables (%(default)s)',
+                                 default='../RNAstructure')
+        commandline.add_argument('-P', '--python',
+                                 metavar='DIRECTORY',
+                                 help='directory with XIOS python executable3s (%(default)s)',
+                                 default='../RNA')
+
+        # alternate names for input and output directories
+        commandline.add_argument('-l', '--log',
+                                 metavar='DIR_NAME',
+                                 help='log directory (%(default)s)',
+                                 default=f'{base}log/')
+        commandline.add_argument('-i', '--fasta',
+                                 metavar='DIR_NAME',
+                                 help='subdirectory with initial FastA files (%(default)s)',
+                                 default=f'{base}fasta/')
+        commandline.add_argument('-c', '--ctdir',
+                                 metavar='DIR_NAME',
+                                 help='subdirectory for CT files (%(default)s)',
+                                 default=f'{base}ct/')
+        commandline.add_argument('-x', '--xiosdir',
+                                 metavar='DIR_NAME',
+                                 help='subdirectory for XIOS files (%(default)s)',
+                                 default=f'{base}xios/')
+        commandline.add_argument('-f', '--fingerprint',
+                                 metavar='DIR_NAME',
+                                 help='subdirectory for fingerprint files (%(default)s)',
+                                 default=f'{base}fpt/')
+
+        commandline.add_argument('base', type=str,
+                                 help='Base directory for project (%(default)s)',
+                                 default=f'{base}')
+
+        commandline.parse_args()
+        self.rnastructure = args.rnastructure
+        self.python = args.python
+
+        self.log = args.log if args.log else self.log
+        self.fasta = args.fasta if args.fasta else self.fasta
+        self.ct = args.ct if args.ct else self.ct
+        self.xios = args.xios if args.xios else self.xios
+        self.fpt = args.fpt if args.fpt else self.fpt
+
+        # commandline.add_argument('-p', '--percent',
+        #                          help='Fold: percent cutoff for suboptimal structures (%(default)s)',
+        #                          default=10)
+        # commandline.add_argument('-m', '--maximum',
+        #                          help='Fold: maximum number of suboptimal structures (%(default)s)',
+        #                          default=100)
+        # commandline.add_argument('-w', '--window',
+        #                          help='Fold: window for suboptimal structures (%(default)s) or comma separated',
+        #                          default='4')
+        # commandline.add_argument('-d', '--ddG',
+        #                          help='Mergestems: delta deltaG limit for supoptimal structures (%(default)s) '
+        #                               'or comma separated',
+        #                          default='5')
+
+        return args
 
 
 def current_time():
@@ -21,7 +133,7 @@ def current_time():
 
     t = time.localtime()
     now = time.strftime("%c", t)
-    now = now.replace(' ','').replace(':','')
+    now = now.replace(' ', '').replace(':', '')
 
     return now
 
@@ -41,7 +153,7 @@ def get_file_list(directory):
 
         # Append file name to list
         if '.fa' in file:
-          filelist.append(file)
+            filelist.append(file)
     filelist.sort()
 
     # Return list of file names
@@ -120,9 +232,9 @@ def manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
     # if total or run are too big, index errors occur
     listlength = len(filelist[startwith:])
     if listlength < total:
-      total = listlength
+        total = listlength
     if listlength < jobs:
-      run = listlength
+        run = listlength
 
     # start n jobs, each job sleeps a random number of seconds, then terminates
     joblist = []
@@ -184,39 +296,51 @@ def manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
     error_log.close()
 
 
-def main():
-    """---------------------------------------------------------------------------------------------
-    Initializes directory, gets list of files from get_file_list(), checks if there is a log file and
-    reads it to find last fasta file worked on, and sends to manager()
-    ---------------------------------------------------------------------------------------------"""
+# --------------------------------------------------------------------------------------------------
+# Main
+# --------------------------------------------------------------------------------------------------
 
-    base = sys.argv[1]  # directory of fasta files
-    pythonexe = sys.argv[2]  # directory of python executables
-    rnaexe = sys.argv[3]  # directory of RNAstructure executables
-    jobs = int(sys.argv[4])  # number of concurrent jobs to work on
-    w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
-    d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
+"""-------------------------------------------------------------------------------------------------
+base is the main project directoy, each step of the pipeline creates a directory under base
+    ctfiles
+    xiosfiles
+    fptfiles
+    
+Initializes directory, gets list of files from get_file_list(), checks if there is a log file and
+reads it to find last fasta file worked on, and sends to manager()
+-------------------------------------------------------------------------------------------------"""
+workflow = Pipeline(base='base12')
+# workflow = Pipeline()
 
-    # directory of fasta files, get filelist
-    directory = base + '/lncRNA2500'
-    print(f'base={base} directory={directory}')
-    filelist = get_file_list(directory)
+base = sys.argv[1]  # base directory
+pythonexe = sys.argv[2]  # directory of python executables
+rnaexe = sys.argv[3]  # directory of RNAstructure executables
 
-    # create directory for log files if one does not exist
-    path = base + '/Logs/'
-    if os.path.isdir(path) != True:
-        os.mkdir(path)
-        os.mkdir(path+'xios_from_rnastructure')
-        os.mkdir(path+'rna_manager')
-        os.mkdir(path+'manager_error')
-        startwith = 0
-    else:
-        startwith = check_logs(base, filelist)
+# open log files
+# create directory for log files if one does not exist
 
-    # call manager
-    manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
+path = base + 'logs/'
+if os.path.isdir(path):
+    # logs exist, assume we are restarting
+    startwith = check_logs(base, filelist)
+else:
+    # logs don't exist, start from scratch
+    os.mkdir(path)
+    # os.mkdir(path+'xios_from_rnastructure')
+    # os.mkdir(path+'rna_manager')
+    # os.mkdir(path+'error')
+    startwith = 0
 
-    # python /scratch/scholar/biovino/BIOL494/rna_manager.py /scratch/scholar/biovino/RNAdata /scratch/scholar/mgribsko/RNA /scratch/scholar/mgribsko/RNAstructure 5 4 5
+jobs = int(sys.argv[4])  # number of concurrent jobs to work on
+w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
+d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
+# directory of fasta files, get filelist
+directory = base + 'fasta'
+print(f'base={base} directory={directory}')
+filelist = get_file_list(directory)
 
-main()
+# call manager
+manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
+
+ext(0)
