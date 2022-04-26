@@ -41,6 +41,7 @@ class Pipeline():
         self.errorlog = None
 
         self.stage = []
+        self.source = ''  # directory for input to the current stage
         self.current = ''
         self.complete = {}
 
@@ -154,22 +155,68 @@ class Pipeline():
         self.stage.append(description)
         return len(self.stage)
 
-    def stagefind(self, init):
+    def stagefind(self):
         """-----------------------------------------------------------------------------------------
         Find the current stage by examining whether the stage directory has been created.  The
         output of each stage goes in a directory with the same name
 
-        :param init: int - name for initial stage (i.e., original input file directory)
         :return: string, stage name
         -----------------------------------------------------------------------------------------"""
-        current = init
         for stage in self.stage:
             path = self.base + stage['stage']
             if os.path.isdir(path):
-                current = stage
+                # current will be the last one matched
+                self.source = stage
+                self.current = stage
 
-        self.current = current
-        return current
+        if not self.current:
+            # first stage if none have been run before
+            self.current = self.stage[0]['stage']
+
+        return self.current
+
+    def fastforward(self):
+        """-----------------------------------------------------------------------------------------
+        Read the most recent logfile and make a list of completed files for each stage.
+        Reinitializes self.complete
+
+        :return: complete_n
+        -----------------------------------------------------------------------------------------"""
+        # initialize lists of completed files for each stage
+        self.complete = {self.stage[i]['stage']: [] for i in range(len(self.stage))}
+
+        # check the log directory and create if necessary
+        create_files_and_stop = False
+        if not os.path.isdir(self.log):
+            # if directory doesn't exist, create it.
+            os.mkdir(self.log)
+            create_files_and_stop = True
+
+        # create log files for the current run
+        timestamp = Pipeline.logtime()
+        self.managerlog = open(f'{self.log}{timestamp}_manager.log', 'w')
+        self.errorlog = open(f'{self.log}{timestamp}_error.log', 'w')
+        self.logmessage('manager', 'start_run', 'init', 'initialize logs')
+
+        if create_files_and_stop:
+            return 0
+
+        # if there are existing logs, identify the most recent one and read the
+        # completed files
+        manager = self.logrecent('manager')
+        if manager:
+            # recent logfile exists, read in completed files
+            complete_n = 0
+            for line in manager:
+                if line.startswith('complete'):
+                    complete_n += 1
+                    tag, stage, file, time = line.rstrip().split('\t')
+                    self.complete[stage].append(file)
+                    self.logmessage('manager', 'complete', stage, 'read from previous log')
+
+            manager.close()
+
+        return complete_n
 
     def check_directory(self, dirname):
         """-----------------------------------------------------------------------------------------
@@ -184,7 +231,7 @@ class Pipeline():
             # logs exist, assume we are restarting
             # TODO this should return a list of completed analyses from the manager log
             stagecounts = self.logcheck()
-            pass
+
         else:
             # if directory doesn't exist, create it
             os.mkdir(dir)
@@ -192,8 +239,8 @@ class Pipeline():
         if dirname == 'log':
             # create log files for the current run
             timestamp = Pipeline.logtime()
-            self.managerlog = open(f'{timestamp}_manager.log', 'w')
-            self.errorlog = open(f'{timestamp}_errorr.log', 'w')
+            self.managerlog = open(f'{self.log}{timestamp}_manager.log', 'w')
+            self.errorlog = open(f'{self.log}{timestamp}_error.log', 'w')
 
             startwith = 0
 
@@ -210,7 +257,7 @@ class Pipeline():
         t = time.localtime()
         return time.strftime('%Y%m%d%H%M%S')
 
-    def logrecent(self):
+    def logrecent(self, logname):
         """-----------------------------------------------------------------------------------------
         Find and open the most recent manager log for reading
 
@@ -219,11 +266,11 @@ class Pipeline():
         dirlist = []
         for file in os.listdir(self.log):
             d = os.path.join(self.log, file)
-            if os.path.isdir(d):
+            if logname in d:
                 dirlist.append(d)
 
         if dirlist:
-            return open(dirlist[0], 'r')
+            return open(dirlist[-1], 'r')
         else:
             return None
 
@@ -253,7 +300,7 @@ class Pipeline():
         self.complete = complete
         return complete_n
 
-    def log(self, log, tag, stage, message):
+    def logmessage(self, log, tag, stage, message):
         """-----------------------------------------------------------------------------------------
         add a timestamped message to the named log
 
@@ -269,9 +316,9 @@ class Pipeline():
         elif log == 'error':
             fp = self.errorlog
         else:
-            self.log('error', 'unknown_logfile', stage, '')
+            self.logmessage('error', 'unknown_logfile', stage, '')
 
-        log_message = f'{tag}\t{stage}\t{message}\t{self.logtime}\n'
+        log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
         fp.write(log_message)
 
         return log_message
@@ -300,10 +347,11 @@ class Pipeline():
         return filelist
 
     def manager(self):
-        """---------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
         certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
-        that went through complete job. Polls every x amount of seconds to check which jobs are complete.
+        that went through complete job. Polls every x amount of seconds to check which jobs are
+        complete.
         :param base: directory of directories i.e. /scratch/scholar/user/data/
         :param pythonexe: directory with python executable files
         :param rnaexe: directory with RNAstructure executable files
@@ -313,22 +361,24 @@ class Pipeline():
         :param filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
         :param startwith: index of filelist to start running
         :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
-        ---------------------------------------------------------------------------------------------"""
-        for stage in self.stage:
-            if stage['name'] != self.current:
-                # skip to current stage, stages are in order of execution in self.stage
-                continue
-            self.log('manager', 'start', f'stage={stage}')
+        -----------------------------------------------------------------------------------------"""
+        # self.logmessage('manager', 'start', 'init', '')
 
-        stagedir = getattr(self, stage)
+        self.fastforward()
+        files = []
+        for stage in self.stage:
+            s = stage['stage']
+            files.append(f'{s}:{len(self.complete[s])}')
+        self.logmessage('manager', 'fastforward_complete', f'init', ','.join(files))
+
         filelist = Pipeline.get_file_list(stagedir)
 
         # TODO get  file list
-        print(f'manager:directory={directory}')
+        print(f'manager:directory={thisstage}')
 
         # logfile for output
         now = current_time()
-        xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
+        # xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
         # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
         # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
 
@@ -445,7 +495,7 @@ def get_file_list2(directory):
     return filelist
 
 
-def check_logs(base, filelist):
+def check_logs2(base, filelist):
     """---------------------------------------------------------------------------------------------
     Checks existing log files to check what fasta files have already been processed.
     :param directory: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
@@ -499,7 +549,7 @@ def manager2(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory
 
     # logfile for output
     now = current_time()
-    xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
+    # xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
     # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
     # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
 
@@ -599,7 +649,7 @@ reads it to find last fasta file worked on, and sends to manager()
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
 workflow = Pipeline(base='data/')
-workflow.check_directory('log')
+# workflow.check_directory('log')
 #
 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
 #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
@@ -613,7 +663,7 @@ workflow.stage.append({'stage':   'xios',
                                    f'-r (workflow.RNAstructure',
                                    ]
                        })
-stage = workflow.stagefind(init='fasta')
-manager()
+workflow.source = 'fasta'
+workflow.manager()
 
 exit(0)
