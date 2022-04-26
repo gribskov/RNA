@@ -203,7 +203,7 @@ class Pipeline():
         timestamp = Pipeline.logtime()
         self.managerlog = open(f'{self.log}{timestamp}_manager.log', 'w')
         self.errorlog = open(f'{self.log}{timestamp}_error.log', 'w')
-        self.logmessage('manager', 'start_run', 'init', 'initialize logs')
+        self.logwrite('manager', 'start_run', 'init', 'initialize logs')
 
         if create_files_and_stop:
             return 0
@@ -215,11 +215,11 @@ class Pipeline():
             # recent logfile exists, read in completed files
             complete_n = 0
             for line in manager:
-                if line.startswith('complete'):
+                info = self.logread(manager, 'complete')
+                if info:
                     complete_n += 1
-                    tag, stage, file, time = line.rstrip().split('\t')
-                    self.complete[stage].append(file)
-                    self.logmessage('manager', 'complete', stage, 'read from previous log')
+                    self.complete[info['stage']].append(info['message'])
+                    self.logwrite('manager', 'complete', info['stage'], 'read from previous log')
 
             manager.close()
 
@@ -253,7 +253,7 @@ class Pipeline():
         else:
             return None
 
-    def logmessage(self, log, tag, stage, message):
+    def logwrite(self, log, tag, stage, message):
         """-----------------------------------------------------------------------------------------
         add a timestamped message to the named log
 
@@ -269,13 +269,32 @@ class Pipeline():
         elif log == 'error':
             fp = self.errorlog
         else:
-            self.logmessage('error', 'unknown_logfile', stage, '')
+            self.logwrite('error', 'unknown_logfile', stage, '')
 
-        log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
+        # log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
+        log_message = f'{self.logtime()}\t{stage}\t{tag:12s}\t{message}\n'
         fp.write(log_message)
         fp.flush()
 
         return log_message
+
+    def logread(self, fp, filter):
+        """-----------------------------------------------------------------------------------------
+        read the indicated log until a matching tag is found. return a hash with the log information
+        or if nothing is found, an empty dict (False)
+        
+        :param log: string - name of log (e.g., manager, error)
+        :param filter: string: tag field must match
+        :return: dict - keys: time, stage, tag, message
+        -----------------------------------------------------------------------------------------"""
+        info = {}
+        for line in fp:
+            field = line.rstrip().split('\t')
+            if info['tag'] == 'completed':
+                info = {'time':field[0], 'stage':field[1], 'tag':field[2], 'message':field[3]}
+                break
+
+        return info
 
     @staticmethod
     def get_file_list(directory, filter='.fa'):
@@ -316,14 +335,14 @@ class Pipeline():
         :param startwith: index of filelist to start running
         :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
         -----------------------------------------------------------------------------------------"""
-        # self.logmessage('manager', 'start', 'init', '')
+        # self.logwrite('manager', 'start', 'init', '')
 
         self.fastforward()
         files = []
         for stage in self.stage:
             s = stage['stage']
             files.append(f'{s}:{len(self.complete[s])}')
-        self.logmessage('manager', 'fastforward_complete', f'init', ','.join(files))
+        self.logwrite('manager', 'fastforward', f'init', ','.join(files))
 
         for stage in self.stage:
             stagedir = getattr(self, self.source)
@@ -331,7 +350,7 @@ class Pipeline():
 
             # total number of jobs for this stage
             total = len(filelist)
-            self.logmessage('manager', 'file_list', f'{stage["stage"]}', f'{total} files in {self.source}')
+            self.logwrite('manager', 'files', f'{stage["stage"]}', f'{total} files in {self.source}')
 
             # TODO check that output directory exists
 
@@ -360,7 +379,7 @@ class Pipeline():
                 #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 
                 command = stage['command']
-                self.logmessage('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
+                self.logwrite('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
                 # job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
                 job = 'test'
                 self.joblist.append(job_id)
@@ -405,10 +424,10 @@ class Pipeline():
             # write fasta file name to file, and other marked attributes
             if j[3] == 2:
                 # error
-                self.logmessage('error', 'fail', self.current, f'status:{j[3]}')
+                self.logwrite('error', 'fail', self.current, f'status:{j[3]}')
             else:
                 # success
-                self.logmessage('manager', 'completed', self.current, f'jobid:{j[0]}')
+                self.logwrite('manager', 'completed', self.current, f'jobid:{j[0]}')
 
             # remove finished jobs
             self.joblist.remove(j)
