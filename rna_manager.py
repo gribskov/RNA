@@ -26,6 +26,9 @@ class Pipeline():
         if not self.base.endswith('/'):
             self.base += '/'
 
+        self.RNAastructure = '../RNAstructure'
+        self.python = '../RNA'
+
         self.log = self.base + 'log/'
         self.fasta = self.base + 'fasta/'
         self.ct = self.base + 'ct/'
@@ -33,6 +36,13 @@ class Pipeline():
         self.fpt = self.base + 'fpt/'
 
         self.args = self.arg_get()
+
+        self.managerlog = None
+        self.errorlog = None
+
+        self.stage = []
+        self.current = ''
+        self.complete = {}
 
     @staticmethod
     def arg_formatter(prog):
@@ -49,10 +59,16 @@ class Pipeline():
         :return:
         -----------------------------------------------------------------------------------------"""
         base = self.base
+        if not base.endswith('/'):
+            base += '/'
 
         commandline = argparse.ArgumentParser(
             description='Run XIOS fingerprint pipeline', formatter_class=Pipeline.arg_formatter)
 
+        commandline.add_argument('-j', '--jobs',
+                                 help='number of concurrent jobs to run',
+                                 type=int,
+                                 default=20)
         commandline.add_argument('-q', '--quiet',
                                  help='run with minimal output to terminal',
                                  action='store_true')
@@ -98,9 +114,13 @@ class Pipeline():
                                  default=f'{base}')
 
         args = commandline.parse_args()
-        self.RNAastructure = args.RNAstructure
+        self.RNAstructure = args.RNAstructure
         self.python = args.python
 
+        # change object values if specified on command line
+        if not args.base.endswith('/'):
+            args.base += '/'
+        self.base = args.base if args.base else self.base
         self.log = args.log if args.log else self.log
         self.fasta = args.fasta if args.fasta else self.fasta
         self.ct = args.ctdir if args.ctdir else self.ct
@@ -123,6 +143,34 @@ class Pipeline():
 
         return args
 
+    def stageadd(self, name, description):
+        """-----------------------------------------------------------------------------------------
+        Append a stage description to self.stage
+        TODO add details of description
+
+        :param description: dict
+        :return: int, total number of stages
+        -----------------------------------------------------------------------------------------"""
+        self.stage.append(description)
+        return len(self.stage)
+
+    def stagefind(self, init):
+        """-----------------------------------------------------------------------------------------
+        Find the current stage by examining whether the stage directory has been created.  The
+        output of each stage goes in a directory with the same name
+
+        :param init: int - name for initial stage (i.e., original input file directory)
+        :return: string, stage name
+        -----------------------------------------------------------------------------------------"""
+        current = init
+        for stage in self.stage:
+            path = self.base + stage['stage']
+            if os.path.isdir(path):
+                current = stage
+
+        self.current = current
+        return current
+
     def check_directory(self, dirname):
         """-----------------------------------------------------------------------------------------
         Check if the name directory exists, if it does, return the name of the most recent files
@@ -130,20 +178,22 @@ class Pipeline():
         :param dirname:
         :return:
         -----------------------------------------------------------------------------------------"""
-        dir = getattr(self,dirname)
+        dir = getattr(self, dirname)
 
         if os.path.isdir(dir):
             # logs exist, assume we are restarting
             # TODO this should return a list of completed analyses from the manager log
-            # startwith = check_logs(base, filelist)
+            stagecounts = self.logcheck()
             pass
         else:
             # if directory doesn't exist, create it
             os.mkdir(dir)
 
         if dirname == 'log':
-            #create log directories for the current run
+            # create log files for the current run
             timestamp = Pipeline.logtime()
+            self.managerlog = open(f'{timestamp}_manager.log', 'w')
+            self.errorlog = open(f'{timestamp}_errorr.log', 'w')
 
             startwith = 0
 
@@ -160,6 +210,205 @@ class Pipeline():
         t = time.localtime()
         return time.strftime('%Y%m%d%H%M%S')
 
+    def logrecent(self):
+        """-----------------------------------------------------------------------------------------
+        Find and open the most recent manager log for reading
+
+        :return: file pointer of open file
+        -----------------------------------------------------------------------------------------"""
+        dirlist = []
+        for file in os.listdir(self.log):
+            d = os.path.join(self.log, file)
+            if os.path.isdir(d):
+                dirlist.append(d)
+
+        if dirlist:
+            return open(dirlist[0], 'r')
+        else:
+            return None
+
+    def logcheck(self):
+        """-----------------------------------------------------------------------------------------
+        Checks existing log files to check what fasta files have already been processed. Returns the
+        list of completed files for the most recent stage
+
+        :return complete_n: integer number of complete files at all stages
+        -----------------------------------------------------------------------------------------"""
+
+        complete = {}
+        complete_n = 0
+        log = self.logrecent()
+        if log:
+            # recent logfile exists, read in completed files
+            for line in log:
+                if line.startswith('complete'):
+                    complete_n += 1
+                    tag, stage, file, time = line.rstrip().split('\t')
+                    try:
+                        complete[stage][file] = time
+                    except KeyError:
+                        complete[stage] = {file: time}
+
+        # if no recent log file the complete list is empty
+        self.complete = complete
+        return complete_n
+
+    def log(self, log, tag, stage, message):
+        """-----------------------------------------------------------------------------------------
+        add a timestamped message to the named log
+
+        :param log: string - name of log (e.g., manager, error)
+        :param tag: string - tag describing action
+        :param stage: string - pipeline stage
+        :param message: string - message
+        :return: string - message written to log
+        -----------------------------------------------------------------------------------------"""
+        fp = None
+        if log == 'manager':
+            fp = self.managerlog
+        elif log == 'error':
+            fp = self.errorlog
+        else:
+            self.log('error', 'unknown_logfile', stage, '')
+
+        log_message = f'{tag}\t{stage}\t{message}\t{self.logtime}\n'
+        fp.write(log_message)
+
+        return log_message
+
+    @staticmethod
+    def get_file_list(directory, filter='.fa'):
+        """-----------------------------------------------------------------------------------------
+        Goes through the input directory and returns a list of each file in the directory. Only
+        files that contain the string filter are selected
+
+        :param directory: string - full path of desired files i.e. /scratch/scholar/user/data/
+        :param filter: string - file must contain this string
+        :return filelist: list - file names i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
+        -----------------------------------------------------------------------------------------"""
+        # Initialize a list of file names
+        filelist = list()
+
+        for file in os.listdir(directory):
+            # Read each file name in the directory path
+            if filter in file:
+                # append file name to list if it matches filter
+                filelist.append(file)
+
+        # filelist.sort()   # probably better to not sort
+
+        return filelist
+
+    def manager(self):
+        """---------------------------------------------------------------------------------------------
+        Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
+        certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
+        that went through complete job. Polls every x amount of seconds to check which jobs are complete.
+        :param base: directory of directories i.e. /scratch/scholar/user/data/
+        :param pythonexe: directory with python executable files
+        :param rnaexe: directory with RNAstructure executable files
+        :param jobs: number of jobs to run at once
+        :param w: window for RNAstructure
+        :param d: delta delta G for RNAstructure
+        :param filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
+        :param startwith: index of filelist to start running
+        :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
+        ---------------------------------------------------------------------------------------------"""
+        for stage in self.stage:
+            if stage['name'] != self.current:
+                # skip to current stage, stages are in order of execution in self.stage
+                continue
+            self.log('manager', 'start', f'stage={stage}')
+
+        stagedir = getattr(self, stage)
+        filelist = Pipeline.get_file_list(stagedir)
+
+        # TODO get  file list
+        print(f'manager:directory={directory}')
+
+        # logfile for output
+        now = current_time()
+        xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
+        # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
+        # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
+
+        # total number of jobs
+        total = len(filelist)
+        total_finished = 0
+        total_started = 0
+
+        # number of jobs to run simultaneously
+        run = self.jobs
+        running = 0
+        delay = 5  # time to wait after polling
+
+        # check if list of fasta files left to run is shorter than total or run
+        # if total or run are too big, index errors occur
+        listlength = len(filelist[startwith:])
+        if listlength < total:
+            total = listlength
+        if listlength < jobs:
+            run = listlength
+
+        # start n jobs, each job sleeps a random number of seconds, then terminates
+        joblist = []
+        job_id = 0
+        while total_finished < total:
+
+            while running < run and total_started < total:
+                job_id += 1
+                fasta = filelist[startwith + total_started]
+                command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
+                          f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
+                print(f'starting job {job_id}: {fasta} ')
+                job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+                joblist.append([job_id, job, fasta])
+                running += 1
+                total_started += 1
+
+            # poll all jobs in joblist
+            time.sleep(delay)
+            print('\nPolling')
+            to_remove = []
+            for j in joblist:
+                id, job, fasta = j
+
+                print(f'\tjob {id} ...', end='')
+                result = job.poll()
+
+                if result != None:  # None indicates job is still running
+                    j.append(result)
+                    print('finished')
+                    to_remove.append(j)
+
+                else:
+                    print('still running')
+
+            # remove all finished jobs. Can't do it above because it shortens the joblist
+            # and some jobs don't get polled
+            for j in to_remove:
+
+                # check for exit status
+                # write fasta file name to file, and other marked attributes
+                now = current_time()
+                if j[3] == 2:
+                    error_log.write(f'{j[2]}\t job id: {j[0]}\t exit status: {j[3]}\t time: {now}\n')
+                    error_log.flush()
+                else:
+                    manager_log.write(f'{j[2]}\t job id: {j[0]}\t time: {now}\n')
+                    manager_log.flush()
+
+                # remove finished jobs
+                joblist.remove(j)
+                running -= 1
+                total_finished += 1
+
+            print(f'\nrunning:{running}\tfinished: {total_finished}')
+
+        xios_log.close()
+        manager_log.close()
+        error_log.close()
+
 
 def current_time():
     """---------------------------------------------------------------------------------------------
@@ -174,7 +423,7 @@ def current_time():
     return now
 
 
-def get_file_list(directory):
+def get_file_list2(directory):
     """---------------------------------------------------------------------------------------------
     Goes through the input directory and returns a list of each file in the directory.
     :param directory: full path of desired files i.e. /scratch/scholar/user/data/
@@ -230,7 +479,7 @@ def check_logs(base, filelist):
     return startwith
 
 
-def manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory):
+def manager2(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory):
     """---------------------------------------------------------------------------------------------
     Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
     certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
@@ -245,14 +494,14 @@ def manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
     :param startwith: index of filelist to start running
     :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
     ---------------------------------------------------------------------------------------------"""
-
+    # TODO get  file list
     print(f'manager:directory={directory}')
 
     # logfile for output
     now = current_time()
     xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
-    manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
-    error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
+    # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
+    # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
 
     # total number of jobs
     total = len(filelist)
@@ -337,41 +586,34 @@ def manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
 # --------------------------------------------------------------------------------------------------
 
 """-------------------------------------------------------------------------------------------------
-base is the main project directoy, each step of the pipeline creates a directory under base
-    ctfiles
-    xiosfiles
-    fptfiles
+base is the main project directory, each step of the pipeline creates a directory under base
+    ct
+    xios
+    fpt
     
 Initializes directory, gets list of files from get_file_list(), checks if there is a log file and
 reads it to find last fasta file worked on, and sends to manager()
 -------------------------------------------------------------------------------------------------"""
-workflow = Pipeline(base='base12')
+# TODO add to passthrough arguments? or create command line switches?
+# w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
+# d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
+
+workflow = Pipeline(base='data/')
 workflow.check_directory('log')
-# open log files
-# create directory for log files if one does not exist
+#
+# command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
+#           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
+# add commands
+workflow.stage.append({'stage':   'xios',
+                       'command': f'python {workflow.python}/xios_from_rnastructure.py',
+                       'options': [f'-c {workflow.ct}',
+                                   f'-x {workflow.xios}',
+                                   f'-f {workflow.fasta}',
+                                   f'-y {workflow.python}',
+                                   f'-r (workflow.RNAstructure',
+                                   ]
+                       })
+stage = workflow.stagefind(init='fasta')
+manager()
 
-path = base + 'logs/'
-if os.path.isdir(path):
-    # logs exist, assume we are restarting
-    startwith = check_logs(base, filelist)
-else:
-    # logs don't exist, start from scratch
-    os.mkdir(path)
-    # os.mkdir(path+'xios_from_rnastructure')
-    # os.mkdir(path+'rna_manager')
-    # os.mkdir(path+'error')
-    startwith = 0
-
-jobs = int(sys.argv[4])  # number of concurrent jobs to work on
-w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
-d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
-
-# directory of fasta files, get filelist
-directory = base + 'fasta'
-print(f'base={base} directory={directory}')
-filelist = get_file_list(directory)
-
-# call manager
-manager(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory)
-
-ext(0)
+exit(0)
