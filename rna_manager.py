@@ -294,7 +294,7 @@ class Pipeline():
             # Read each file name in the directory path
             if filter in file:
                 # append file name to list if it matches filter
-                filelist.append(file)
+                filelist.append(directory+file)
 
         # filelist.sort()   # probably better to not sort
 
@@ -333,16 +333,12 @@ class Pipeline():
             total = len(filelist)
             self.logmessage('manager', 'file_list', f'{stage["stage"]}', f'{total} files in {self.source}')
 
-            total_finished = 0
-            total_started = 0
-            running = 0
+            # TODO check that output directory exists
 
-            self.manager_startjobs(filelist)
-
-            while self.manager_startjobs(filelist):
+            while self.manager_startjobs(filelist, stage):
                 self.manager_polljobs()
 
-        return total_finished
+        return self.finished
 
     def manager_startjobs(self, filelist, stage):
         """-----------------------------------------------------------------------------------------
@@ -355,9 +351,9 @@ class Pipeline():
 
         while filelist:
             file = filelist.pop()
-            if file in self.completed:
+            if file in self.complete:
                 continue
-            while self.running < self.jobs:
+            if self.running < self.jobs:
                 job_id += 1
                 # fasta = filelist[startwith + total_started]
                 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
@@ -370,8 +366,8 @@ class Pipeline():
                 self.joblist.append(job_id)
                 self.running += 1
                 # total_started += 1
-
-            break
+            else:
+                break
 
         if filelist:
             # files remain to be processed
