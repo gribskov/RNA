@@ -22,6 +22,13 @@ class Pipeline():
         '''-----------------------------------------------------------------------------------------
         manager object holds locations of files and directories
         -----------------------------------------------------------------------------------------'''
+        self.jobs = 20
+        self.running = 0
+        self.total = 0
+        self.finished = 0
+        self.delay = 5
+        self.joblist = []
+
         self.base = base
         if not self.base.endswith('/'):
             self.base += '/'
@@ -155,25 +162,25 @@ class Pipeline():
         self.stage.append(description)
         return len(self.stage)
 
-    def stagefind(self):
-        """-----------------------------------------------------------------------------------------
-        Find the current stage by examining whether the stage directory has been created.  The
-        output of each stage goes in a directory with the same name
-
-        :return: string, stage name
-        -----------------------------------------------------------------------------------------"""
-        for stage in self.stage:
-            path = self.base + stage['stage']
-            if os.path.isdir(path):
-                # current will be the last one matched
-                self.source = stage
-                self.current = stage
-
-        if not self.current:
-            # first stage if none have been run before
-            self.current = self.stage[0]['stage']
-
-        return self.current
+    # def stagefind(self):
+    #     """-----------------------------------------------------------------------------------------
+    #     Find the current stage by examining whether the stage directory has been created.  The
+    #     output of each stage goes in a directory with the same name
+    #
+    #     :return: string, stage name
+    #     -----------------------------------------------------------------------------------------"""
+    #     for stage in self.stage:
+    #         path = self.base + stage['stage']
+    #         if os.path.isdir(path):
+    #             # current will be the last one matched
+    #             self.source = stage
+    #             self.current = stage
+    #
+    #     if not self.current:
+    #         # first stage if none have been run before
+    #         self.current = self.stage[0]['stage']
+    #
+    #     return self.current
 
     def fastforward(self):
         """-----------------------------------------------------------------------------------------
@@ -218,33 +225,33 @@ class Pipeline():
 
         return complete_n
 
-    def check_directory(self, dirname):
-        """-----------------------------------------------------------------------------------------
-        Check if the name directory exists, if it does, return the name of the most recent files
-
-        :param dirname:
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        dir = getattr(self, dirname)
-
-        if os.path.isdir(dir):
-            # logs exist, assume we are restarting
-            # TODO this should return a list of completed analyses from the manager log
-            stagecounts = self.logcheck()
-
-        else:
-            # if directory doesn't exist, create it
-            os.mkdir(dir)
-
-        if dirname == 'log':
-            # create log files for the current run
-            timestamp = Pipeline.logtime()
-            self.managerlog = open(f'{self.log}{timestamp}_manager.log', 'w')
-            self.errorlog = open(f'{self.log}{timestamp}_error.log', 'w')
-
-            startwith = 0
-
-        return
+    # def check_directory(self, dirname):
+    #     """-----------------------------------------------------------------------------------------
+    #     Check if the name directory exists, if it does, return the name of the most recent files
+    #
+    #     :param dirname:
+    #     :return:
+    #     -----------------------------------------------------------------------------------------"""
+    #     dir = getattr(self, dirname)
+    #
+    #     if os.path.isdir(dir):
+    #         # logs exist, assume we are restarting
+    #         # TODO this should return a list of completed analyses from the manager log
+    #         stagecounts = self.logcheck()
+    #
+    #     else:
+    #         # if directory doesn't exist, create it
+    #         os.mkdir(dir)
+    #
+    #     if dirname == 'log':
+    #         # create log files for the current run
+    #         timestamp = Pipeline.logtime()
+    #         self.managerlog = open(f'{self.log}{timestamp}_manager.log', 'w')
+    #         self.errorlog = open(f'{self.log}{timestamp}_error.log', 'w')
+    #
+    #         startwith = 0
+    #
+    #     return
 
     @staticmethod
     def logtime():
@@ -274,31 +281,31 @@ class Pipeline():
         else:
             return None
 
-    def logcheck(self):
-        """-----------------------------------------------------------------------------------------
-        Checks existing log files to check what fasta files have already been processed. Returns the
-        list of completed files for the most recent stage
-
-        :return complete_n: integer number of complete files at all stages
-        -----------------------------------------------------------------------------------------"""
-
-        complete = {}
-        complete_n = 0
-        log = self.logrecent()
-        if log:
-            # recent logfile exists, read in completed files
-            for line in log:
-                if line.startswith('complete'):
-                    complete_n += 1
-                    tag, stage, file, time = line.rstrip().split('\t')
-                    try:
-                        complete[stage][file] = time
-                    except KeyError:
-                        complete[stage] = {file: time}
-
-        # if no recent log file the complete list is empty
-        self.complete = complete
-        return complete_n
+    # def logcheck(self):
+    #     """-----------------------------------------------------------------------------------------
+    #     Checks existing log files to check what fasta files have already been processed. Returns the
+    #     list of completed files for the most recent stage
+    #
+    #     :return complete_n: integer number of complete files at all stages
+    #     -----------------------------------------------------------------------------------------"""
+    #
+    #     complete = {}
+    #     complete_n = 0
+    #     log = self.logrecent()
+    #     if log:
+    #         # recent logfile exists, read in completed files
+    #         for line in log:
+    #             if line.startswith('complete'):
+    #                 complete_n += 1
+    #                 tag, stage, file, time = line.rstrip().split('\t')
+    #                 try:
+    #                     complete[stage][file] = time
+    #                 except KeyError:
+    #                     complete[stage] = {file: time}
+    #
+    #     # if no recent log file the complete list is empty
+    #     self.complete = complete
+    #     return complete_n
 
     def logmessage(self, log, tag, stage, message):
         """-----------------------------------------------------------------------------------------
@@ -320,6 +327,7 @@ class Pipeline():
 
         log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
         fp.write(log_message)
+        fp.flush()
 
         return log_message
 
@@ -371,264 +379,278 @@ class Pipeline():
             files.append(f'{s}:{len(self.complete[s])}')
         self.logmessage('manager', 'fastforward_complete', f'init', ','.join(files))
 
-        filelist = Pipeline.get_file_list(stagedir)
+        for stage in self.stage:
+            stagedir = getattr(self, self.source)
+            filelist = Pipeline.get_file_list(stagedir)
 
-        # TODO get  file list
-        print(f'manager:directory={thisstage}')
+            # total number of jobs for this stage
+            total = len(filelist)
+            self.logmessage('manager', 'file_list', f'{stage["stage"]}', f'{total} files in {self.source}')
 
-        # logfile for output
-        now = current_time()
-        # xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
-        # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
-        # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
+            total_finished = 0
+            total_started = 0
+            running = 0
 
-        # total number of jobs
-        total = len(filelist)
-        total_finished = 0
-        total_started = 0
+            self.manager_startjobs(filelist)
 
-        # number of jobs to run simultaneously
-        run = self.jobs
-        running = 0
-        delay = 5  # time to wait after polling
+            while self.manager_startjobs(filelist):
+                self.manager_polljobs()
 
-        # check if list of fasta files left to run is shorter than total or run
-        # if total or run are too big, index errors occur
-        listlength = len(filelist[startwith:])
-        if listlength < total:
-            total = listlength
-        if listlength < jobs:
-            run = listlength
+        return total_finished
 
-        # start n jobs, each job sleeps a random number of seconds, then terminates
-        joblist = []
+    def manager_startjobs(self, filelist, stage):
+        """-----------------------------------------------------------------------------------------
+        start n jobs, each job sleeps a random number of seconds, then terminates
+
+        :param filelist:
+        :return:
+        -----------------------------------------------------------------------------------------"""
         job_id = 0
-        while total_finished < total:
 
-            while running < run and total_started < total:
+        while filelist:
+            file = filelist.pop()
+            if file in self.completed:
+                continue
+            while self.running < self.jobs:
                 job_id += 1
-                fasta = filelist[startwith + total_started]
-                command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
-                          f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
-                print(f'starting job {job_id}: {fasta} ')
-                job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
-                joblist.append([job_id, job, fasta])
-                running += 1
-                total_started += 1
+                # fasta = filelist[startwith + total_started]
+                # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
+                #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 
-            # poll all jobs in joblist
-            time.sleep(delay)
-            print('\nPolling')
-            to_remove = []
-            for j in joblist:
-                id, job, fasta = j
+                command = stage['command']
+                self.logmessage('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
+                # job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+                job = 'test'
+                self.joblist.append(job_id)
+                self.running += 1
+                # total_started += 1
 
-                print(f'\tjob {id} ...', end='')
-                result = job.poll()
+            break
 
-                if result != None:  # None indicates job is still running
-                    j.append(result)
-                    print('finished')
-                    to_remove.append(j)
+        if filelist:
+            # files remain to be processed
+            return True
+        else:
+            return False
 
-                else:
-                    print('still running')
+    def manager_polljobs(self):
+        """-----------------------------------------------------------------------------------------
+        Poll the currently running jobs, and remove completed jobs from the joblist
 
-            # remove all finished jobs. Can't do it above because it shortens the joblist
-            # and some jobs don't get polled
-            for j in to_remove:
-
-                # check for exit status
-                # write fasta file name to file, and other marked attributes
-                now = current_time()
-                if j[3] == 2:
-                    error_log.write(f'{j[2]}\t job id: {j[0]}\t exit status: {j[3]}\t time: {now}\n')
-                    error_log.flush()
-                else:
-                    manager_log.write(f'{j[2]}\t job id: {j[0]}\t time: {now}\n')
-                    manager_log.flush()
-
-                # remove finished jobs
-                joblist.remove(j)
-                running -= 1
-                total_finished += 1
-
-            print(f'\nrunning:{running}\tfinished: {total_finished}')
-
-        xios_log.close()
-        manager_log.close()
-        error_log.close()
-
-
-def current_time():
-    """---------------------------------------------------------------------------------------------
-    Gets and returns current time.
-    :return now: string with no spaces i.e. DayMonthHourMinutesSecondsMonthYear
-    ---------------------------------------------------------------------------------------------"""
-
-    t = time.localtime()
-    now = time.strftime("%c", t)
-    now = now.replace(' ', '').replace(':', '')
-
-    return now
-
-
-def get_file_list2(directory):
-    """---------------------------------------------------------------------------------------------
-    Goes through the input directory and returns a list of each file in the directory.
-    :param directory: full path of desired files i.e. /scratch/scholar/user/data/
-    :return filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
-    ---------------------------------------------------------------------------------------------"""
-
-    # Initialize a list of file names
-    filelist = list()
-
-    # Read each file name in the directory path
-    for file in os.listdir(directory):
-
-        # Append file name to list
-        if '.fa' in file:
-            filelist.append(file)
-    filelist.sort()
-
-    # Return list of file names
-    return filelist
-
-
-def check_logs2(base, filelist):
-    """---------------------------------------------------------------------------------------------
-    Checks existing log files to check what fasta files have already been processed.
-    :param directory: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
-    :return startwith: position on list to start processing i.e. 0, filelist[0]
-    ---------------------------------------------------------------------------------------------"""
-
-    path = base + '/Logs/rna_manager/'
-
-    # Open latest file in log directory and make a list of fasta file names
-    files = os.listdir(path)
-    paths = [os.path.join(path, basename) for basename in files]
-    latestfile = max(paths, key=os.path.getctime)
-    loglist = list()
-    with open(latestfile, 'r') as logfile:
-        for line in logfile:
-            loglist.append(line.split('\t')[0])
-
-    # Sort loglist so it is sorted like filelist
-    # If loglist is empty, return with index of 0
-    loglist.sort()
-    if len(loglist) == 0:
-        startwith = 0
-        return startwith
-
-    # If loglist is not empty, return with corresponding index in filelist if lastfasta is in filelist
-    lastfasta = loglist[-1]
-    if lastfasta in filelist:
-        startwith = filelist.index(lastfasta) + 1  # Add one to index so fasta sequence after last is next up
-    else:
-        startwith = 0
-    return startwith
-
-
-def manager2(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory):
-    """---------------------------------------------------------------------------------------------
-    Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
-    certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
-    that went through complete job. Polls every x amount of seconds to check which jobs are complete.
-    :param base: directory of directories i.e. /scratch/scholar/user/data/
-    :param pythonexe: directory with python executable files
-    :param rnaexe: directory with RNAstructure executable files
-    :param jobs: number of jobs to run at once
-    :param w: window for RNAstructure
-    :param d: delta delta G for RNAstructure
-    :param filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
-    :param startwith: index of filelist to start running
-    :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
-    ---------------------------------------------------------------------------------------------"""
-    # TODO get  file list
-    print(f'manager:directory={directory}')
-
-    # logfile for output
-    now = current_time()
-    # xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
-    # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
-    # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
-
-    # total number of jobs
-    total = len(filelist)
-    total_finished = 0
-    total_started = 0
-
-    # number of jobs to run simultaneously
-    run = jobs
-    running = 0
-    delay = 5  # time to wait after polling
-
-    # check if list of fasta files left to run is shorter than total or run
-    # if total or run are too big, index errors occur
-    listlength = len(filelist[startwith:])
-    if listlength < total:
-        total = listlength
-    if listlength < jobs:
-        run = listlength
-
-    # start n jobs, each job sleeps a random number of seconds, then terminates
-    joblist = []
-    job_id = 0
-    while total_finished < total:
-
-        while running < run and total_started < total:
-            job_id += 1
-            fasta = filelist[startwith + total_started]
-            command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
-                      f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
-            print(f'starting job {job_id}: {fasta} ')
-            job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
-            joblist.append([job_id, job, fasta])
-            running += 1
-            total_started += 1
-
+        :return:
+        -----------------------------------------------------------------------------------------"""
         # poll all jobs in joblist
-        time.sleep(delay)
-        print('\nPolling')
+        time.sleep(self.delay)
         to_remove = []
-        for j in joblist:
-            id, job, fasta = j
-
-            print(f'\tjob {id} ...', end='')
+        for j in self.joblist:
+            id, job = j
+            # print(f'\tjob {id} ...', end='')
             result = job.poll()
-
-            if result != None:  # None indicates job is still running
+            if result != None:
+                # None indicates job is still running
                 j.append(result)
-                print('finished')
+                print(f'finished')
                 to_remove.append(j)
 
             else:
                 print('still running')
 
-        # remove all finished jobs. Can't do it above because it shortens the joblist
-        # and some jobs don't get polled
+        # remove all finished jobs. Can't do it above because it shortens the joblist and some then
+        # some jobs don't get polled
         for j in to_remove:
 
             # check for exit status
             # write fasta file name to file, and other marked attributes
-            now = current_time()
             if j[3] == 2:
-                error_log.write(f'{j[2]}\t job id: {j[0]}\t exit status: {j[3]}\t time: {now}\n')
-                error_log.flush()
+                # error
+                self.logmessage('error', 'fail', self.current, f'status:{j[3]}')
             else:
-                manager_log.write(f'{j[2]}\t job id: {j[0]}\t time: {now}\n')
-                manager_log.flush()
+                # success
+                self.logmessage('manager', 'completed', self.current, f'jobid:{j[0]}')
 
             # remove finished jobs
-            joblist.remove(j)
-            running -= 1
-            total_finished += 1
+            self.joblist.remove(j)
+            self.running -= 1
+            self.finished += 1
 
-        print(f'\nrunning:{running}\tfinished: {total_finished}')
+    def cleanup(self):
+        """-----------------------------------------------------------------------------------------
+        End of run cleanup.
+        Close files
 
-    xios_log.close()
-    manager_log.close()
-    error_log.close()
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        self.managerlog.close()
+        self.errorlog.close()
+
+        return True
+
+
+# def current_time():
+#     """---------------------------------------------------------------------------------------------
+#     Gets and returns current time.
+#     :return now: string with no spaces i.e. DayMonthHourMinutesSecondsMonthYear
+#     ---------------------------------------------------------------------------------------------"""
+#
+#     t = time.localtime()
+#     now = time.strftime("%c", t)
+#     now = now.replace(' ', '').replace(':', '')
+#
+#     return now
+
+
+# def get_file_list2(directory):
+#     """---------------------------------------------------------------------------------------------
+#     Goes through the input directory and returns a list of each file in the directory.
+#     :param directory: full path of desired files i.e. /scratch/scholar/user/data/
+#     :return filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
+#     ---------------------------------------------------------------------------------------------"""
+#
+#     # Initialize a list of file names
+#     filelist = list()
+#
+#     # Read each file name in the directory path
+#     for file in os.listdir(directory):
+#
+#         # Append file name to list
+#         if '.fa' in file:
+#             filelist.append(file)
+#     filelist.sort()
+#
+#     # Return list of file names
+#     return filelist
+
+
+# def check_logs2(base, filelist):
+#     """---------------------------------------------------------------------------------------------
+#     Checks existing log files to check what fasta files have already been processed.
+#     :param directory: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
+#     :return startwith: position on list to start processing i.e. 0, filelist[0]
+#     ---------------------------------------------------------------------------------------------"""
+#
+#     path = base + '/Logs/rna_manager/'
+#
+#     # Open latest file in log directory and make a list of fasta file names
+#     files = os.listdir(path)
+#     paths = [os.path.join(path, basename) for basename in files]
+#     latestfile = max(paths, key=os.path.getctime)
+#     loglist = list()
+#     with open(latestfile, 'r') as logfile:
+#         for line in logfile:
+#             loglist.append(line.split('\t')[0])
+#
+#     # Sort loglist so it is sorted like filelist
+#     # If loglist is empty, return with index of 0
+#     loglist.sort()
+#     if len(loglist) == 0:
+#         startwith = 0
+#         return startwith
+#
+#     # If loglist is not empty, return with corresponding index in filelist if lastfasta is in filelist
+#     lastfasta = loglist[-1]
+#     if lastfasta in filelist:
+#         startwith = filelist.index(lastfasta) + 1  # Add one to index so fasta sequence after last is next up
+#     else:
+#         startwith = 0
+#     return startwith
+
+
+# def manager2(base, pythonexe, rnaexe, jobs, w, d, filelist, startwith, directory):
+#     """---------------------------------------------------------------------------------------------
+#     Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
+#     certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
+#     that went through complete job. Polls every x amount of seconds to check which jobs are complete.
+#     :param base: directory of directories i.e. /scratch/scholar/user/data/
+#     :param pythonexe: directory with python executable files
+#     :param rnaexe: directory with RNAstructure executable files
+#     :param jobs: number of jobs to run at once
+#     :param w: window for RNAstructure
+#     :param d: delta delta G for RNAstructure
+#     :param filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
+#     :param startwith: index of filelist to start running
+#     :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
+#     ---------------------------------------------------------------------------------------------"""
+#     # TODO get  file list
+#     print(f'manager:directory={directory}')
+#
+#     # logfile for output
+#     now = current_time()
+#     # xios_log = open(f'{base}/Logs/xios_from_rnastructure/xios{now}.log', 'wb')
+#     # manager_log = open(f'{base}/Logs/rna_manager/manager{now}.log', 'w')
+#     # error_log = open(f'{base}/Logs/manager_error/error{now}.log', 'w')
+#
+#     # total number of jobs
+#     total = len(filelist)
+#     total_finished = 0
+#     total_started = 0
+#
+#     # number of jobs to run simultaneously
+#     run = jobs
+#     running = 0
+#     delay = 5  # time to wait after polling
+#
+#     # check if list of fasta files left to run is shorter than total or run
+#     # if total or run are too big, index errors occur
+#     listlength = len(filelist[startwith:])
+#     if listlength < total:
+#         total = listlength
+#     if listlength < jobs:
+#         run = listlength
+#
+#     # start n jobs, each job sleeps a random number of seconds, then terminates
+#     joblist = []
+#     job_id = 0
+#     while total_finished < total:
+#
+#         while running < run and total_started < total:
+#             job_id += 1
+#             fasta = filelist[startwith + total_started]
+#             command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
+#                       f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
+#             print(f'starting job {job_id}: {fasta} ')
+#             job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+#             joblist.append([job_id, job, fasta])
+#             running += 1
+#             total_started += 1
+#
+#         # poll all jobs in joblist
+#         time.sleep(delay)
+#         print('\nPolling')
+#         to_remove = []
+#         for j in joblist:
+#             id, job, fasta = j
+#
+#             print(f'\tjob {id} ...', end='')
+#             result = job.poll()
+#
+#             if result != None:  # None indicates job is still running
+#                 j.append(result)
+#                 print('finished')
+#                 to_remove.append(j)
+#
+#             else:
+#                 print('still running')
+#
+#         # remove all finished jobs. Can't do it above because it shortens the joblist
+#         # and some jobs don't get polled
+#         for j in to_remove:
+#
+#             # check for exit status
+#             # write fasta file name to file, and other marked attributes
+#             now = current_time()
+#             if j[3] == 2:
+#                 error_log.write(f'{j[2]}\t job id: {j[0]}\t exit status: {j[3]}\t time: {now}\n')
+#                 error_log.flush()
+#             else:
+#                 manager_log.write(f'{j[2]}\t job id: {j[0]}\t time: {now}\n')
+#                 manager_log.flush()
+#
+#             # remove finished jobs
+#             joblist.remove(j)
+#             running -= 1
+#             total_finished += 1
+#
+#         print(f'\nrunning:{running}\tfinished: {total_finished}')
 
 
 # --------------------------------------------------------------------------------------------------
@@ -665,5 +687,6 @@ workflow.stage.append({'stage':   'xios',
                        })
 workflow.source = 'fasta'
 workflow.manager()
+workflow.cleanup()
 
 exit(0)
