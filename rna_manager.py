@@ -290,8 +290,8 @@ class Pipeline():
         info = {}
         for line in fp:
             field = line.rstrip().split('\t')
-            if info['tag'] == 'completed':
-                info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
+            if field[2] == 'completed':
+                info = {'time':field[0], 'stage':field[1], 'tag':field[2], 'message':field[3]}
                 break
 
         return info
@@ -380,9 +380,8 @@ class Pipeline():
 
                 command = stage['command']
                 self.logwrite('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
-                # job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
-                job = 'test'
-                self.joblist.append(job_id)
+                job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+                self.joblist.append([job_id, job])
                 self.running += 1
                 # total_started += 1
             else:
