@@ -193,11 +193,11 @@ class Pipeline():
         self.complete = {self.stage[i]['stage']: [] for i in range(len(self.stage))}
 
         # check the log directory and create if necessary
-        create_files_and_stop = False
-        if not os.path.isdir(self.log):
-            # if directory doesn't exist, create it.
-            os.mkdir(self.log)
-            create_files_and_stop = True
+        create_files_and_stop = Pipeline.dircheck(self.log)
+        # if not os.path.isdir(self.log):
+        #     # if directory doesn't exist, create it.
+        #     os.mkdir(self.log)
+        #     create_files_and_stop = True
 
         # create log files for the current run
         timestamp = Pipeline.logtime()
@@ -291,7 +291,7 @@ class Pipeline():
         for line in fp:
             field = line.rstrip().split('\t')
             if field[2] == 'completed':
-                info = {'time':field[0], 'stage':field[1], 'tag':field[2], 'message':field[3]}
+                info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
                 break
 
         return info
@@ -318,6 +318,20 @@ class Pipeline():
         # filelist.sort()   # probably better to not sort
 
         return filelist
+
+    @staticmethod
+    def dircheck(path):
+        """-----------------------------------------------------------------------------------------
+        Create directory if it doesn't xist already
+
+        :param dirname: string - directory path
+        :return: boolean - True if new directory created False otherwise
+        -----------------------------------------------------------------------------------------"""
+        if not os.path.isdir(path):
+            os.mkdir(path)
+            return True
+
+        return False
 
     def manager(self):
         """-----------------------------------------------------------------------------------------
@@ -352,7 +366,9 @@ class Pipeline():
             total = len(filelist)
             self.logwrite('manager', 'files', f'{stage["stage"]}', f'{total} files in {self.source}')
 
-            # TODO check that output directory exists
+            # check that output directories exist
+            for dir in stage['dirs']:
+                Pipeline.dircheck(dir)
 
             while self.manager_startjobs(filelist, stage):
                 self.manager_polljobs()
@@ -380,7 +396,7 @@ class Pipeline():
 
                 command = stage['command']
                 self.logwrite('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
-                job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+                job = sub.Popen(command, shell=True, stdout=self.errorlog, stderr=self.errorlog)
                 self.joblist.append([job_id, job])
                 self.running += 1
                 # total_started += 1
