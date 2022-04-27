@@ -291,7 +291,7 @@ class Pipeline():
         for line in fp:
             field = line.rstrip().split('\t')
             if info['tag'] == 'completed':
-                info = {'time':field[0], 'stage':field[1], 'tag':field[2], 'message':field[3]}
+                info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
                 break
 
         return info
@@ -313,7 +313,7 @@ class Pipeline():
             # Read each file name in the directory path
             if filter in file:
                 # append file name to list if it matches filter
-                filelist.append(directory+file)
+                filelist.append(directory + file)
 
         # filelist.sort()   # probably better to not sort
 
@@ -464,7 +464,7 @@ reads it to find last fasta file worked on, and sends to manager()
 # w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
-workflow = Pipeline(base='data/')
+workflow = Pipeline()
 # workflow.check_directory('log')
 #
 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
@@ -477,7 +477,8 @@ workflow.stage.append({'stage':   'xios',
                                    f'-f {workflow.fasta}',
                                    f'-y {workflow.python}',
                                    f'-r (workflow.RNAstructure',
-                                   ]
+                                   ],
+                       'dirs':    [workflow.ct, workflow.xios]
                        })
 workflow.source = 'fasta'
 workflow.manager()
