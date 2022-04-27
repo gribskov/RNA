@@ -290,7 +290,7 @@ class Pipeline():
         info = {}
         for line in fp:
             field = line.rstrip().split('\t')
-            if info['tag'] == 'completed':
+            if field[2] == 'completed':
                 info = {'time':field[0], 'stage':field[1], 'tag':field[2], 'message':field[3]}
                 break
 
@@ -380,9 +380,8 @@ class Pipeline():
 
                 command = stage['command']
                 self.logwrite('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
-                # job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
-                job = 'test'
-                self.joblist.append(job_id)
+                job = sub.Popen(command, shell=True, stdout=xios_log, stderr=xios_log)
+                self.joblist.append([job_id, job])
                 self.running += 1
                 # total_started += 1
             else:
@@ -404,6 +403,7 @@ class Pipeline():
         time.sleep(self.delay)
         to_remove = []
         for j in self.joblist:
+            print(f'{self.joblist}\n{j}')
             id, job = j
             # print(f'\tjob {id} ...', end='')
             result = job.poll()
@@ -464,7 +464,7 @@ reads it to find last fasta file worked on, and sends to manager()
 # w = int(sys.argv[5])  # window param for xios_from_rnastructure.py
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
-workflow = Pipeline(base='data/')
+workflow = Pipeline()
 # workflow.check_directory('log')
 #
 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
