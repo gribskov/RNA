@@ -109,7 +109,7 @@ def options():
     return args
 
 
-def safe_mkdir(dirname):
+def safe_mkdir(args,dirname):
     """---------------------------------------------------------------------------------------------
     Try to create a directory, if directory already exists, use existing directory
 
@@ -119,8 +119,9 @@ def safe_mkdir(dirname):
         os.mkdir(dirname)
         return True
     except FileExistsError:
-        sys.stderr.write(f'Directory {dirname} already exists, using existing directory\n')
-    #    exit(2)
+        if not args.quiet:
+            sys.stderr.write(f'Directory {dirname} already exists, using existing directory\n')
+    #       exit(2)
 
     return True
 
@@ -142,7 +143,7 @@ def safe_file(filename, mode):
     else:
         if os.path.exists(filename):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
-            exit(4)
+            # exit(4)
 
     return True
 
@@ -285,10 +286,10 @@ def runfold(args, fasta, ct, percent):
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
     # subprocess.call(opt, stdout=subprocess.DEVNULL)
-    process = subprocess.call(opt)
-    out, err = process.communicate()
-    print(f'out:{out}')
-    print(f'err:{err}')
+    result = subprocess.run(opt, capture_output=True)
+    #print(result)
+    #print(f'out:{result.stdout}')
+    #print(f'err:{result.stderr}')
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -348,9 +349,11 @@ if __name__ == '__main__':
 
     # code locations, see options() to alter defaults
     os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
+    input = args.indir + args.fasta
+
     if  args.quiet:
         print(f'xios_from_rnastructure {time.asctime(now)}', end='')
-        print(f'\tfasta:{args.indir}\tct:{args.ctdir}\txios:{args.xiosdir}')
+        print(f'\tdirs;asta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
     else:
         print('Paths')
         print(f'\tRNAstructure DATAPATH = {os.environ["DATAPATH"]}')
@@ -364,7 +367,6 @@ if __name__ == '__main__':
         print(f'\tdelta deltaG={args.ddG}')
         # print(f'\tmergstems:mergecases={args.mergecase}')
 
-        input = args.indir + args.fasta
         print('Inputs and outputs')
         print(f'\tFasta files: {args.indir}')
         print(f'\tCT files: {args.ctdir}')
@@ -377,8 +379,8 @@ if __name__ == '__main__':
         sys.stderr.write('No files match the specified input ({})\n'.format(input))
         exit(1)
 
-    safe_mkdir(args.ctdir)
-    safe_mkdir(args.xiosdir)
+    safe_mkdir(args, args.ctdir)
+    safe_mkdir(args, args.xiosdir)
 
     # for each FastA file, generate the CT file, then convert to XIOS
     commentfold = {}
