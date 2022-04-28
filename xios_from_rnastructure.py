@@ -70,6 +70,8 @@ def options():
     commandline.add_argument('-r', '--rnastructure',
                              help='Directory path for RNAstructure executables such as Fold (%(default)s)',
                              default='/scratch/bell/mgribsko/rna/RNAstructure/')
+
+
     # mergecase currently unused
     # commandline.add_argument('-c', '--mergecase',
     #                          help='Mergestems: merging cases (rules) for combining suboptimal '
@@ -109,7 +111,7 @@ def options():
 
 def safe_mkdir(dirname):
     """---------------------------------------------------------------------------------------------
-    Try to create a directory, if directory already exists, exit with status = 2
+    Try to create a directory, if directory already exists, use existing directory
 
     :param dirname: string, path to directory
     ---------------------------------------------------------------------------------------------"""
@@ -282,8 +284,11 @@ def runfold(args, fasta, ct, percent):
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
-    subprocess.call(opt, stdout=subprocess.DEVNULL)
-
+    # subprocess.call(opt, stdout=subprocess.DEVNULL)
+    process = subprocess.call(opt)
+    out, err = process.communicate()
+    print(f'out:{out}')
+    print(f'err:{err}')
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -343,25 +348,27 @@ if __name__ == '__main__':
 
     # code locations, see options() to alter defaults
     os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
-    print(f'xios_from_rnastructure {time.asctime(now)}\n')
-    if not args.quiet:
+    if  args.quiet:
+        print(f'xios_from_rnastructure {time.asctime(now)}', end='')
+        print(f'\tfasta:{args.indir}\tct:{args.ctdir}\txios:{args.xiosdir}')
+    else:
         print('Paths')
         print(f'\tRNAstructure DATAPATH = {os.environ["DATAPATH"]}')
         print(f'\tRNAstructure executables: {args.rnastructure}')
         print(f'\tPython executables: {args.python}')
 
-    print('Parameters')
-    print(f'\tFold:percent={args.percent}')
-    print(f'\tFold:maximum={args.maximum}')
-    print(f'\tFold:window={args.window}')
-    print(f'\tdelta deltaG={args.ddG}')
-    # print(f'\tmergstems:mergecases={args.mergecase}')
+        print('Parameters')
+        print(f'\tFold:percent={args.percent}')
+        print(f'\tFold:maximum={args.maximum}')
+        print(f'\tFold:window={args.window}')
+        print(f'\tdelta deltaG={args.ddG}')
+        # print(f'\tmergstems:mergecases={args.mergecase}')
 
-    input = args.indir + args.fasta
-    print('Inputs and outputs')
-    print(f'\tFasta files: {args.indir}')
-    print(f'\tCT files: {args.ctdir}')
-    print(f'\tXIOS files: {args.xiosdir}\n')
+        input = args.indir + args.fasta
+        print('Inputs and outputs')
+        print(f'\tFasta files: {args.indir}')
+        print(f'\tCT files: {args.ctdir}')
+        print(f'\tXIOS files: {args.xiosdir}\n')
 
     # check if there are inputs and create directories
 
@@ -413,8 +420,9 @@ if __name__ == '__main__':
                 xios_n += 1
 
     # final report
-    print(f'\nFastA files processed: {fa_n}')
-    print(f'CT files processed: {ct_n}')
-    print(f'XIOS files produced: {xios_n}')
+    if not args.quiet:
+        print(f'\nFastA files processed: {fa_n}')
+        print(f'CT files processed: {ct_n}')
+        print(f'XIOS files produced: {xios_n}')
 
     exit(0)
