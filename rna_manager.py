@@ -379,7 +379,7 @@ class Pipeline():
             for dir in stage['dirs']:
                 Pipeline.dircheck(dir)
 
-            while self.manager_startjobs(filelist, stage):
+            while self.manager_startjobs(filelist, stage) or self.joblist:
                 self.manager_polljobs(stage)
 
         return self.finished
@@ -405,6 +405,7 @@ class Pipeline():
 
             if self.running < self.jobs:
                 self.jobid += 1
+                print(f'starting job{self.jobid} {file}')
                 # fasta = filelist[startwith + total_started]
                 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
                 #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
