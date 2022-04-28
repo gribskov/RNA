@@ -22,16 +22,12 @@ class Pipeline():
         '''-----------------------------------------------------------------------------------------
         manager object holds locations of files and directories
         -----------------------------------------------------------------------------------------'''
-        self.jobs = 20
-        self.running = 0
-        self.total = 0
-        self.finished = 0
-        self.delay = 5
-        self.joblist = []
-
+        # define base here so it can be used for defaults in get_args()
         self.base = base
         if not self.base.endswith('/'):
             self.base += '/'
+
+        self.args = self.arg_get()
 
         self.RNAastructure = '../RNAstructure'
         self.python = '../RNA'
@@ -42,8 +38,6 @@ class Pipeline():
         self.xios = self.base + 'xios/'
         self.fpt = self.base + 'fpt/'
 
-        self.args = self.arg_get()
-
         self.managerlog = None
         self.errorlog = None
 
@@ -51,6 +45,18 @@ class Pipeline():
         self.source = ''  # directory for input to the current stage
         self.current = ''
         self.complete = {}
+
+        self.jobs =  self.args.jobs
+        self.jobid = 0
+        self.running = 0
+        self.total = 0
+        self.started = 0
+        self.finished = 0
+        self.succeeded = 0
+        self.failed = 0
+        self.delay = 5
+        self.joblist = []
+
 
     @staticmethod
     def arg_formatter(prog):
@@ -194,10 +200,6 @@ class Pipeline():
 
         # check the log directory and create if necessary
         create_files_and_stop = Pipeline.dircheck(self.log)
-        # if not os.path.isdir(self.log):
-        #     # if directory doesn't exist, create it.
-        #     os.mkdir(self.log)
-        #     create_files_and_stop = True
 
         # create log files for the current run
         timestamp = Pipeline.logtime()
@@ -212,14 +214,19 @@ class Pipeline():
         # completed files
         manager = self.logrecent('manager')
         if manager:
-            # recent logfile exists, read in completed files
+            # recent logfile exists, make a list of completed files
             complete_n = 0
             for line in manager:
-                info = self.logread(manager, 'complete')
+                # print('manager line', line)
+                info = self.logread(line, 'complete')
+                # print('info', info)
                 if info:
                     complete_n += 1
-                    self.complete[info['stage']].append(info['message'])
-                    self.logwrite('manager', 'complete', info['stage'], 'read from previous log')
+                    # print(info['message'])
+                    start = info['message'].find('file:')
+                    file = info['message'][start+5:]
+                    self.complete[info['stage']].append(file)
+                    self.logwrite('manager', 'complete', info['stage'], f'previous log;file:{file}')
 
             manager.close()
 
@@ -227,14 +234,13 @@ class Pipeline():
 
     @staticmethod
     def logtime():
-        """
+        """-----------------------------------------------------------------------------------------
         Create a time string for use in logs year month day hour min sec
         concatenated
 
-        :return:
-        """
-        t = time.localtime()
-        return time.strftime('%Y%m%d%H%M%S')
+        :return: str - YYYYMoDyHrMnSc
+        -----------------------------------------------------------------------------------------"""
+        return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
 
     def logrecent(self, logname):
         """-----------------------------------------------------------------------------------------
@@ -249,7 +255,9 @@ class Pipeline():
                 dirlist.append(d)
 
         if dirlist:
-            return open(dirlist[-1], 'r')
+            dirlist.sort()
+            # print(f'opening {dirlist[-1]}, alt {dirlist[0]}')
+            return open(dirlist[-2], 'r')
         else:
             return None
 
@@ -272,13 +280,13 @@ class Pipeline():
             self.logwrite('error', 'unknown_logfile', stage, '')
 
         # log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
-        log_message = f'{self.logtime()}\t{stage}\t{tag:12s}\t{message}\n'
+        log_message = f'{Pipeline.logtime()}\t{stage}\t{tag:12s}\t{message}\n'
         fp.write(log_message)
         fp.flush()
 
         return log_message
 
-    def logread(self, fp, filter):
+    def logread(self, line, filter):
         """-----------------------------------------------------------------------------------------
         read the indicated log until a matching tag is found. return a hash with the log information
         or if nothing is found, an empty dict (False)
@@ -288,11 +296,13 @@ class Pipeline():
         :return: dict - keys: time, stage, tag, message
         -----------------------------------------------------------------------------------------"""
         info = {}
-        for line in fp:
-            field = line.rstrip().split('\t')
-            if field[2] == 'completed':
-                info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
-                break
+        field = line.rstrip().split('\t')
+        # print(f'logread {field}', end='\t')
+        # print(field)
+        if field[2].startswith(filter):
+            #print('match', end='')
+            info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
+        #print(f'info {info}')
 
         return info
 
@@ -349,16 +359,15 @@ class Pipeline():
         :param startwith: index of filelist to start running
         :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
         -----------------------------------------------------------------------------------------"""
-        # self.logwrite('manager', 'start', 'init', '')
-
         self.fastforward()
         files = []
         for stage in self.stage:
             s = stage['stage']
             files.append(f'{s}:{len(self.complete[s])}')
-        self.logwrite('manager', 'fastforward', f'init', ','.join(files))
+        self.logwrite('manager', 'fastforward', f'init', ';'.join(files))
 
         for stage in self.stage:
+            self.current = stage['stage']
             stagedir = getattr(self, self.source)
             filelist = Pipeline.get_file_list(stagedir)
 
@@ -371,36 +380,48 @@ class Pipeline():
                 Pipeline.dircheck(dir)
 
             while self.manager_startjobs(filelist, stage):
-                self.manager_polljobs()
+                self.manager_polljobs(stage)
 
         return self.finished
 
     def manager_startjobs(self, filelist, stage):
         """-----------------------------------------------------------------------------------------
-        start n jobs, each job sleeps a random number of seconds, then terminates
+        process all files in filelist using the current stage command. run up to self.jobs at a time
 
-        :param filelist:
-        :return:
+        usage:
+            while self.manager_startjobs(filelist, stage):
+                self.manager_polljobs(stage)
+
+        :param filelist: list - list of input files to process
+        :param stage: dict - information describing current pipeline stage
+        :return: boolean - True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
-        job_id = 0
-
+        this_stage = stage['stage']
         while filelist:
             file = filelist.pop()
-            if file in self.complete:
+            if file in self.complete[this_stage]:
+                print(f'skipping {file}')
                 continue
+
             if self.running < self.jobs:
-                job_id += 1
+                self.jobid += 1
                 # fasta = filelist[startwith + total_started]
                 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
                 #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 
-                command = stage['command']
-                self.logwrite('manager', 'start', stage['stage'], f'jobid:{job_id}; input:{file} ')
-                job = sub.Popen(command, shell=True, stdout=self.errorlog, stderr=self.errorlog)
-                self.joblist.append([job_id, job])
+                thiscommand = [stage['command']] + stage['options']
+                thiscommand = [clause.replace('$FILE',file) for clause in thiscommand]
+
+                self.logwrite('manager', 'start', stage['stage'], f'jobid:{self.jobid}; input:{file} ')
+                self.logwrite('manager', 'command', stage['stage'], ' '.join(thiscommand))
+                #job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
+                job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog, stderr=self.errorlog)
+                self.joblist.append([self.jobid, job, file])
                 self.running += 1
-                # total_started += 1
+                self.started += 1
+
             else:
+                # desired number of jobs are running so continue to polling
                 break
 
         if filelist:
@@ -409,45 +430,49 @@ class Pipeline():
         else:
             return False
 
-    def manager_polljobs(self):
+    def manager_polljobs(self, stage):
         """-----------------------------------------------------------------------------------------
         Poll the currently running jobs, and remove completed jobs from the joblist
 
+        :param stage: dict - information describing current pipeline stage
         :return:
         -----------------------------------------------------------------------------------------"""
         # poll all jobs in joblist
         time.sleep(self.delay)
         to_remove = []
         for j in self.joblist:
-            id, job = j
+            id, job, file = j
             # print(f'\tjob {id} ...', end='')
             result = job.poll()
-            if result != None:
+            if result == None:
                 # None indicates job is still running
-                j.append(result)
-                print(f'finished')
+                print(f'job {id} still running')
+
+            else:
+                # job finished
+                print(f'job{id} finished')
+                self.running -= 1
+                self.finished += 1
+                if result == 0:
+                    # success
+                    print(f'job{id} succeeded {file}')
+                    self.logwrite('manager', 'complete', stage['stage'], f'jobid:{id};file:{file}')
+                    self.succeeded += 1
+
+                else:
+                    # error
+                    print(f'job{id} failed {file}')
+                    self.logwrite('manager', 'fail', self.current, f'status:{result};file:{file}')
+                    self.failed += 1
+
+                # include the result in the remove list, it can't be removed here because it
+                # changes the list (self.joblist) that is iterating
                 to_remove.append(j)
 
-            else:
-                print('still running')
-
-        # remove all finished jobs. Can't do it above because it shortens the joblist and some then
+        # remove all finished jobs. Couldn't do it above because it shortens the joblist and 
         # some jobs don't get polled
         for j in to_remove:
-
-            # check for exit status
-            # write fasta file name to file, and other marked attributes
-            if j[3] == 2:
-                # error
-                self.logwrite('error', 'fail', self.current, f'status:{j[3]}')
-            else:
-                # success
-                self.logwrite('manager', 'completed', self.current, f'jobid:{j[0]}')
-
-            # remove finished jobs
             self.joblist.remove(j)
-            self.running -= 1
-            self.finished += 1
 
     def cleanup(self):
         """-----------------------------------------------------------------------------------------
@@ -480,6 +505,8 @@ reads it to find last fasta file worked on, and sends to manager()
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
 workflow = Pipeline()
+workflow.delay=5
+
 # workflow.check_directory('log')
 #
 # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
@@ -487,11 +514,12 @@ workflow = Pipeline()
 # add commands
 workflow.stage.append({'stage':   'xios',
                        'command': f'python {workflow.python}/xios_from_rnastructure.py',
-                       'options': [f'-c {workflow.ct}',
+                       'options': ['-q ',
+                                   f'-c {workflow.ct}',
                                    f'-x {workflow.xios}',
-                                   f'-f {workflow.fasta}',
+                                   f'-f $FILE',
                                    f'-y {workflow.python}',
-                                   f'-r (workflow.RNAstructure',
+                                   f'-r {workflow.RNAstructure}',
                                    ],
                        'dirs':    [workflow.ct, workflow.xios]
                        })
