@@ -485,9 +485,11 @@ reads it to find last fasta file worked on, and sends to manager()
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
 workflow = Pipeline()
+workflow.source = 'fasta'
 workflow.delay = 5
 
 # add commands
+# TODO change this to be read from external file (probably YAML)
 workflow.stage.append({'stage':   'xios',
                        'command': f'python {workflow.python}/xios_from_rnastructure.py',
                        'options': ['-q ',
@@ -498,8 +500,17 @@ workflow.stage.append({'stage':   'xios',
                                    f'-r {workflow.RNAstructure}',
                                    ],
                        'dirs':    [workflow.ct, workflow.xios]
+                       },
+                      {'stage':   'fpt',
+                       'command': f'python {workflow.python}/fingerprint_random.py',
+                       'options': [f'-r {workflow.xios}',
+                                   f'-f {workflow.fpt}',
+                                   f'-m {workflow.python + "/data/2to7stem.mdb.pkl"}',
+                                   f'-c 2',
+                                   f'-q'],
+                       'dirs':    [workflow.fpt]
                        })
-workflow.source = 'fasta'
+
 workflow.manager()
 workflow.cleanup()
 
