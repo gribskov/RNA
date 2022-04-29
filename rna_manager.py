@@ -46,7 +46,7 @@ class Pipeline():
         self.current = ''
         self.complete = {}
 
-        self.jobs =  self.args.jobs
+        self.jobs = self.args.jobs
         self.jobid = 0
         self.running = 0
         self.total = 0
@@ -56,7 +56,6 @@ class Pipeline():
         self.failed = 0
         self.delay = 5
         self.joblist = []
-
 
     @staticmethod
     def arg_formatter(prog):
@@ -168,26 +167,6 @@ class Pipeline():
         self.stage.append(description)
         return len(self.stage)
 
-    # def stagefind(self):
-    #     """-----------------------------------------------------------------------------------------
-    #     Find the current stage by examining whether the stage directory has been created.  The
-    #     output of each stage goes in a directory with the same name
-    #
-    #     :return: string, stage name
-    #     -----------------------------------------------------------------------------------------"""
-    #     for stage in self.stage:
-    #         path = self.base + stage['stage']
-    #         if os.path.isdir(path):
-    #             # current will be the last one matched
-    #             self.source = stage
-    #             self.current = stage
-    #
-    #     if not self.current:
-    #         # first stage if none have been run before
-    #         self.current = self.stage[0]['stage']
-    #
-    #     return self.current
-
     def fastforward(self):
         """-----------------------------------------------------------------------------------------
         Read the most recent logfile and make a list of completed files for each stage.
@@ -224,7 +203,7 @@ class Pipeline():
                     complete_n += 1
                     # print(info['message'])
                     start = info['message'].find('file:')
-                    file = info['message'][start+5:]
+                    file = info['message'][start + 5:]
                     self.complete[info['stage']].append(file)
                     self.logwrite('manager', 'complete', info['stage'], f'previous log;file:{file}')
 
@@ -300,9 +279,9 @@ class Pipeline():
         # print(f'logread {field}', end='\t')
         # print(field)
         if field[2].startswith(filter):
-            #print('match', end='')
+            # print('match', end='')
             info = {'time': field[0], 'stage': field[1], 'tag': field[2], 'message': field[3]}
-        #print(f'info {info}')
+        # print(f'info {info}')
 
         return info
 
@@ -411,11 +390,11 @@ class Pipeline():
                 #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 
                 thiscommand = [stage['command']] + stage['options']
-                thiscommand = [clause.replace('$FILE',file) for clause in thiscommand]
+                thiscommand = [clause.replace('$FILE', file) for clause in thiscommand]
 
                 self.logwrite('manager', 'start', stage['stage'], f'jobid:{self.jobid}; input:{file} ')
                 self.logwrite('manager', 'command', stage['stage'], ' '.join(thiscommand))
-                #job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
+                # job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
                 job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog, stderr=self.errorlog)
                 self.joblist.append([self.jobid, job, file])
                 self.running += 1
@@ -506,12 +485,8 @@ reads it to find last fasta file worked on, and sends to manager()
 # d = int(sys.argv[6])  # delta delta G param for xios_from_rnastructure.py
 
 workflow = Pipeline()
-workflow.delay=5
+workflow.delay = 5
 
-# workflow.check_directory('log')
-#
-# command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
-#           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 # add commands
 workflow.stage.append({'stage':   'xios',
                        'command': f'python {workflow.python}/xios_from_rnastructure.py',
