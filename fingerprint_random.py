@@ -46,7 +46,7 @@ def process_command_line():
     cl.add_argument('-m', '--motifdb',
                     help='pickled RNA motif file (default=%(default)s)',
                     type=argparse.FileType('rb'),
-                    default='2to7stem.mdb.pkl')
+                    default='../RNA/data/2to7stem.mdb.pkl')
     cl.add_argument('-r', '--rna',
                     help='RNA topology in XIOS XML format',
                     type=argparse.FileType('r'))
@@ -106,6 +106,7 @@ def fpt_from_xios(args):
 daytime = datetime.datetime.now()
 runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
+print(f'motifdb:{opt.motifdb.name}')
 
 if opt.quiet:
     print(f'fingerprint_random: {daytime} : {opt.rna.name} : {opt.fpt}', end=' ')
