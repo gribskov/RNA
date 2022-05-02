@@ -129,7 +129,8 @@ class Fingerprint(dict):
                                  {'motif': m}]
                  }]
 
-        return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
+        # return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
+        return yaml.dump(root, indent=2, default_flow_style=False)
 
     def writeYAML(self, file):
         """-----------------------------------------------------------------------------------------
