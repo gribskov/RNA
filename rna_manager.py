@@ -342,13 +342,17 @@ class Pipeline():
         files = []
         for stage in self.stage:
             s = stage['stage']
+            self.source = stage['source']
             files.append(f'{s}:{len(self.complete[s])}')
         self.logwrite('manager', 'fastforward', f'init', ';'.join(files))
 
         for stage in self.stage:
             self.current = stage['stage']
-            stagedir = getattr(self, self.source)
-            filelist = Pipeline.get_file_list(stagedir)
+            sourcedir, sourcetype = stage['source']
+            # stagedir = getattr(self, self.source)
+            # filelist = Pipeline.get_file_list(self.current)
+            print(f'stage={stage["stage"]}\tsource={sourcedir}*{sourcetype}')
+            filelist = Pipeline.get_file_list(sourcedir, sourcetype)
 
             # total number of jobs for this stage
             total = len(filelist)
@@ -491,7 +495,7 @@ workflow.delay = 5
 # add commands
 # TODO change this to be read from external file (probably YAML)
 workflow.stage.append({'stage':   'xios',
-                       'command': f'python {workflow.python}/xios_from_rnastructure.py',
+                       'command': f'python3 {workflow.python}/xios_from_rnastructure.py',
                        'options': ['-q ',
                                    f'-c {workflow.ct}',
                                    f'-x {workflow.xios}',
@@ -499,15 +503,18 @@ workflow.stage.append({'stage':   'xios',
                                    f'-y {workflow.python}',
                                    f'-r {workflow.RNAstructure}',
                                    ],
+                       'source':  [workflow.fasta,'.fa'],
                        'dirs':    [workflow.ct, workflow.xios]
-                       },
-                      {'stage':   'fpt',
-                       'command': f'python {workflow.python}/fingerprint_random.py',
-                       'options': [f'-r {workflow.xios}',
-                                   f'-f {workflow.fpt}',
-                                   f'-m {workflow.python + "/data/2to7stem.mdb.pkl"}',
+                       })
+workflow.stage.append({'stage':   'fpt',
+                       'command': f'python3 {workflow.python}/fingerprint_random.py',
+                       'options': [f'-r $FILE',
+                                   f'-f auto',
+                                   f'--motifdb {workflow.python + "/data/2to7stem.mdb.pkl"}',
                                    f'-c 2',
-                                   f'-q'],
+                                   f'-q',
+                                   f'-n'],
+                       'source':  [workflow.xios,'.xios'],
                        'dirs':    [workflow.fpt]
                        })
 
