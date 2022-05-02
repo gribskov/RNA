@@ -53,6 +53,9 @@ def process_command_line():
     cl.add_argument('-f', '--fpt',
                     help='Fingerprint output file (default=STDOUT, auto=calculate from xios)',
                     default='auto')
+    cl.add_argument('-o', '--outputdir',
+                    help='Directory for fingerprint output (default=%(default)s)',
+                    default='./')
     cl.add_argument('-s', '--subgraphsize',
                     help='Size subgraph to sample (default=%(default)s)',
                     type=int,
@@ -96,6 +99,10 @@ def fpt_from_xios(args):
         fpt = fpt[:-5]
 
     fpt += '.fpt'
+
+    # if specified, add the output directory
+    if args.outputdir:
+        fpt = args.outputdir + fpt
 
     return fpt
 
