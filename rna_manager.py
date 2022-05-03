@@ -1,8 +1,14 @@
 """=================================================================================================
 Run multiple jobs using subprocess.Popen().
-total is the total number of jobs to run.
-run is the number to keep running at the same time
+Usage
+    rna_manager --jobs <n> <base_directory>
+    rna_manager --j <n> <base_directory>
+
+--jobs is the number of processes to run simultaneously
+see Pipeline:arg_get or run with -h to see additional arguments
+
 Ben Iovino    19 April 2022
+Michael Gribskov    3 May 2022
 
 from github.com/biovino/biol494/rna_manager.py commit 7615726bdcc439741db9ebca8805da54b2b386c2
 ================================================================================================="""
@@ -59,8 +65,9 @@ class Pipeline():
 
     @staticmethod
     def arg_formatter(prog):
-        """---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        Set up formatting for help
+        """---------------------------------------------------------------------------------------------
+        Set up formatting for help. Used in arg_get.
+
         :param prog:
         :return: argparse formatter class
         ---------------------------------------------------------------------------------------------"""
@@ -68,8 +75,9 @@ class Pipeline():
 
     def arg_get(self):
         """-----------------------------------------------------------------------------------------
+        Command line arguments
 
-        :return:
+        :return: command line namespace
         -----------------------------------------------------------------------------------------"""
         base = self.base
         if not base.endswith('/'):
@@ -89,7 +97,7 @@ class Pipeline():
                                  metavar='COMMAND_STRING',
                                  help='command options to pass through to pipeline executables (%(default)s)',
                                  default='NONE')
-        # # paths to executables
+        # paths to executables
 
         commandline.add_argument('-R', '--RNAstructure',
                                  metavar='DIRECTORY',
@@ -156,10 +164,30 @@ class Pipeline():
 
         return args
 
-    def stageadd(self, name, description):
+    def stageadd(self, description):
         """-----------------------------------------------------------------------------------------
         Append a stage description to self.stage
-        TODO add details of description
+        Description is a dictionary with keys:
+            stage - string, name of the stage
+            command - string, the base command being run
+            options - list of strings, command options
+            source - list or strings, directory and suffix of input files
+            dirs - list of strings, output directories (existence will be verified)
+
+            example:
+            {'stage':  'xios',
+                       'command': f'python3 {workflow.python}/xios_from_rnastructure.py',
+                       'options': ['-q ',
+                                   f'-c {workflow.ct}',
+                                   f'-x {workflow.xios}',
+                                   f'-f $FILE',
+                                   f'-y {workflow.python}',
+                                   f'-r {workflow.RNAstructure}',
+                                   ],
+                       'source':  [workflow.fasta,'.fa'],
+                       'dirs':    [workflow.ct, workflow.xios]
+                       })
+
 
         :param description: dict
         :return: int, total number of stages
@@ -169,10 +197,11 @@ class Pipeline():
 
     def fastforward(self):
         """-----------------------------------------------------------------------------------------
-        Read the most recent logfile and make a list of completed files for each stage.
+        Read the most recent logfile and make a list of completed files for each stage 
+        (self.complete).
         Reinitializes self.complete
 
-        :return: complete_n
+        :return: int - complete_n
         -----------------------------------------------------------------------------------------"""
         # initialize lists of completed files for each stage
         self.complete = {self.stage[i]['stage']: [] for i in range(len(self.stage))}
@@ -311,7 +340,7 @@ class Pipeline():
     @staticmethod
     def dircheck(path):
         """-----------------------------------------------------------------------------------------
-        Create directory if it doesn't xist already
+        Create directory if it doesn't exist already
 
         :param dirname: string - directory path
         :return: boolean - True if new directory created False otherwise
@@ -324,20 +353,10 @@ class Pipeline():
 
     def manager(self):
         """-----------------------------------------------------------------------------------------
-        Accepts a directory and list of files, runs xios_from_rnastructure.py on each file. Runs a
-        certain amount of jobs at once, logs xios_from_rnastructure.py output and logs fasta files
-        that went through complete job. Polls every x amount of seconds to check which jobs are
-        complete.
-        :param base: directory of directories i.e. /scratch/scholar/user/data/
-        :param pythonexe: directory with python executable files
-        :param rnaexe: directory with RNAstructure executable files
-        :param jobs: number of jobs to run at once
-        :param w: window for RNAstructure
-        :param d: delta delta G for RNAstructure
-        :param filelist: list of files i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
-        :param startwith: index of filelist to start running
-        :param directory: directory of fasta files i.e. /scratch/scholar/user/data/avocado
+        Runs each stage keeping self.jobs running at a time.  Delay between polling is set by 
+        self.delay
         -----------------------------------------------------------------------------------------"""
+        # fastforward checks the log for files that have already been completed
         self.fastforward()
         files = []
         for stage in self.stage:
@@ -381,28 +400,26 @@ class Pipeline():
         -----------------------------------------------------------------------------------------"""
         this_stage = stage['stage']
         while filelist:
-            file = filelist.pop()
-            if file in self.complete[this_stage]:
-                print(f'skipping {file}')
-                continue
+            # print(f'startjobs filelist:{len(filelist)}')
 
             if self.running < self.jobs:
+                file = filelist.pop()
+                if file in self.complete[this_stage]:
+                    print(f'skipping {file}')
+                    continue
+                # print(f'loop filelist:{len(filelist)}')
+
                 self.jobid += 1
                 print(f'starting job{self.jobid} {file}')
-                # fasta = filelist[startwith + total_started]
-                # command = f'python {pythonexe}/xios_from_rnastructure.py -i {directory} ' \
-                #           f'-c {directory}/ctfiles -x {directory}/xiosfiles -f {fasta} -y {pythonexe} -r {rnaexe}'
 
                 thiscommand = [stage['command']] + stage['options']
                 thiscommand = [clause.replace('$FILE', file) for clause in thiscommand]
 
                 self.logwrite('manager', 'start', stage['stage'], f'jobid:{self.jobid}; input:{file} ')
                 self.logwrite('manager', 'command', stage['stage'], ' '.join(thiscommand))
-                # job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
                 job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog, stderr=self.errorlog)
                 self.joblist.append([self.jobid, job, file])
                 self.running += 1
-                self.started += 1
 
             else:
                 # desired number of jobs are running so continue to polling
@@ -430,11 +447,12 @@ class Pipeline():
             result = job.poll()
             if result == None:
                 # None indicates job is still running
-                print(f'job {id} still running')
+                # print(f'job {id} still running')
+                pass
 
             else:
                 # job finished
-                print(f'job{id} finished')
+                # print(f'job{id} finished')
                 self.running -= 1
                 self.finished += 1
                 if result == 0:
@@ -511,6 +529,7 @@ workflow.stage.append({'stage':   'fpt',
                        'options': [f'-r $FILE',
                                    f'-f auto',
                                    f'--motifdb {workflow.python + "/data/2to7stem.mdb.pkl"}',
+                                   f'--outputdir {workflow.fpt}',
                                    f'-c 2',
                                    f'-q',
                                    f'-n'],
