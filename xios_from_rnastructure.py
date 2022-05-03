@@ -353,7 +353,7 @@ if __name__ == '__main__':
 
     if  args.quiet:
         print(f'xios_from_rnastructure {time.asctime(now)}', end='')
-        print(f'\tdirs;asta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
+        print(f'\tdirs;fasta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
     else:
         print('Paths')
         print(f'\tRNAstructure DATAPATH = {os.environ["DATAPATH"]}')
