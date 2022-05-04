@@ -972,10 +972,12 @@ class Topology:
 
         # randomly determine starting vertex
         v0 = random.randrange(nvertex)
+        print(f'v0={v0}\tnvertex={nvertex}')
         vlist = []
         neighbor = []
         size = 0
 
+        too_few_nbor_ct = 0
         while size < n:
 
             # update list of neighbors
@@ -1008,10 +1010,20 @@ class Topology:
             vlist.append(v0)
             size += 1
 
-            if len(neighbor) == 0:
+            if len(neighbor) == 0 and size < n:
                 # if there are no more neighbors, you must stop and start again, the outer
                 # loop checks to make sure the sample graph is at least size == min_n
-                break
+                v0 = random.randrange(nvertex)
+                print(f'v0={v0}\tnvertex={nvertex}')
+                vlist = []
+                neighbor = []
+                size = 0
+
+                too_few_nbr_ct += 1
+                if too_few_nbr_ct > 19:
+                    break
+                else:
+                    continue
 
             # select new vertex and remove from current neighbor list
             v0 = random.choice(neighbor)
@@ -1019,7 +1031,7 @@ class Topology:
 
             # end of size < n loop
 
-        # end of test for size >= min_n
+        # end of test for size >= n
 
         vlist.sort()
 
