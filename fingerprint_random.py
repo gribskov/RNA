@@ -77,7 +77,6 @@ def process_command_line():
 
     args = cl.parse_args()
 
-    print(f'auto={args.fpt}')
     if str(args.fpt) == 'auto':
         args.fpt = fpt_from_xios(args)
 
@@ -113,15 +112,14 @@ def fpt_from_xios(args):
 daytime = datetime.datetime.now()
 runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
-print(f'motifdb:{opt.motifdb.name}')
 
 if opt.quiet:
-    print(f'fingerprint_random: {daytime} : {opt.rna.name} : {opt.fpt}', end=' ')
+    print(f'fingerprint_random: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}', end='\n')
 else:
     print('fingerprint_random - Sample XIOS fingerprint from RNA topology {}'.format(runstart))
     print('\tRNA structure: {}'.format(opt.rna.name))
     print('\tMotif database: {}'.format(opt.motifdb.name))
-    print('\tFingerprint: {}'.format(opt.fpt.name))
+    print('\tFingerprint: {}'.format(opt.fpt))
     print('\tSubgraph size: {}'.format(opt.subgraphsize))
     print('\tCoverage (minimum): {}'.format(opt.coverage))
     print(f'\tMaximum sample: {opt.limit}')
@@ -139,16 +137,20 @@ rna = Topology(xml=opt.rna)
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
 fingerprint.information['File'] = opt.fpt
+# below, use .name because these files are opend by arg_parse
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
 
 # sample the first subgraph to have a motif with minimum occurence
 xios = rna.sample_xios(opt.subgraphsize)
+if not xios:
+    print(f'\tfingerprint_random - graph too small to sample\n')
+    exit(2)
+
 gspan = Gspan(graph=xios)
 dfs = gspan.minDFS().human_encode()
 fingerprint.add(dfs)
 minmotif = fingerprint.minkey()
-
 while True:
     # sample until the lowest count motif is above the opt.coverage count_threshold.  You only have
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
@@ -189,7 +191,7 @@ if not opt.noparent:
         print(f'xpt: {fingerprint.n} : {fingerprint.count}')
     else:
         print('\nExtended fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
-        print(f'\t{n_initial} simple fingerprints extended to {fingerprint.n}')
+        print(f'{n_initial} simple fingerprints extended to {fingerprint.n}')
 
 # print(fingerprint.toYAML())
 if not opt.quiet:

@@ -1352,7 +1352,7 @@ class Gspan:
                 break
 
             # directions are equal
-            if cdir is 'f':
+            if cdir == 'f':
                 # forward edges
                 if cedge[0] > medge[0]:
                     # c is lt
@@ -1380,7 +1380,7 @@ class Gspan:
                         # edges are equal
                         continue
 
-            if cdir is 'b':
+            if cdir == 'b':
                 # backward edges, v0 must be the same
                 if cedge[0] != medge[0]:
                     sys.stdout.write('gspan::minimum - backward v0 not equal\n')
@@ -1409,12 +1409,12 @@ class Gspan:
 
             # end of loop over edges
 
-        if cmp is 'lt':
+        if cmp == 'lt':
             # current is definitively less than minimum, save as new minimum
             self.graph2dfs(first)
             return True
 
-        elif cmp is 'eq':
+        elif cmp == 'eq':
             return True
 
         # gt, fall through

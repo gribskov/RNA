@@ -968,7 +968,7 @@ class Topology:
 
         n = max(n, min_n)
         # while size < min_n:
-            # this makes sure a graph with at least three vertices is returned
+        # this makes sure a graph with at least three vertices is returned
 
         # randomly determine starting vertex
         v0 = random.randrange(nvertex)
@@ -976,9 +976,7 @@ class Topology:
         neighbor = []
         size = 0
 
-        while size < n and neighbor:
-            # if graph size < n, or there are no neighbors, stop
-            # this should trap both small graphs and graphs with small disjoint pieces
+        while size < n:
 
             # update list of neighbors
             v0adj = adj[v0]
@@ -1002,6 +1000,10 @@ class Topology:
 
                 # passed all tests, add a to neighbor list
                 neighbor.append(a)
+
+            if not neighbor:
+                # no neighbors found
+                break
 
             vlist.append(v0)
             size += 1
