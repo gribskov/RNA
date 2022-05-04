@@ -959,59 +959,63 @@ class Topology:
 
         :param n: int, size of graph to sample
         :param min_n: int, minimum size for sampled graph
-        :return: topology
+        :return: list, list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
         random.seed()
         size = 0
-        while size < min_n:
+
+        n = max(n, min_n)
+        # while size < min_n:
             # this makes sure a graph with at least three vertices is returned
 
-            # randomly determine starting vertex
-            v0 = random.randrange(nvertex)
-            vlist = []
-            neighbor = []
-            size = 0
+        # randomly determine starting vertex
+        v0 = random.randrange(nvertex)
+        vlist = []
+        neighbor = []
+        size = 0
 
-            while size < n:
+        while size < n and neighbor:
+            # if graph size < n, or there are no neighbors, stop
+            # this should trap both small graphs and graphs with small disjoint pieces
 
-                # update list of neighbors
-                v0adj = adj[v0]
-                for a in range(len(v0adj)):
-                    if v0adj[a] in 'sx0-':
-                        # skip s and x edges, and self
-                        continue
+            # update list of neighbors
+            v0adj = adj[v0]
+            for a in range(len(v0adj)):
+                if v0adj[a] in 'sx0-':
+                    # skip s and x edges, and self
+                    continue
 
-                    if a in neighbor or a in vlist:
-                        # skip if already in neighbor or vlist
-                        continue
+                if a in neighbor or a in vlist:
+                    # skip if already in neighbor or vlist
+                    continue
 
-                    is_x = False
-                    for v in vlist:
-                        # exclude edge if it is exclusive with any previous edges
-                        # because otherwise you can end up with graphs that are not ioj connected
-                        if adj[v][a] == 'x':
-                            is_x = True
-                    if is_x:
-                        continue
+                is_x = False
+                for v in vlist:
+                    # exclude edge if it is exclusive with any previous edges
+                    # because otherwise you can end up with graphs that are not ioj connected
+                    if adj[v][a] == 'x':
+                        is_x = True
+                if is_x:
+                    continue
 
-                    # passed all tests, add a to neighbor list
-                    neighbor.append(a)
+                # passed all tests, add a to neighbor list
+                neighbor.append(a)
 
-                vlist.append(v0)
-                size += 1
+            vlist.append(v0)
+            size += 1
 
-                if len(neighbor) == 0:
-                    # if there are no more neighbors, you must stop and start again, the outer
-                    # loop checks to make sure the sample graph is at least size == min_n
-                    break
+            if len(neighbor) == 0:
+                # if there are no more neighbors, you must stop and start again, the outer
+                # loop checks to make sure the sample graph is at least size == min_n
+                break
 
-                # select new vertex and remove from current neighbor list
-                v0 = random.choice(neighbor)
-                neighbor.remove(v0)
+            # select new vertex and remove from current neighbor list
+            v0 = random.choice(neighbor)
+            neighbor.remove(v0)
 
-                # end of size < n loop
+            # end of size < n loop
 
         # end of test for size >= min_n
 
