@@ -60,7 +60,7 @@ class Fingerprint(dict):
             self.motif[string] = n
             self.count += n
 
-        return self.n
+        return self.count
 
     def get(self, key):
         """-----------------------------------------------------------------------------------------
