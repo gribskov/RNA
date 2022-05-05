@@ -141,75 +141,66 @@ fingerprint.information['File'] = opt.fpt
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
 
-# sample the first subgraph to have a motif with minimum occurrence
-trials = 0
-while trials < 10:
-    trials += 1
-    xios = rna.sample_xios(opt.subgraphsize)
-    print(f'\tfingerprint_random - retry outer level\txios:{xios}\n')
-    if len(xios) >= opt.subgraphsize-1:
-        break
-
-if len(xios) < opt.subgraphsize-1:
-    # if the graph is small or disjoint, the sampled xios object can be empty, or less than the
-    # minimum size
-    print(f'\tfingerprint_random - graph too small to sample\n')
-    exit(2)
-
-gspan = Gspan(graph=xios)
-dfs = gspan.minDFS().human_encode()
-fingerprint.add(dfs)
-minmotif = fingerprint.minkey()
+minmotif = ''
+mincount = 0
 while True:
     # sample until the lowest count motif is above the opt.coverage count_threshold.  You only have
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
     # minimum is expensive)
     xios = rna.sample_xios(opt.subgraphsize)
-
+    if not xios:
+        print(f'graph could not be sampled, possibly too small')
+        exit(2)
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
+    fingerprint.add(dfs)
     # print(dfs)
+
     if not opt.quiet and not fingerprint.count % 10000:
+        # screen trace
         print(fingerprint.count, dfs)
         # fingerprint.writeYAML(sys.stderr)
-    fingerprint.add(dfs)
 
-    if dfs == minmotif:
-        # if the new dfs is the one with the lowest count, update the lowest count
+    if (dfs == minmotif) or (not mincount):
+        # if the new dfs is the one with the lowest count, update the lowest count, otherwise you
+        # don't need to check
         minmotif = fingerprint.minkey()
         mincount = fingerprint.mincount()
-        # print('{}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
-        if mincount >= opt.coverage or fingerprint.count > opt.limit:
-            break
 
-n_initial = fingerprint.n
+    if mincount >= opt.coverage or fingerprint.count > opt.limit:
+        # this is the successful exit point for the loop
+        break
+
+# to include parent, you must read a motif database.  this is only done after all the motifs have
+# been added to the fingerprint
 if opt.noparent:
     if opt.quiet:
         print(f'fpt: {fingerprint.n} : {fingerprint.count}')
     else:
         print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
                                                       fingerprint.mincount()))
-
-# to include parent, you must read a motif database
-if not opt.noparent:
-    # read in the motif database and RNA structure
+else:
+    # add the parents
     motif = MotifDB.unpickle(opt.motifdb)
+    simple_n = fingerprint.n
+    extended_n = fingerprint.add_parents(motif)
+
     fingerprint.information['Motif database checksum'] = motif.information['checksum']
     fingerprint.information['Motif database description'] = motif.information['name']
-    fingerprint.add_parents(motif)
     if opt.quiet:
         print(f'xpt: {fingerprint.n} : {fingerprint.count}')
     else:
-        print('\nExtended fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
-                                                          fingerprint.mincount()))
-        print(f'{n_initial} simple fingerprints extended to {fingerprint.n}')
+        print(f'\nExtended fingerprint: {fingerprint.count}', end='\t')
+        print(f'{fingerprint.n}', end='\t'),
+        print(f'{fingerprint.mincount()}')
+        print(f'{simple_n} simple fingerprints extended to {extended_n}')
 
 # print(fingerprint.toYAML())
 if not opt.quiet:
-    print(f"\twriting to {motif.information['file']}")
+    print(f'\twriting to {opt.fpt}')
+
 print()
 fingerprint.writeYAML(opt.fpt)
-
 daytime = datetime.datetime.now()
 runend = daytime.strftime('%Y-%m-%d %H:%M:%S')
 sys.stdout.write('\nCompleted: {}'.format(runend))
