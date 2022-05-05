@@ -34,7 +34,7 @@ def process_command_line():
 
     :return:
     ---------------------------------------------------------------------------------------------"""
-    default_subgraphsize = 6
+    default_subgraphsize = 3
     default_coverage = 3
     default_sampling_limit = 10000
 
@@ -147,10 +147,10 @@ while trials < 10:
     trials += 1
     xios = rna.sample_xios(opt.subgraphsize)
     print(f'\tfingerprint_random - retry outer level\txios:{xios}\n')
-    if len(xios) >= 3:
+    if len(xios) >= opt.subgraphsize-1:
         break
 
-if len(xios) < 3:
+if len(xios) < opt.subgraphsize-1:
     # if the graph is small or disjoint, the sampled xios object can be empty, or less than the
     # minimum size
     print(f'\tfingerprint_random - graph too small to sample\n')
