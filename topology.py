@@ -1012,7 +1012,7 @@ class Topology:
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
                 # print(f'v0={v0}\tnvertex={nvertex}')
-                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}')
+                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
                 vlist = []
                 neighbor = [random.randrange(nvertex)]
                 size = 0
