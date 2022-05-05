@@ -14,7 +14,8 @@ from fingerprint import Fingerprint
 
 def process_command_line():
     """---------------------------------------------------------------------------------------------
-    usage: fingerprint_random.py [-h] [-m MOTIFDB] [-r RNA] [-f FPT] [-s SUBGRAPHSIZE] [-c COVERAGE] [-l LIMIT] [-n] [-q]
+    usage: fingerprint_random.py [-h] [-m MOTIFDB] [-r RNA] [-f FPT] [-s SUBGRAPHSIZE] [-c COVERAGE]
+                                 [-l LIMIT] [-n] [-q]
 
     Calculate an XIOS fingerprint from a XIOS XML file by random sampling
 
@@ -23,11 +24,11 @@ def process_command_line():
       -m MOTIFDB, --motifdb MOTIFDB         RNA motif file
       -r RNA, --rna RNA                     RNA topology in XIOS XML format
       -f FPT, --fpt FPT                     Fingerprint output file (default=STDOUT)
-      -s SUBGRAPHSIZE, --subgraphsize SUBGRAPHSIZE
+      -s SUBGRAPHSIZE, --subgraphsize       SUBGRAPHSIZE
                                             Size subgraph to sample (default=6)
       -c COVERAGE, --coverage COVERAGE      Minimum coverage for sampled graphs (default=3)
-      -l LIMIT, --limit LIMIT               Maximum number of random graphs to sample (default=10000)
-      -n, --noparent                        Do not include parent graphs in fingerprint (default=False)
+      -l LIMIT, --limit LIMIT               Maximum random graphs to sample (default=10000)
+      -n, --noparent                        Eexclude parent graphs from fingerprint (default=False)
       -q, --quiet                           Minimal output on stdout (default=False)
 
 
@@ -38,11 +39,9 @@ def process_command_line():
     default_sampling_limit = 10000
 
     cl = argparse.ArgumentParser(
-        # argument_default=argparse.SUPPRESS,
-        # formatter_class=lambda prog:argparse.ArgumentDefaultsHelpFormatter(prog,width=200,max_help_position=40),
         description='Calculate an XIOS fingerprint from a XIOS XML file by random sampling',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
-        )
+    )
     cl.add_argument('-m', '--motifdb',
                     help='pickled RNA motif file (default=%(default)s)',
                     type=argparse.FileType('rb'),
@@ -84,17 +83,17 @@ def process_command_line():
 
 
 def fpt_from_xios(args):
-    '''---------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     create a name for the output file by
         1) removing directory path
         2) changing the suffix .xios to .fpt
         
-    :param xiosfile: string - input xios file
+    :param args: argparse namespace
     :return: string - name for fingerprint file
-    ---------------------------------------------------------------------------------------------'''
+    ---------------------------------------------------------------------------------------------"""
     fpt = os.path.basename(args.rna.name)
-    l = len(fpt)
-    if fpt.rindex('.xios') == l - 5:
+    fptlen = len(fpt)
+    if fpt.rindex('.xios') == fptlen - 5:
         fpt = fpt[:-5]
 
     fpt += '.fpt'
@@ -114,7 +113,8 @@ runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
 
 if opt.quiet:
-    print(f'fingerprint_random: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}', end='\n')
+    print(f'fingerprint_random: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
+          end='\n')
 else:
     print('fingerprint_random - Sample XIOS fingerprint from RNA topology {}'.format(runstart))
     print('\tRNA structure: {}'.format(opt.rna.name))
@@ -137,12 +137,18 @@ rna = Topology(xml=opt.rna)
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
 fingerprint.information['File'] = opt.fpt
-# below, use .name because these files are opend by arg_parse
+# below, use .name because these files are opened by arg_parse
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
 
-# sample the first subgraph to have a motif with minimum occurence
-xios = rna.sample_xios(opt.subgraphsize)
+# sample the first subgraph to have a motif with minimum occurrence
+trials = 0
+while trials < 10:
+    trials += 1
+    xios = rna.sample_xios(opt.subgraphsize)
+    if len(xios) > 3:
+        break
+
 if len(xios) < 3:
     # if the graph is small or disjoint, the sampled xios object can be empty, or less than the
     # minimum size
@@ -180,7 +186,8 @@ if opt.noparent:
     if opt.quiet:
         print(f'fpt: {fingerprint.n} : {fingerprint.count}')
     else:
-        print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
+        print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
+                                                      fingerprint.mincount()))
 
 # to include parent, you must read a motif database
 if not opt.noparent:
@@ -192,7 +199,8 @@ if not opt.noparent:
     if opt.quiet:
         print(f'xpt: {fingerprint.n} : {fingerprint.count}')
     else:
-        print('\nExtended fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n, fingerprint.mincount()))
+        print('\nExtended fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
+                                                          fingerprint.mincount()))
         print(f'{n_initial} simple fingerprints extended to {fingerprint.n}')
 
 # print(fingerprint.toYAML())
