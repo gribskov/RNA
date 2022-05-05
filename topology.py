@@ -255,7 +255,6 @@ class Topology:
 
         return len(self.edge_list)
 
-
     def XIOSwrite(self, fp):
         """-----------------------------------------------------------------------------------------
         Write the topology in XIOS XML format. The file comprises four sections
@@ -949,7 +948,7 @@ class Topology:
     # # end of mergeCase5
 
     @staticmethod
-    def sample(adj, n, min_n=3):
+    def sample(adj, n):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
         connected by non-s (and currently non-x) edges, but size may be less than n if the graph
@@ -966,21 +965,20 @@ class Topology:
         random.seed()
         size = 0
 
-        n = max(n, min_n)
-        # while size < min_n:
-        # this makes sure a graph with at least three vertices is returned
-
-        # randomly determine starting vertex
-        v0 = random.randrange(nvertex)
-        print(f'v0={v0}\tnvertex={nvertex}')
-        vlist = []
-        neighbor = []
-        size = 0
-
         too_few_nbor_ct = 0
+        vlist = []
+        neighbor = [random.randrange(nvertex)]
+        size = 0
         while size < n:
+            # randomly determine starting vertex
+            v0 = random.choice(neighbor)
+            vlist.append(v0)
+            neighbor.remove(v0)
+            print(f'topology:sample v0={v0}\tnvertex={nvertex}')
 
-            # update list of neighbors
+            size += 1
+
+            # update list of neighbors from adjacency matrix
             v0adj = adj[v0]
             for a in range(len(v0adj)):
                 if v0adj[a] in 'sx0-':
@@ -1003,31 +1001,28 @@ class Topology:
                 # passed all tests, add a to neighbor list
                 neighbor.append(a)
 
-            if not neighbor:
-                # no neighbors found
-                break
+            # if not neighbor:
+            #     # neighbor list is empty
+            #     break
 
-            vlist.append(v0)
-            size += 1
-
-            if len(neighbor) == 0 and size < n:
+            if not neighbor and size < n:
                 # if there are no more neighbors, you must stop and start again, the outer
                 # loop checks to make sure the sample graph is at least size == min_n
-                v0 = random.randrange(nvertex)
-                print(f'v0={v0}\tnvertex={nvertex}')
+                # v0 = random.randrange(nvertex)
+                # print(f'v0={v0}\tnvertex={nvertex}')
                 vlist = []
-                neighbor = []
+                neighbor = [random.randrange(nvertex)]
                 size = 0
 
-                too_few_nbr_ct += 1
-                if too_few_nbr_ct > 19:
-                    break
-                else:
+                too_few_nbor_ct += 1
+                if too_few_nbor_ct < 20:
                     continue
+                else:
+                    break
 
             # select new vertex and remove from current neighbor list
-            v0 = random.choice(neighbor)
-            neighbor.remove(v0)
+            # v0 = random.choice(neighbor)
+            # neighbor.remove(v0)
 
             # end of size < n loop
 
@@ -1122,19 +1117,27 @@ class Topology:
 
         return newtopo
 
-    def sample_xios(self, n):
+    def sample_xios(self, n, retry=10):
         """-----------------------------------------------------------------------------------------
         Return a xios structure sampled from the current topology. From the selected vertices
-        find all the edges that connect those vertices.
+        find all the edges that connect those vertices. If the graph is small or disjoint, the
+        sampled vlist can be empty.  Try up to retry times and then give up.
 
         :param self: Xios object
         :param n: int, number of stems to sample
+        :param retttry: int, number of times to retry if vlist is too small
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
 
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = Topology.sample(self.adjacency, n)
+
+        vlist = []
+        tries = 0
+        if len(vlist) < n and tries < retry:
+            # graph is too small
+            tries += 1
+            vlist = Topology.sample(self.adjacency, n)
 
         adj = self.adjacency
         struct = []
@@ -1705,7 +1708,7 @@ class PairRNA:
         end = 0
         for i in range(0, len(pairs), 2):
             if pairs[i] <= end:
-                end = max(end, pairs[i+1])
+                end = max(end, pairs[i + 1])
             else:
                 # disconnected
                 # print(f'\tnot connected {self}')
@@ -2091,7 +2094,6 @@ class RNAstructure(Topology):
 
         self.adjacency = a
         return edges
-
 
     def edgelist_format(self, include='ijo', whole=False):
         """-----------------------------------------------------------------------------------------
