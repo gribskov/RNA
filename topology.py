@@ -1010,7 +1010,7 @@ class Topology:
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
                 # print(f'v0={v0}\tnvertex={nvertex}')
-                print(f'topology:smaple retry')
+                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}')
                 vlist = []
                 neighbor = [random.randrange(nvertex)]
                 size = 0
@@ -1139,7 +1139,7 @@ class Topology:
             # graph is too small
             tries += 1
             vlist = Topology.sample(self.adjacency, n)
-            print(f'retry topology:sample_xios')
+            print(f'retry topology:sample_xios\tvlist:{vlist}')
 
         adj = self.adjacency
         struct = []
