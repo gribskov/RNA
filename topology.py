@@ -977,6 +977,10 @@ class Topology:
             print(f'topology:sample v0={v0}\tnvertex={nvertex}')
             size += 1
 
+            for a in neighbor:
+                if adj[v0][a] == 'x':
+                    neighbor.remove(a)
+
             # update list of neighbors from adjacency matrix
             v0adj = adj[v0]
             for a in range(len(v0adj)):
@@ -984,7 +988,7 @@ class Topology:
                     # skip s and x edges, and self
                     continue
 
-                if a in neighbor or a in vlist:
+                if (a in neighbor) or (a in vlist):
                     # skip if already in neighbor or vlist
                     continue
 
@@ -996,9 +1000,11 @@ class Topology:
                         is_x = True
                 if is_x:
                     continue
+                else:
+                    # passed all tests, add a to neighbor list
+                    neighbor.append(a)
 
-                # passed all tests, add a to neighbor list
-                neighbor.append(a)
+
 
             # if not neighbor:
             #     # neighbor list is empty
@@ -1137,24 +1143,26 @@ class Topology:
 
         vlist = []
         tries = 0
-        if len(vlist) < n and tries < retry:
+        while len(vlist) < n and tries < retry:
             # graph is too small
+            if tries:
+                print(f'retry topology:sample_xios\tvlist:{vlist}')
+
             tries += 1
             vlist = Topology.sample(self.adjacency, n)
-            print(f'retry topology:sample_xios\tvlist:{vlist}')
 
-        adj = self.adjacency
-        struct = []
+            adj = self.adjacency
+            struct = []
 
-        # identify all the edges between the vertices in vlist
-        for r in range(len(vlist) - 1):
-            row = vlist[r]
-            for c in range(r + 1, len(vlist)):
-                col = vlist[c]
-                # if col <= row:
-                #     continue
-                if adj[row][col] in 'ijo':
-                    struct.append([row, col, edge[adj[row][col]]])
+            # identify all the edges between the vertices in vlist
+            for r in range(len(vlist) - 1):
+                row = vlist[r]
+                for c in range(r + 1, len(vlist)):
+                    col = vlist[c]
+                    # if col <= row:
+                    #     continue
+                    if adj[row][col] in 'ijo':
+                        struct.append([row, col, edge[adj[row][col]]])
 
         return Xios(list=struct)
 
