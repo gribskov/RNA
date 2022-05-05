@@ -143,7 +143,9 @@ fingerprint.information['RNA structure'] = opt.rna.name
 
 # sample the first subgraph to have a motif with minimum occurence
 xios = rna.sample_xios(opt.subgraphsize)
-if not xios:
+if len(xios) < 3:
+    # if the graph is small or disjoint, the sampled xios object can be empty, or less than the
+    # minimum size
     print(f'\tfingerprint_random - graph too small to sample\n')
     exit(2)
 
