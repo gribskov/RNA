@@ -975,7 +975,6 @@ class Topology:
             vlist.append(v0)
             neighbor.remove(v0)
             print(f'topology:sample v0={v0}\tnvertex={nvertex}')
-
             size += 1
 
             # update list of neighbors from adjacency matrix
@@ -1005,12 +1004,12 @@ class Topology:
             #     # neighbor list is empty
             #     break
 
-            if not neighbor and size < n:
+            if not neighbor and len(vlist):
                 # if there are no more neighbors, you must stop and start again, the outer
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
                 # print(f'v0={v0}\tnvertex={nvertex}')
-                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}')
+                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}')
                 vlist = []
                 neighbor = [random.randrange(nvertex)]
                 size = 0
