@@ -146,7 +146,8 @@ trials = 0
 while trials < 10:
     trials += 1
     xios = rna.sample_xios(opt.subgraphsize)
-    if len(xios) > 3:
+    print(f'\tfingerprint_random - retry outer level\n')
+    if len(xios) >= 3:
         break
 
 if len(xios) < 3:
