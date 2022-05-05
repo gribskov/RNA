@@ -1,0 +1,53 @@
+<XIOS version='2.1'>
+  <information>
+    <sequence>
+      <id>
+      tRNA.3EPH.fa
+      </id>
+      <doc>
+      </doc>
+      <unformatted>
+      UCGUAUGGCGCAGUGGUAGCGCAGCAGAUUGCAAAUCUGUUGGUCCUUAGUUCGAUCCUGAGUGCGAGUCGUAUGGCGCAGUGGUAGCGCAGCAGAUUGCAAAUCUGUUGGUCCUUAGUUCGAUCCUGAGUGCGAG
+      </unformatted>
+    </sequence>
+    <comment_list>
+      <comment>
+      Converting CT file ./ct/tRNA.3EPH.w4.ct to XIOS
+      	 structure 0:    68  ENERGY = -19.5  tRNA.3EPH.fa
+      	 structure 1:    68  ENERGY = -18.0  tRNA.3EPH.fa
+      5 stems after removing duplicates
+      </comment>
+      <comment>
+      creation_date 2022-05-05 11:49:36
+      </comment>
+      <comment>
+      input_file ./ct/tRNA.3EPH.w4.ct
+      </comment>
+      <comment>
+      input_format unifold
+      </comment>
+    </comment_list>
+  </information>
+  <stem_list>
+   0  34.0  [  1  6 62 67 ]   ((((((  ))))))
+   1  15.0  [  8 11 19 22 ]     ((((  ))))
+   2  32.0  [ 24 30 34 40 ]  (((((((  )))))))
+   3  49.5  [ 42 45 54 57 ]     ((((  ))))
+   4  54.0  [ 46 50 58 62 ]    (((((  )))))
+  </stem_list>
+  <edge_list>
+    0:  1i  2i  3i  4x
+    1:
+    2:
+    3:  4o
+    4:
+  </edge_list>
+  <adjacency>
+       0  1  2  3  4
+    0  0  i  i  i  x
+    1  j  0  s  s  s
+    2  j  s  0  s  s
+    3  j  s  s  0  o
+    4  x  s  s  o  0
+  </adjacency>
+</XIOS>
