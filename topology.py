@@ -1004,7 +1004,10 @@ class Topology:
             #     # neighbor list is empty
             #     break
 
-            if not neighbor and len(vlist):
+            if len(vlist) >= n:
+                break
+
+            if not neighbor:
                 # if there are no more neighbors, you must stop and start again, the outer
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
