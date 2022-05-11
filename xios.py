@@ -498,7 +498,7 @@ class MotifDB():
     def __init__(self, **kwds):
         self.fields = ['information', 'db', 'parent']
         self.information = {}  # for metadata
-        self.db = {}
+        self.db = {}    # dictionary of motifs, value is number of stems in motif
         self.parent = {}
 
         for key in kwds:
