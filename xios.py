@@ -498,7 +498,9 @@ class MotifDB():
     def __init__(self, **kwds):
         self.fields = ['information', 'db', 'parent']
         self.information = {}  # for metadata
-        self.db = {}    # dictionary of motifs, value is number of stems in motif
+        # dictionary of motifs, value is  number of stems in motif
+        # TODO could include an index
+        self.db = {}
         self.parent = {}
 
         for key in kwds:
@@ -517,17 +519,18 @@ class MotifDB():
         :return: int, number of motifs in database
         -----------------------------------------------------------------------------------------"""
         self.db[motif] = n_stems
+        # self.db[motif] = (n_stems, self.n)    # TODO with index
         self.n = len(self.db)
 
         return self.n
 
     def sort_by_len(self):
-        """
+        """-----------------------------------------------------------------------------------------
         Since python dictionaries now retain the entry order it should be possible to make a new
         order database
 
         :return:
-        """
+        -----------------------------------------------------------------------------------------"""
         newdb = {}
         for k in sorted(self.db, key=lambda x: self.db[x]):
             newdb[k] = self.db[k]
