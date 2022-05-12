@@ -285,11 +285,11 @@ class FingerprintSet(list):
         jaccard = []
         for i in range(len(idx)):
             m0 = self[idx[i]].motif
-            intersect = []
-            union = []
 
             for j in range(i + 1, len(idx)):
                 m1 = self[idx[j]].motif
+                intersect = []
+                union = []
 
                 for motif in m0:
                     if motif in m1:
