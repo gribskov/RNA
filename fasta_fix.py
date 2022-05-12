@@ -58,7 +58,7 @@ def fasta_read(filename):
         sys.stderr.write(f'fasta_fix:fasta_read - cannot open fasta file ({filename})')
         exit(1)
 
-    fasta = {}
+    fasta = {'id':'', 'documentation':'', 'sequence':''}
     for line in file:
         if line.lstrip().startswith('>'):
             doc = ''
@@ -71,6 +71,7 @@ def fasta_read(filename):
 
             fasta['id'] = id.replace('>', '')
             fasta['documentation'] = doc
+            fasta['sequence'] = ''
         else:
             fasta['sequence'] += line.strip()
 
@@ -101,6 +102,24 @@ def fasta_write(filename, fasta, linelen=100):
     return True
 
 
+def fasta_fixbases(fasta):
+    """---------------------------------------------------------------------------------------------
+    Sequences may contain not ACGT bases, convert them to A
+
+    :paraam fasta: dict, , {'id', 'documentation', 'sequence'}
+    :return: fasta, int, number of bases changed
+    ---------------------------------------------------------------------------------------------"""
+    newbase = 'A'
+    base = list(fasta['sequence'])
+    changed = 0
+    for i in range(len(base)):
+        if base[i] not in 'ACGT':
+            base[i] = newbase
+            changed += 1
+
+    return ''.join(base), changed
+
+
 # ==================================================================================================
 # main/test
 # ==================================================================================================
@@ -115,7 +134,13 @@ if __name__ == '__main__':
         # for each file input directory
         if file.endswith(fasta_suffix):
             fa = fasta_read(indir + file)
-            fa = fasta_uc()
-            fa = fasta_fixbases()
+            fa_original = fa['sequence'][:]
+            fa['sequence'] = fa['sequence'].upper()
+            if fa['sequence'] != fa_original:
+                fa['documentation'] += " original bases converted to uppercase"
+            fa, changed = fasta_fixbases(fa)
+            if changed:
+                fa['documentation'] += " {changed} original bases changed to A"
+            fasta_write(outdir + file, fa)
 
     exit(0)
