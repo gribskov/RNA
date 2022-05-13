@@ -59,7 +59,7 @@ def fasta_read(filename):
         exit(1)
 
     fasta = {'id':'', 'documentation':'', 'sequence':''}
-    for line in file:
+    for line in fasta_in:
         if line.lstrip().startswith('>'):
             doc = ''
             id = ''
@@ -67,13 +67,15 @@ def fasta_read(filename):
                 id, doc = line.strip().split()
             except ValueError:
                 # no documentation
-                id = line
+                id = line.strip()
 
             fasta['id'] = id.replace('>', '')
             fasta['documentation'] = doc
             fasta['sequence'] = ''
         else:
             fasta['sequence'] += line.strip()
+
+    fasta_in.close()
 
     return fasta
 
@@ -95,7 +97,7 @@ def fasta_write(filename, fasta, linelen=100):
     fasta_out.write(f">{fasta['id']} {fasta['documentation']}\n")
     begin = 0
     while begin < len(fasta['sequence']):
-        fasta_out.write(f">{fasta['sequence'][begin:begin + linelen]}\n")
+        fasta_out.write(f"{fasta['sequence'][begin:begin + linelen]}\n")
         begin += linelen
 
     fasta_out.close()
@@ -128,7 +130,11 @@ if __name__ == '__main__':
     fasta_suffix = '.fa'
 
     indir = sys.argv[1]
+    if not indir.endswith('/'):
+        indir += '/'
     outdir = sys.argv[2]
+    if not outdir.endswith('/'):
+        outdir += '/'
 
     for file in os.listdir(indir):
         # for each file input directory
@@ -137,10 +143,11 @@ if __name__ == '__main__':
             fa_original = fa['sequence'][:]
             fa['sequence'] = fa['sequence'].upper()
             if fa['sequence'] != fa_original:
-                fa['documentation'] += " original bases converted to uppercase"
-            fa, changed = fasta_fixbases(fa)
+                fa['documentation'] += " original bases converted to uppercase;"
+            fixed, changed = fasta_fixbases(fa)
             if changed:
-                fa['documentation'] += " {changed} original bases changed to A"
+                fa['documentation'] += f' {changed} original bases changed to A;'
+                fa['sequence'] = fixed
             fasta_write(outdir + file, fa)
 
     exit(0)
