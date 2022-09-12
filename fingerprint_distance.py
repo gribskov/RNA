@@ -8,14 +8,44 @@ Michael Gribskov     04 February 2022
 import glob
 from os.path import basename
 from fingerprint import Fingerprint, FingerprintSet
+def process_command_line():
+    """---------------------------------------------------------------------------------------------
 
+    ---------------------------------------------------------------------------------------------"""
+    cl = argparse.ArgumentParser(
+        description='Calculate distances between fingerprints',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+    )
+    cl.add_argument('-m', '--dir',
+                    help='Directory with fingerprint files (default=%(default)s)',
+                    default='../data/fpt')
+    cl.add_argument('-r', '--suffix ',
+                    help='Suffix for fingertprint files  (default=%(default)s',
+                    tdefault='.fpt')
+    cl.add_argument('-f', '--fpt',
+                    help='Fingerprint output file (default=STDOUT, auto=calculate from xios)',
+                    default='auto')
+    cl.add_argument('-o', '--out',
+                    help='Output file name (default=%(default)s)',
+                    default='distance.out')
+
+
+    args = cl.parse_args()
+
+    if str(args.fpt) == 'auto':
+        args.fpt = fpt_from_xios(args)
+
+    return args
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    fpt_dir = 'data/fpt/'
-    fpt_suffix = '.fpt'
-    outfile = 'distance.out'
+    daytime = datetime.datetime.now()
+
+    opt = process_command_line()
+    fpt_dir = opt.fpt'
+    fpt_suffix = opt.suffix
+    outfile = opt.out
 
     # make a list of all fingerprints in the target directory
     fpt_list = glob.glob(f'{fpt_dir}*{fpt_suffix}')
