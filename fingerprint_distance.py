@@ -5,18 +5,51 @@ Calculate the jaccard distance between all pairs
 
 Michael Gribskov     04 February 2022
 ================================================================================================="""
+import argparse
+import datetime
 import glob
 from os.path import basename
+
 from fingerprint import Fingerprint, FingerprintSet
+
+
+def process_command_line():
+    """---------------------------------------------------------------------------------------------
+    command line arguments using argparse
+    ---------------------------------------------------------------------------------------------"""
+    cl = argparse.ArgumentParser(
+        description='Calculate distances between fingerprints',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+    )
+    cl.add_argument('-d', '--dir',
+                    help='Directory with fingerprint files (default=%(default)s)',
+                    default='../data/fpt')
+    cl.add_argument('-s', '--suffix',
+                    help='Suffix for fingerprint files  (default=%(default)s)',
+                    default='.fpt')
+    cl.add_argument('-o', '--out',
+                    help='Output file name (default=%(default)s)',
+                    default='distance.out')
+
+    args = cl.parse_args()
+    if args.dir.endswith('/'):
+        pass
+    else:
+        args.dir += '/'
+
+    return args
+
 
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    #fpt_dir = 'data/fpt/'
-    fpt_dir = '../fpt/'
-    fpt_suffix = '.fpt'
-    outfile = 'distance.out'
+    daytime = datetime.datetime.now()
+
+    opt = process_command_line()
+    outfile = opt.out
+    fpt_dir = opt.dir
+    fpt_suffix = opt.suffix
 
     # make a list of all fingerprints in the target directory
     fpt_list = glob.glob(f'{fpt_dir}*{fpt_suffix}')
@@ -43,13 +76,13 @@ if __name__ == '__main__':
     #         j = fpt.jaccard_sim([i,j])
     #         bc = fpt.bray_curtis_dis([i,j])
     #         print(f'{fpt1}\t{fpt2}\t{j[2]:.3f}\t{bc:[2]:.3f}')
-    maximum = {'jaccard':0, 'bray-curtis':0}
+    maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
-    
+
     jaccard = fpt.jaccard_sim([])
     bc = fpt.bray_curtis_dis([])
 
-    out = open( outfile, 'w')
+    out = open(outfile, 'w')
     for d in jaccard:
         i = d[0]
         j = d[1]
@@ -57,7 +90,7 @@ if __name__ == '__main__':
         out.write(f'{basename(fpt[j].information["File"])}\t')
         out.write(f'{d[2]:.3f}\t')
         out.write(f'{bc[j][2]:.3f}\n')
-        
+
         maximum['jaccard'] = max(maximum['jaccard'], d[2])
         minimum['jaccard'] = min(minimum['jaccard'], d[2])
         maximum['bray-curtis'] = max(maximum['bray-curtis'], bc[j][2])
