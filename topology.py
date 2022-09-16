@@ -222,6 +222,39 @@ class Topology:
 
         return nline
 
+    def edgelist_from_adjacency(self, include="ijo", whole=False):
+        """-----------------------------------------------------------------------------------------
+        An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
+        tuples with the number and type of nodes with edges.  This function populates the edge_list
+        of the topology object
+
+        :param include: string, edge types to include
+        :param whole: boolean, include self edges, why??
+        :return: int, number of edges
+        -----------------------------------------------------------------------------------------"""
+        elist = []
+        if not self.adjacency:
+            return 0
+
+        size = len(self.adjacency)
+        a = self.adjacency
+        for i in range(size):
+            e = []
+            elist.append(e)
+            begin = i + 1
+            if whole:
+                begin = 0
+
+            for j in range(begin, size):
+                if i == j:
+                    continue
+                if a[i][j] in include:
+                    e.append([j, a[i][j]])
+
+        self.edge_list = elist
+
+        return len(self.edge_list)
+
     def XIOSwrite(self, fp):
         """-----------------------------------------------------------------------------------------
         Write the topology in XIOS XML format. The file comprises four sections
@@ -311,7 +344,8 @@ class Topology:
                 self.parse_stem_list(section.text)
 
             elif section.tag == 'edge_list':
-                self.parse_edge_list(section.text)
+                pass
+                # self.parse_edge_list(section.text)
 
             elif section.tag == 'adjacency':
                 self.parse_adjacency(section.text)
@@ -319,6 +353,7 @@ class Topology:
             else:
                 sys.stderr.write('Topology::XIOSread - unknown XML tag ({})\n'.format(section.tag))
 
+        self.edgelist_from_adjacency()
         return 1
 
     def parse_information(self, x, clear=True):
@@ -913,7 +948,7 @@ class Topology:
     # # end of mergeCase5
 
     @staticmethod
-    def sample(adj, n, min_n=3):
+    def sample(adj, n):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
         connected by non-s (and currently non-x) edges, but size may be less than n if the graph
@@ -923,60 +958,84 @@ class Topology:
 
         :param n: int, size of graph to sample
         :param min_n: int, minimum size for sampled graph
-        :return: topology
+        :return: list, list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
         random.seed()
         size = 0
-        while size < min_n:
-            # this makes sure a graph with at least three vertices is returned
-            vlist = []
-            neighbor = []
+
+        too_few_nbor_ct = 0
+        vlist = []
+        neighbor = [random.randrange(nvertex)]
+        size = 0
+        while size < n:
             # randomly determine starting vertex
-            v0 = random.randrange(nvertex)
-            size = 0
+            v0 = random.choice(neighbor)
+            vlist.append(v0)
+            neighbor.remove(v0)
+            print(f'topology:sample v0={v0}\tnvertex={nvertex}')
+            size += 1
 
-            while size < n:
+            for a in neighbor:
+                if adj[v0][a] == 'x':
+                    neighbor.remove(a)
 
-                # update list of neighbors
-                v0adj = adj[v0]
-                for a in range(len(v0adj)):
-                    if v0adj[a] in 'sx0':
-                        # skip s and x edges, and self
-                        continue
+            # update list of neighbors from adjacency matrix
+            v0adj = adj[v0]
+            for a in range(len(v0adj)):
+                if v0adj[a] in 'sx0-':
+                    # skip s and x edges, and self
+                    continue
 
-                    if a in neighbor or a in vlist:
-                        # skip if already in neighbor or vlist
-                        continue
+                if (a in neighbor) or (a in vlist):
+                    # skip if already in neighbor or vlist
+                    continue
 
-                    is_x = False
-                    for v in vlist:
-                        # exclude edge if it is exclusive with any previous edges
-                        # because otherwise you can end up with graphs that are not ioj connected
-                        if adj[v][a] == 'x':
-                            is_x = True
-                    if is_x:
-                        continue
-
+                is_x = False
+                for v in vlist:
+                    # exclude edge if it is exclusive with any previous edges
+                    # because otherwise you can end up with graphs that are not ioj connected
+                    if adj[v][a] == 'x':
+                        is_x = True
+                if is_x:
+                    continue
+                else:
                     # passed all tests, add a to neighbor list
                     neighbor.append(a)
 
-                vlist.append(v0)
-                size += 1
 
-                if len(neighbor) == 0:
-                    # if there are no more neighbors, you must stop and start again, the outer
-                    # loop checks to make sure the sample graph is at least size == min_n
+
+            # if not neighbor:
+            #     # neighbor list is empty
+            #     break
+
+            if len(vlist) >= n:
+                break
+
+            if not neighbor:
+                # if there are no more neighbors, you must stop and start again, the outer
+                # loop checks to make sure the sample graph is at least size == min_n
+                # v0 = random.randrange(nvertex)
+                # print(f'v0={v0}\tnvertex={nvertex}')
+                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
+                vlist = []
+                neighbor = [random.randrange(nvertex)]
+                size = 0
+
+                too_few_nbor_ct += 1
+                if too_few_nbor_ct < 20:
+                    continue
+                else:
                     break
 
-                # select new vertex and remove from current neighbor list
-                v0 = random.choice(neighbor)
-                neighbor.remove(v0)
+            # select new vertex and remove from current neighbor list
+            # v0 = random.choice(neighbor)
+            # neighbor.remove(v0)
 
-                # end of size < n loop
+            # end of size < n loop
 
-        # end of test for size >= min_n
+        # end of test for size >= n
 
         vlist.sort()
 
@@ -1067,32 +1126,43 @@ class Topology:
 
         return newtopo
 
-    def sample_xios(self, n):
+    def sample_xios(self, n, retry=10):
         """-----------------------------------------------------------------------------------------
         Return a xios structure sampled from the current topology. From the selected vertices
-        find all the edges that connect those vertices.
+        find all the edges that connect those vertices. If the graph is small or disjoint, the
+        sampled vlist can be empty.  Try up to retry times and then give up.
 
         :param self: Xios object
         :param n: int, number of stems to sample
+        :param retttry: int, number of times to retry if vlist is too small
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
 
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = Topology.sample(self.adjacency, n)
 
-        adj = self.adjacency
-        struct = []
+        vlist = []
+        tries = 0
+        while len(vlist) < n and tries < retry:
+            # graph is too small
+            if tries:
+                print(f'retry topology:sample_xios\tvlist:{vlist}')
 
-        # identify all the edges between the vertices in vlist
-        for r in range(len(vlist) - 1):
-            row = vlist[r]
-            for c in range(r + 1, len(vlist)):
-                col = vlist[c]
-                # if col <= row:
-                #     continue
-                if adj[row][col] in 'ijo':
-                    struct.append([row, col, edge[adj[row][col]]])
+            tries += 1
+            vlist = Topology.sample(self.adjacency, n)
+
+            adj = self.adjacency
+            struct = []
+
+            # identify all the edges between the vertices in vlist
+            for r in range(len(vlist) - 1):
+                row = vlist[r]
+                for c in range(r + 1, len(vlist)):
+                    col = vlist[c]
+                    # if col <= row:
+                    #     continue
+                    if adj[row][col] in 'ijo':
+                        struct.append([row, col, edge[adj[row][col]]])
 
         return Xios(list=struct)
 
@@ -1650,7 +1720,7 @@ class PairRNA:
         end = 0
         for i in range(0, len(pairs), 2):
             if pairs[i] <= end:
-                end = max(end, pairs[i+1])
+                end = max(end, pairs[i + 1])
             else:
                 # disconnected
                 # print(f'\tnot connected {self}')
@@ -2036,37 +2106,6 @@ class RNAstructure(Topology):
 
         self.adjacency = a
         return edges
-
-    def edgelist_from_adjacency(self, include="ijo", whole=False):
-        """-----------------------------------------------------------------------------------------
-        An edgelist is an array of lists.  each row corresponds to a stem (vertex).  The values are
-        tuples with the number and type of nodes with edges.  This function populates the edge_list
-        of the topology opbject
-
-        :return: int, number of edges
-        -----------------------------------------------------------------------------------------"""
-        elist = []
-        if not self.adjacency:
-            return 0
-
-        size = len(self.adjacency)
-        a = self.adjacency
-        for i in range(size):
-            e = []
-            elist.append(e)
-            begin = i + 1
-            if whole:
-                begin = 0
-
-            for j in range(begin, size):
-                if i == j:
-                    continue
-                if a[i][j] in include:
-                    e.append([j, a[i][j]])
-
-        self.edge_list = elist
-
-        return len(self.edge_list)
 
     def edgelist_format(self, include='ijo', whole=False):
         """-----------------------------------------------------------------------------------------

@@ -31,6 +31,8 @@ def options():
 
     :return: argparse Namespace (similar to a dictionary)
     ---------------------------------------------------------------------------------------------"""
+    # print(sys.argv)
+
     commandline = argparse.ArgumentParser(
         description='Create XIOS from FastaA sequence using the RNAstructure fold program',
         formatter_class=formatter)
@@ -68,6 +70,8 @@ def options():
     commandline.add_argument('-r', '--rnastructure',
                              help='Directory path for RNAstructure executables such as Fold (%(default)s)',
                              default='/scratch/bell/mgribsko/rna/RNAstructure/')
+
+
     # mergecase currently unused
     # commandline.add_argument('-c', '--mergecase',
     #                          help='Mergestems: merging cases (rules) for combining suboptimal '
@@ -105,9 +109,9 @@ def options():
     return args
 
 
-def safe_mkdir(dirname):
+def safe_mkdir(args,dirname):
     """---------------------------------------------------------------------------------------------
-    Try to create a directory, if directory already exists, exit with status = 2
+    Try to create a directory, if directory already exists, use existing directory
 
     :param dirname: string, path to directory
     ---------------------------------------------------------------------------------------------"""
@@ -115,8 +119,9 @@ def safe_mkdir(dirname):
         os.mkdir(dirname)
         return True
     except FileExistsError:
-        sys.stderr.write(f'Directory {dirname} already exists, using existing directory\n')
-    #    exit(2)
+        if not args.quiet:
+            sys.stderr.write(f'Directory {dirname} already exists, using existing directory\n')
+    #       exit(2)
 
     return True
 
@@ -130,7 +135,7 @@ def safe_file(filename, mode):
     :param mode: string, 'r' or 'w'
     :return:
     ---------------------------------------------------------------------------------------------"""
-    if mode is 'r':
+    if mode == 'r':
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -138,7 +143,7 @@ def safe_file(filename, mode):
     else:
         if os.path.exists(filename):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
-            exit(4)
+            # exit(4)
 
     return True
 
@@ -163,7 +168,7 @@ def ct_from_fasta(args, fasta):
 
     ct += f'.w{args.window}'
     ct += '.ct'
-    return ct
+    return f'{args.ctdir}{ct}'
 
 
 def xios_from_ct(args, ct):
@@ -280,8 +285,11 @@ def runfold(args, fasta, ct, percent):
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
-    subprocess.call(opt, stdout=subprocess.DEVNULL)
-
+    # subprocess.call(opt, stdout=subprocess.DEVNULL)
+    result = subprocess.run(opt, capture_output=True)
+    #print(result)
+    #print(f'out:{result.stdout}')
+    #print(f'err:{result.stderr}')
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -306,7 +314,12 @@ def runmergestems(arg, ct, xios, comment):
     opt = ['python3', exe, ct]
     # opt += ['-c', f'{args.mergecase}']
     opt += ['-d', f'{args.ddg}']
-    subprocess.call(opt, stdout=xiosout)
+    try:
+        subprocess.call(opt, stdout=xiosout)
+    except Exception as err:
+        sys.stderr.write(f'{err} {exe} {opt}\n')
+        print(f'error in mergestems {exe} {opt}')
+
     xiosout.close()
 
     rna = RNAstructure()
@@ -336,25 +349,28 @@ if __name__ == '__main__':
 
     # code locations, see options() to alter defaults
     os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
-    print(f'xios_from_rnastructure {time.asctime(now)}\n')
-    if not args.quiet:
+    input = args.indir + args.fasta
+
+    if  args.quiet:
+        print(f'xios_from_rnastructure {time.asctime(now)}', end='')
+        print(f'\tdirs;fasta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
+    else:
         print('Paths')
         print(f'\tRNAstructure DATAPATH = {os.environ["DATAPATH"]}')
         print(f'\tRNAstructure executables: {args.rnastructure}')
         print(f'\tPython executables: {args.python}')
 
-    print('Parameters')
-    print(f'\tFold:percent={args.percent}')
-    print(f'\tFold:maximum={args.maximum}')
-    print(f'\tFold:window={args.window}')
-    print(f'\tdelta deltaG={args.ddG}')
-    # print(f'\tmergstems:mergecases={args.mergecase}')
+        print('Parameters')
+        print(f'\tFold:percent={args.percent}')
+        print(f'\tFold:maximum={args.maximum}')
+        print(f'\tFold:window={args.window}')
+        print(f'\tdelta deltaG={args.ddG}')
+        # print(f'\tmergstems:mergecases={args.mergecase}')
 
-    input = args.indir + args.fasta
-    print('Inputs and outputs')
-    print(f'\tFasta files: {input}')
-    print(f'\tCT files: {args.ctdir}')
-    print(f'\tXIOS files: {args.xiosdir}\n')
+        print('Inputs and outputs')
+        print(f'\tFasta files: {args.indir}')
+        print(f'\tCT files: {args.ctdir}')
+        print(f'\tXIOS files: {args.xiosdir}\n')
 
     # check if there are inputs and create directories
 
@@ -363,8 +379,8 @@ if __name__ == '__main__':
         sys.stderr.write('No files match the specified input ({})\n'.format(input))
         exit(1)
 
-    safe_mkdir(args.ctdir)
-    safe_mkdir(args.xiosdir)
+    safe_mkdir(args, args.ctdir)
+    safe_mkdir(args, args.xiosdir)
 
     # for each FastA file, generate the CT file, then convert to XIOS
     commentfold = {}
@@ -380,7 +396,8 @@ if __name__ == '__main__':
         for window in range(args.window_min, args.window_max + 1):
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
-            ct = 'ctfiles/' + ct_from_fasta(args, fasta)
+            ct = ct_from_fasta(args, fasta)
+            print(f'xios_from_rnastructure ct={ct}')
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
@@ -405,8 +422,9 @@ if __name__ == '__main__':
                 xios_n += 1
 
     # final report
-    print(f'\nFastA files processed: {fa_n}')
-    print(f'CT files processed: {ct_n}')
-    print(f'XIOS files produced: {xios_n}')
+    if not args.quiet:
+        print(f'\nFastA files processed: {fa_n}')
+        print(f'CT files processed: {ct_n}')
+        print(f'XIOS files produced: {xios_n}')
 
     exit(0)

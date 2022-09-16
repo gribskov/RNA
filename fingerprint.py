@@ -1,12 +1,14 @@
 import sys
 import json
+import datetime
 import yaml
 
 
 class Fingerprint(dict):
     """=============================================================================================
-    A finger print is a spectrum of fixed size motifs identified in a structure.  The motifs are
-    referenced to a motif dictionary to enable simple identification of parents.
+    A fingerprint is a dict tabulating the spectrum of fixed size motifs in a structure.  The keys
+    of the dictionary are the minimum dfs codes of the motifs.  These correspond to the keys of the
+    motifs created by make_xios_db.py.
 
     Sorting the results
 
@@ -21,31 +23,56 @@ class Fingerprint(dict):
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-
+        The main data structure is the dictionary of motifs.  Normally the keys are the minimum DFS
+        and the values are the counts
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
         self.information = {'Date': ''
                             }
         self.motif = {}
-        self.nmotif = 0
-        self.total = 0  # total count of added motifs
+        self.count = 0  # sum of counts of all motifs
 
-    def add(self, string, count=1):
+        self.setdate()
+
+    @property
+    def n(self):
+        """-----------------------------------------------------------------------------------------
+        makes a function for length that looks like an attribute (but read only)
+        e.g., print(fp.n)
+
+        :return: int, number of motifs in motif dictionary
+        -----------------------------------------------------------------------------------------"""
+        return len(self.motif)
+
+    def add(self, string, n=1):
         """-----------------------------------------------------------------------------------------
         Adds a motif to the fingerprint, creating a new entry if needed.  Agnostic as to the
         encoding of the motif string
 
         :param string: str, encoded motifs string
+        :param n: int, number of observations of this motif
         :return: int, number of motifs in fingerprint
         -----------------------------------------------------------------------------------------"""
-        self.total += count
+        self.count += n
         if string in self.motif:
-            self.motif[string] += count
+            self.motif[string] += n
         else:
-            self.motif[string] = count
-            self.nmotif += count
+            self.motif[string] = n
+            self.count += n
 
-        return self.nmotif
+        return self.count
+
+    def get(self, key):
+        """-----------------------------------------------------------------------------------------
+        Lookup and return a motif by name (key)
+
+        :param key: string, a key in self.motif
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if key in self.motif:
+            return self.motif[key]
+        else:
+            return None
 
     def mincount(self):
         """-----------------------------------------------------------------------------------------
@@ -82,7 +109,7 @@ class Fingerprint(dict):
 
         return json.dumps({fields[i]: root[i] for i in range(len(fields))}, indent=4)
 
-    def toYAML(self):
+    def toYAML(self, sort='len'):
         """-----------------------------------------------------------------------------------------
         Convert fingerprint to JSON string
 
@@ -90,12 +117,20 @@ class Fingerprint(dict):
         -----------------------------------------------------------------------------------------"""
         fields = ['information', 'total', 'nmotif', 'motif']
 
-        root = [{'fingerprint': [{'information': self.information},
-                                 {'total': self.total},
-                                 {'nmotif': self.nmotif},
-                                 {'motif': self.motif}]}]
+        m = self.motif
+        if sort == 'len':
+            m = {}
+            for k in sorted(self.motif, key=lambda x: self.motif[x], reverse=True):
+                m[k] = self.motif[k]
 
-        return yaml.dump(root, indent=2)
+        root = [{'fingerprint': [{'information': self.information},
+                                 {'total': self.count},
+                                 {'nmotif': self.n},
+                                 {'motif': m}]
+                 }]
+
+        return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
+        #return yaml.dump(root, indent=2, default_flow_style=False)
 
     def writeYAML(self, file):
         """-----------------------------------------------------------------------------------------
@@ -138,17 +173,27 @@ class Fingerprint(dict):
             # file is not str, assume it is a file pointer
             fp = file
 
-        f = yaml.load(fp)
+        f = yaml.load(fp, Loader=yaml.FullLoader)
         root = f[0]['fingerprint']
 
         # fields = ['information', 'total', 'nmotif', 'motif']
 
         self.information = root[0]['information']
-        self.total = root[1]['total']
-        self.nmotif = root[2]['nmotif']
+        self.count = root[1]['total']
         self.motif = root[3]['motif']
 
-        return self.nmotif
+        return self.n
+
+    def setdate(self):
+        """-----------------------------------------------------------------------------------------
+        set date in information
+        
+        :return: datetime
+        -----------------------------------------------------------------------------------------"""
+        daytime = datetime.datetime.now()
+        self.information['Date'] = daytime.strftime('%Y-%m-%d %H:%M:%S')
+
+        return daytime
 
     def add_parents(self, motifdb):
         """-----------------------------------------------------------------------------------------
@@ -156,22 +201,31 @@ class Fingerprint(dict):
         count of each parent is incremented for each of its children.  for nested children this may
         not make perfect sense
 
-        :param motifdb:
+        :param motifdb: MotifDB object with motifs and parents
         :return: int, total number of motifs
         -----------------------------------------------------------------------------------------"""
         children = list(self.motif.keys())
+        # print(f'children:{self.n}')
+        i = 0
         for child in children:
-            for parent in motifdb.parent[child]:
-                # print('child {}\t\tparent {} {}'.format(child, parent, self.motif[child]))
-                self.add(parent, count=self.motif[child])
+            i += 1
+            try:
+                for parent in motifdb.parent[child]:
+                    # print('child {}\t\tparent {} {}'.format(child, parent, self.motif[child]))
+                    self.add(parent, n=self.motif[child])
+            except KeyError:
+                # shouldn't see this, of course
+                print(f'{i}\tadd_parents error:{child}')
 
-        return self.nmotif
+        return self.n
 
 
 class FingerprintSet(list):
     """=============================================================================================
-    A collection of fingerprints
+    A collection of fingerprints and similarity/distance functions
 
+    TODO: instead of having a long list of similarity/distance function, add a dispatcher that
+    handles both similarity and distance for all implemented types (and also sets precision)
     ============================================================================================="""
 
     def __init__(self):
@@ -183,7 +237,7 @@ class FingerprintSet(list):
     def fill(self):
         """-----------------------------------------------------------------------------------------
         compare the motif lists for all the fingerprint in the set and fill in any missing  motifs
-        with zeroes.  After running fill, all fingerprints will have the same motfif lists
+        with zeroes.  After running fill, all fingerprints will have the same motif lists
 
         :return: int, number of motifs
         -----------------------------------------------------------------------------------------"""
@@ -211,44 +265,120 @@ class FingerprintSet(list):
 
         return len(motiflist)
 
-    def jaccard(self, idx=[]):
+    def jaccard_sim(self, idx=[]):
         """-----------------------------------------------------------------------------------------
-        Calculate pairwise Jaccard distance between the fingerprints indicated by idx.  [0,1],
+        Calculate pairwise Jaccard similarity between the fingerprints indicated by idx.  [0,1],
         e.g., means just the first two fingerprints in the set.
 
-        :param idx: list, indices of members of fingerprintset to compare,
-        :return: True
+        range: [0,1]
+
+        :param idx: list, indices of members of FingerprintSet to compare,
+        :return: list of float, similarity values
         -----------------------------------------------------------------------------------------"""
-        nmotif = len(self)
+        nfp = len(self)
         if len(idx) == 0:
-            idx = range(nmotif)
+            idx = [i for i in range(nfp)]
+        elif max(idx) > len(self) - 1:
+            sys.stderr.write(f'FingerprintSet:jaccard - selected indices exceed number of motifs\n')
+            exit(2)
 
+        jaccard = []
         for i in range(len(idx)):
-            m0 = self[i].motif
-            intersection = 0
+            m0 = self[idx[i]].motif
 
-            for j in range(i+1, len(idx)):
-                m1 = self[j].motif
+            for j in range(i + 1, len(idx)):
+                m1 = self[idx[j]].motif
+                intersect = []
+                union = []
 
                 for motif in m0:
-                    if m0[motif] == 0:
-                        continue
-                    if m1[motif] > 0:
-                        intersect += 1
+                    if motif in m1:
+                        intersect.append(motif)
+                    union.append(motif)
 
-                jaccard[i][j] = intersect / nmotif
+                for motif in m1:
+                    if motif not in union:
+                        union.append(motif)
 
-        return True
+                try:
+                    jaccard.append([idx[i], idx[j], len(intersect) / len(union)])
+                except ZeroDivisionError:
+                    sys.stderr.write(f'FingerprintSet:jaccard - no motifs in fingerprints in {idx[i]} and {idx[j]}\n')
+
+        return jaccard
+
+    def bray_curtis_dis(self, idx=[]):
+        """-----------------------------------------------------------------------------------------
+        Calculate pairwise Bray-Curtis dissimilarity between the fingerprints indicated by idx.
+        [0,1], e.g., means just the first two fingerprints in the set.
+
+        range: [0,1]
+
+        :param idx: list, indices of members of FingerprintSet to compare,
+        :return: list of float, dissimilarity values
+        -----------------------------------------------------------------------------------------"""
+        nfp = len(self)
+        if len(idx) == 0:
+            idx = [i for i in range(nfp)]
+        elif max(idx) > len(self) - 1:
+            sys.stderr.write(f'FingerprintSet:bray_curtis_dis - selected indices exceed number of motifs\n')
+            exit(2)
+
+        bc = []
+        for i in range(len(idx)):
+            m0 = self[idx[i]].motif
+            intersect = 0
+            union = 0
+
+            for j in range(i + 1, len(idx)):
+                m1 = self[idx[j]].motif
+
+                for motif in m0:
+                    if motif in m1:
+                        intersect += min(m0[motif], m1[motif])
+                    union += m0[motif]
+
+                for motif in m1:
+                    union += m1[motif]
+
+                try:
+                    bc.append([idx[i], idx[j], 2 * intersect / union])
+                except ZeroDivisionError:
+                    sys.stderr.write(f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
+                                     f' {idx[j]}\n')
+
+        return bc
+
 
 # ##################################################################################################
 # Testing
 # ##################################################################################################
 if __name__ == '__main__':
-    finger = Fingerprint()
-    finger.append('dummy')
-    finger.append('dummier')
-    finger.append('dummiest')
-    print(finger[0])
-    print(finger)
+    finger1 = Fingerprint()
+    finger1.add('dummy')
+    finger1.add('dummier')
+    for i in range(5):
+        finger1.add('dummiest')
 
+    key = 'dummier'
+    print(f'{key} count={finger1.get(key)}')
+
+    print(f'finger: {finger1}, n: {finger1.n}')
+    print(finger1.toYAML())
+
+    finger2 = Fingerprint()
+    finger2.add('dummier', n=5)
+    finger2.add('x')
+    finger2.add('y')
+
+    finger3 = Fingerprint()
+    finger3.add('dummiest', n=5)
+    finger3.add('x')
+    finger3.add('dummy')
+
+    fset = FingerprintSet()
+    fset += [finger1, finger2, finger3]
+    print(f'Jaccard Similaity:{fset.jaccard_sim()}')
+    print(f'Bray-Curtis Dissimilarity:{fset.bray_curtis_dis()}')
+    print(f'intersect:{fset.jaccard_sim(idx=[0, 3])}')
     exit(0)

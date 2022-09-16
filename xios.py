@@ -498,12 +498,15 @@ class MotifDB():
     def __init__(self, **kwds):
         self.fields = ['information', 'db', 'parent']
         self.information = {}  # for metadata
+        # dictionary of motifs, value is  number of stems in motif
+        # TODO could include an index
         self.db = {}
         self.parent = {}
 
         for key in kwds:
             if key == 'json':
                 self.fromJSON(kwds[key])
+
             else:
                 sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
 
@@ -516,9 +519,25 @@ class MotifDB():
         :return: int, number of motifs in database
         -----------------------------------------------------------------------------------------"""
         self.db[motif] = n_stems
+        # self.db[motif] = (n_stems, self.n)    # TODO with index
         self.n = len(self.db)
 
         return self.n
+
+    def sort_by_len(self):
+        """-----------------------------------------------------------------------------------------
+        Since python dictionaries now retain the entry order it should be possible to make a new
+        order database
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        newdb = {}
+        for k in sorted(self.db, key=lambda x: self.db[x]):
+            newdb[k] = self.db[k]
+
+        self.db = newdb
+
+        return True
 
     def pickle(self, fh):
         """-----------------------------------------------------------------------------------------
@@ -547,6 +566,9 @@ class MotifDB():
         fh = None
         try:
             fh = open(filename, 'rb')
+        except TypeError:
+            # probably a filehandle
+            fh = filename
         except OSError:
             sys.stderr.write(f"MotifDB - can't open pickle file ({filename})")
 
@@ -585,13 +607,22 @@ class MotifDB():
         """-----------------------------------------------------------------------------------------
         calculate a checksum.  The checksum is based on the JSON string of the db and parent
         so it should not be affected by changes to comments.
+        jason dumps causes memory issu for large databases.  could try
+        return hashlib.md5(content.encode()).hexdigest()
+
+        zlib.adler3, unlike hash(), returns the same code every time
 
         :return: str, hexadecimal md5 checksum
         -----------------------------------------------------------------------------------------"""
-        content = json.dumps(self.db) + json.dumps(self.parent)
-        result = hashlib.md5(content.encode())
+        # content = json.dumps(self.db) + json.dumps(self.parent)
+        # result = hashlib.md5(content.encode())
+        from functools import reduce
+        import zlib
+        checksum = reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8')) for t in self.db.items()])
+        checksum = checksum ^ reduce(lambda x, y: x ^ y, [zlib.adler32(bytes(repr(t), 'utf-8'))
+                                                          for t in self.parent.items()])
 
-        return result.hexdigest()
+        return checksum
 
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
@@ -1324,7 +1355,7 @@ class Gspan:
                 break
 
             # directions are equal
-            if cdir is 'f':
+            if cdir == 'f':
                 # forward edges
                 if cedge[0] > medge[0]:
                     # c is lt
@@ -1352,7 +1383,7 @@ class Gspan:
                         # edges are equal
                         continue
 
-            if cdir is 'b':
+            if cdir == 'b':
                 # backward edges, v0 must be the same
                 if cedge[0] != medge[0]:
                     sys.stdout.write('gspan::minimum - backward v0 not equal\n')
@@ -1381,12 +1412,12 @@ class Gspan:
 
             # end of loop over edges
 
-        if cmp is 'lt':
+        if cmp == 'lt':
             # current is definitively less than minimum, save as new minimum
             self.graph2dfs(first)
             return True
 
-        elif cmp is 'eq':
+        elif cmp == 'eq':
             return True
 
         # gt, fall through

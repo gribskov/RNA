@@ -1,0 +1,34 @@
+- fingerprint:
+  - information:
+      Date: '2022-05-06 09:27:32'
+      File: ./fpt/tmRNA.Gemmata_obscuriglobus.TRW-214688.w4.d5.fpt
+      Motif database: ../RNA/data/2to7stem.mdb.pkl
+      RNA structure: ./xios/tmRNA.Gemmata_obscuriglobus.TRW-214688.w4.d5.xios
+  - total: 50001
+  - nmotif: 25
+  - motif:
+      0i1.1i2.2j0.1i3.3j0.1i4.4j0.: 14040
+      0i1.1i2.2j0.2i3.3j0.3j1.2i4.4j0.4j1.: 6830
+      0i1.0i2.0i3.0i4.: 6152
+      0i1.1i2.2j0.2o3.3j0.3j1.1i4.4j0.: 4955
+      0i1.1o2.2j0.0i3.0i4.: 4427
+      0i1.1i2.2j0.1i3.3j0.0i4.: 3500
+      0i1.1i2.2j0.2i3.3j0.3j1.1i4.4j0.: 1932
+      0i1.1i2.2j0.0i3.0i4.: 1611
+      0i1.1i2.2j0.2i3.3j0.3j1.0i4.: 1345
+      0i1.1i2.2j0.2i3.3j0.3j1.3i4.4j0.4j1.4j2.: 871
+      0i1.1i2.2j0.2i3.3j0.3j1.3o4.4j0.4j1.4j2.: 775
+      0i1.1i2.2j0.1o3.3j0.0i4.: 745
+      0i1.1o2.2j0.2o3.3j0.0i4.: 701
+      0i1.1i2.2j0.2o3.3j0.3j1.3o4.4j0.4j1.: 483
+      0i1.1i2.2j0.2i3.3j0.3j1.2o4.4j0.4j1.: 444
+      0i1.1i2.2j0.2o3.3j0.3j1.0i4.: 363
+      0i1.1i2.2j0.1o3.3j0.3o4.4j0.: 258
+      0i1.1o2.2j0.0i3.3o4.4j0.: 177
+      0i1.1i2.2j0.2o3.3j0.1i4.4j0.: 155
+      0i1.1i2.2j0.0i3.3o4.4j0.: 96
+      0i1.1o2.0i3.0i4.: 61
+      0i1.1i2.2j0.2i3.3j0.3j1.3o4.4j0.4j1.: 33
+      0i1.1i2.2j0.2o3.3j0.0i4.: 12
+      0i1.1o2.2j0.0i3.3o4.: 8
+      0i1.1i2.2j0.0i3.3o4.: 2

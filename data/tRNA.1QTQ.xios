@@ -1,0 +1,53 @@
+<XIOS version='2.1'>
+  <information>
+    <sequence>
+      <id>
+      tRNA.1QTQ.fa
+      </id>
+      <doc>
+      </doc>
+      <unformatted>
+      GGGGUAUCGCCAAGCGGUAAGGCACCGGAUUCUGAUUCCGGCAUUCCGAGGUUCGAAUCCUCGUACCCCAGCCAGGGGUAUCGCCAAGCGGUAAGGCACCGGAUUCUGAUUCCGGCAUUCCGAGGUUCGAAUCCUCGUACCCCAGCCA
+      </unformatted>
+    </sequence>
+    <comment_list>
+      <comment>
+      Converting CT file ./ct/tRNA.1QTQ.w4.ct to XIOS
+      	 structure 0:    74  ENERGY = -27.8  tRNA.1QTQ.fa
+      	 structure 1:    74  ENERGY = -26.9  tRNA.1QTQ.fa
+      5 stems after removing duplicates
+      </comment>
+      <comment>
+      creation_date 2022-05-05 11:49:41
+      </comment>
+      <comment>
+      input_file ./ct/tRNA.1QTQ.w4.ct
+      </comment>
+      <comment>
+      input_format unifold
+      </comment>
+    </comment_list>
+  </information>
+  <stem_list>
+   0  35.0  [  1  7 63 69 ]          (((((((  )))))))
+   1  16.0  [  9 11 21 23 ]              (((  )))
+   2  33.0  [ 25 29 37 41 ]            (((((  )))))
+   3  43.5  [ 27 41 46 60 ]  ((((((.((.(((((  ))).)).))))))))
+   4  55.0  [ 47 51 59 63 ]            (((((  )))))
+  </stem_list>
+  <edge_list>
+    0:  1i  2i  3i  4x
+    1:
+    2:  3x
+    3:  4x
+    4:
+  </edge_list>
+  <adjacency>
+       0  1  2  3  4
+    0  0  i  i  i  x
+    1  j  0  s  s  s
+    2  j  s  0  x  s
+    3  j  s  x  0  x
+    4  x  s  s  x  0
+  </adjacency>
+</XIOS>
