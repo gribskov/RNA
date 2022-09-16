@@ -2086,7 +2086,8 @@ class RNAstructure(Topology):
                     a[j][i] = 's'
                     edges['s'] += 1
 
-                elif stem_i.lend < stem_j.lbegin and stem_j.rend < stem_i.rbegin:
+                # elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
+                elif stem_i.lend < stem_j.lbegin and stem_i.rbegin > stem_j.lend and stem_i.rend < stem_j.rbegin:
                     # overlap edge (pseudoknot)
                     a[i][j] = 'o'
                     a[j][i] = 'o'
