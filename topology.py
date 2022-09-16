@@ -974,7 +974,7 @@ class Topology:
             v0 = random.choice(neighbor)
             vlist.append(v0)
             neighbor.remove(v0)
-            print(f'topology:sample v0={v0}\tnvertex={nvertex}')
+            # print(f'topology:sample v0={v0}\tnvertex={nvertex}')
             size += 1
 
             for a in neighbor:
@@ -1018,7 +1018,7 @@ class Topology:
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
                 # print(f'v0={v0}\tnvertex={nvertex}')
-                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
+                # print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
                 vlist = []
                 neighbor = [random.randrange(nvertex)]
                 size = 0
@@ -1145,8 +1145,8 @@ class Topology:
         tries = 0
         while len(vlist) < n and tries < retry:
             # graph is too small
-            if tries:
-                print(f'retry topology:sample_xios\tvlist:{vlist}')
+            # if tries:
+            #    print(f'retry topology:sample_xios\tvlist:{vlist}')
 
             tries += 1
             vlist = Topology.sample(self.adjacency, n)
@@ -2086,7 +2086,7 @@ class RNAstructure(Topology):
                     a[j][i] = 's'
                     edges['s'] += 1
 
-                elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
+                elif stem_i.lend < stem_j.lbegin and stem_j.rend < stem_i.rbegin:
                     # overlap edge (pseudoknot)
                     a[i][j] = 'o'
                     a[j][i] = 'o'
