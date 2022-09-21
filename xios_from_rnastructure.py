@@ -136,6 +136,7 @@ def safe_file(filename, mode):
     :return:
     ---------------------------------------------------------------------------------------------"""
     if mode == 'r':
+        print(f'safe_file r-branch file: {filename}')
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -143,7 +144,9 @@ def safe_file(filename, mode):
     else:
         if os.path.exists(filename):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
+            return False
             # exit(4)
+        print(f"apparently {filename} doesn't exist")
 
     return True
 
@@ -278,8 +281,15 @@ def runfold(args, fasta, ct, percent):
     :return: string, comment for inclusion in XIOS file
     ---------------------------------------------------------------------------------------------"""
     safe_file(fasta, 'r')
-    safe_file(ct, 'w')
+    if safe_file(ct, 'w'):
+        print(f'ctfile {ct} is writable')
+        pass
+    else:
+        # probably ctfile exists so skip
+        print(f'ct file {ct} exists. {fasta} skipped')
+        return f'{fasta} skipped'
 
+    print(f'running fold {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
@@ -306,7 +316,10 @@ def runmergestems(arg, ct, xios, comment):
     :param comment: string, string to add to XIOS comment block
     :return: 
     ---------------------------------------------------------------------------------------------"""
-    safe_file(xios, 'w')
+    if safe_file(xios, 'w'):
+        pass
+    else:
+        return f'runmergestems skipping {xios}'
 
     xiosout = open(xios, 'w')
 
@@ -363,7 +376,7 @@ if __name__ == '__main__':
         print('Parameters')
         print(f'\tFold:percent={args.percent}')
         print(f'\tFold:maximum={args.maximum}')
-        print(f'\tFold:window={args.window}')
+        print(f'\tFold:window={args.window_min}, {args.window_max}')
         print(f'\tdelta deltaG={args.ddG}')
         # print(f'\tmergstems:mergecases={args.mergecase}')
 
@@ -394,6 +407,7 @@ if __name__ == '__main__':
             print(f'processing {fasta}')
 
         for window in range(args.window_min, args.window_max + 1):
+            print(f'\nmain loop window:{window}')
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = ct_from_fasta(args, fasta)
@@ -407,8 +421,8 @@ if __name__ == '__main__':
             except ZeroDivisionError:
                 percent = args.percent
 
-            commentfold[ct] = runfold(args, fasta, ct, percent=percent)
-            ct_n += 1
+            #commentfold[ct] = runfold(args, fasta, ct, percent=percent)
+            #ct_n += 1
 
             # all XIOS output goes to the args.xiosdir
             # for each ct file we can use different ddG
