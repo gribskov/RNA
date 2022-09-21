@@ -212,9 +212,6 @@ def get_mfe_from_ct(CT):
         if line.find('ENERGY'):
             field = line.split()
 
-    ct.close()
-    os.remove(CT)
-
     return abs(float(field[3]))
 
 
@@ -288,6 +285,7 @@ def runfold(args, fasta, ct, percent):
     # if ct file is present, assume this sequence has been processed already and skip
     safe_file(fasta, 'r')
     if safe_file(ct, 'w'):
+        # ct file does not exist
         print(f'ctfile {ct} is writable')
         pass
     else:
@@ -301,9 +299,7 @@ def runfold(args, fasta, ct, percent):
     print(f'running fold pass 1: {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
-    opt += ['-p', f'{percent}']
-    opt += ['-m', f'{args.maximum}']
-    opt += ['-w', f'{args.window}']
+    opt += ['-mfe']
     result = subprocess.run(opt, capture_output=True)
 
     mfe = get_mfe_from_ct(ct)
@@ -312,22 +308,21 @@ def runfold(args, fasta, ct, percent):
     except ZeroDivisionError:
         percent = args.percent
 
-    # commentfold[ct] = runfold(args, fasta, ct, percent=percent)
-    # ct_n += 1
-
+    # remove pass 1 ct file
+    ct.close()
+    os.remove(CT)
 
     #-----------------------------------------------------------------------------------------------
-    # pass 2 to get suboptimal folds
+    # pass 2 to get suboptimal folds, use parameters from command line
     #-----------------------------------------------------------------------------------------------
-    exe = args.rnastructure + '/exe/Fold'
+    print('running fold, pass 2')
+    # exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
     result = subprocess.run(opt, capture_output=True)
-    #print(result)
-    #print(f'out:{result.stdout}')
-    #print(f'err:{result.stderr}')
+
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -443,9 +438,7 @@ if __name__ == '__main__':
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
-
-            # all XIOS output goes to the args.xiosdir
-            # for each ct file we can use different ddG
+            # all XIOS output goes to args.xiosdir
             # the stems that are the same in structures with different ddG are merged
 
             for ddG in range(args.ddG_min, args.ddG_max + 1):
