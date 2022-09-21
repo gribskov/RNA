@@ -220,6 +220,9 @@ def get_mfe_from_ct(CT):
 
 def runfold(args, fasta, ct, percent):
     """---------------------------------------------------------------------------------------------
+    Fold is run twice, the first time to just get the MFE. The second time under the ddG and window
+    parameters to get the suboptimal alignments
+
     Run the RNAstructure Fold program
     USAGE: Fold <sequence file> <CT file> [options]
     All flags are case-insensitive, and grouping of flags is not allowed.
@@ -280,6 +283,9 @@ def runfold(args, fasta, ct, percent):
     :param ct: string, writable ct file
     :return: string, comment for inclusion in XIOS file
     ---------------------------------------------------------------------------------------------"""
+
+    # check the input (fa) and output files. Fail if input file is not available/readable.
+    # if ct file is present, assume this sequence has been processed already and skip
     safe_file(fasta, 'r')
     if safe_file(ct, 'w'):
         print(f'ctfile {ct} is writable')
@@ -288,14 +294,36 @@ def runfold(args, fasta, ct, percent):
         # probably ctfile exists so skip
         print(f'ct file {ct} exists. {fasta} skipped')
         return f'{fasta} skipped'
+    #-----------------------------------------------------------------------------------------------
+    # pass 1 to get DeltaG
+    #-----------------------------------------------------------------------------------------------
 
-    print(f'running fold {fasta} => {ct}')
+    print(f'running fold pass 1: {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
-    # subprocess.call(opt, stdout=subprocess.DEVNULL)
+    result = subprocess.run(opt, capture_output=True)
+
+    mfe = get_mfe_from_ct(ct)
+    try:
+        percent = int(100 * args.ddG_max / mfe)
+    except ZeroDivisionError:
+        percent = args.percent
+
+    # commentfold[ct] = runfold(args, fasta, ct, percent=percent)
+    # ct_n += 1
+
+
+    #-----------------------------------------------------------------------------------------------
+    # pass 2 to get suboptimal folds
+    #-----------------------------------------------------------------------------------------------
+    exe = args.rnastructure + '/exe/Fold'
+    opt = [exe, fasta, ct]
+    opt += ['-p', f'{percent}']
+    opt += ['-m', f'{args.maximum}']
+    opt += ['-w', f'{args.window}']
     result = subprocess.run(opt, capture_output=True)
     #print(result)
     #print(f'out:{result.stdout}')
@@ -415,14 +443,6 @@ if __name__ == '__main__':
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
-            mfe = get_mfe_from_ct(ct)
-            try:
-                percent = int(100 * args.ddG_max / mfe)
-            except ZeroDivisionError:
-                percent = args.percent
-
-            #commentfold[ct] = runfold(args, fasta, ct, percent=percent)
-            #ct_n += 1
 
             # all XIOS output goes to the args.xiosdir
             # for each ct file we can use different ddG
