@@ -212,6 +212,7 @@ def get_mfe_from_ct(CT):
         if line.find('ENERGY'):
             field = line.split()
 
+    ct.close()
     return abs(float(field[3]))
 
 
@@ -309,8 +310,8 @@ def runfold(args, fasta, ct, percent):
         percent = args.percent
 
     # remove pass 1 ct file
-    ct.close()
-    os.remove(CT)
+    # ct.close()
+    os.remove(ct)
 
     #-----------------------------------------------------------------------------------------------
     # pass 2 to get suboptimal folds, use parameters from command line
