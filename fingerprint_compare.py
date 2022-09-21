@@ -5,7 +5,10 @@ Michael Gribskov     20 September 2022
 ================================================================================================="""
 import glob
 import os
+import sys
+
 from lxml import etree
+
 from fingerprint import Fingerprint
 
 
