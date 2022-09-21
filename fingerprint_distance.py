@@ -51,15 +51,19 @@ if __name__ == '__main__':
     fpt_dir = opt.dir
     fpt_suffix = opt.suffix
 
-
     # make a list of all fingerprints in the target directory
     fpt_list = glob.glob(f'{fpt_dir}*{fpt_suffix}')
 
     fpt = FingerprintSet()
+    fpt_n = 0
     for this_fpt in fpt_list:
+        fpt_n += 1
+        print(f'{fpt_n}\t processing{this_fpt}')
         f = Fingerprint()
         f.readYAML(this_fpt)
         fpt.append(f)
+        if fpt_n > 20:
+            break
 
     fpt_n = len(fpt)
     print(f'{fpt_n} fingerprints read')

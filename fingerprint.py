@@ -287,9 +287,10 @@ class FingerprintSet(list):
             m0 = self[idx[i]].motif
 
             for j in range(i + 1, len(idx)):
-                m1 = self[idx[j]].motif
                 intersect = []
                 union = []
+                m1 = self[idx[j]].motif
+                print(f'jaccard `{i} x {j}')
 
                 for motif in m0:
                     if motif in m1:
@@ -327,13 +328,14 @@ class FingerprintSet(list):
         bc = []
         for i in range(len(idx)):
             m0 = self[idx[i]].motif
-            intersect = 0
-            union = 0
 
             for j in range(i + 1, len(idx)):
                 m1 = self[idx[j]].motif
 
+                intersect = 0
+                union = 0
                 for motif in m0:
+                    print(f'bc `{i} x {j}')
                     if motif in m1:
                         intersect += min(m0[motif], m1[motif])
                     union += m0[motif]
