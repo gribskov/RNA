@@ -1,5 +1,5 @@
 """=================================================================================================
-compar old fingerprint to new fingerprint
+compare old fingerprint to new fingerprint
 
 Michael Gribskov     20 September 2022
 ================================================================================================="""
@@ -8,14 +8,19 @@ import os
 from lxml import etree
 from fingerprint import Fingerprint
 
-def decodedfs( hexstr ):
+
+def decodedfs(hexstr):
     """---------------------------------------------------------------------------------------------
-    decode the compressed hexadecimal dfs (perl version) to the current python string version
+    decode the compressed hexadecimal dfs (perl version) to the current python string version. The
+    hexadecimal dfs represents each row of the dfs as
+
+    000 000 000
+    v1  v2  edge where the edge values are 00=i 01=j 10=o
 
     :param hexstr: string
     :return: string
     ---------------------------------------------------------------------------------------------"""
-    xios = ['i','j','o']
+    xios = ['i', 'j', 'o']
     v1mask = 224
     v2mask = 28
     emask = 3
@@ -23,28 +28,34 @@ def decodedfs( hexstr ):
 
     i = 0
     while i < len(hexstr):
-        hexword = int(hexstr[i:i+2],16)
+        hexword = int(hexstr[i:i + 2], 16)
         v1 = (hexword & v1mask) >> 5
         v2 = (hexword & v2mask) >> 2
-        edge = hexword  & emask
+        edge = hexword & emask
         dfs += f'{v1}{xios[edge]}{v2}.'
         i += 2
 
     return dfs
+
+
 # --------------------------------------------------------------------------------------------------
 # main program
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     # get old new fingerprint name amd derive old fingerprint name
 
-    olddir = 'data/fpt/oldfpt/'
-    newdir = 'data/fpt/'
-    target = newdir+'*.fpt'
+    # olddir = 'data/fpt/oldfpt/'
+    # newdir = 'data/fpt/'
+    olddir = sys.argv[1]
+    newdir = sys.argv[2]
+    target = newdir + '*.fpt'
+
+    print(f'fingerprint directory: {newdir}')
+    print(f'target: {olddir}')
 
     fptfilelist = fastafiles = glob.glob(target)
 
     for newfile in fptfilelist:
-        # newfile = '5S_b.Thermus_thermophilus.w4.d5.fpt'
         oldfile = os.path.basename(newfile)
         oldfile = oldfile.replace('w4.d5.fpt', 'xios.xpt')
 
@@ -56,15 +67,11 @@ if __name__ == '__main__':
         # read old fingerprint as xml
         xptfile = open(olddir + oldfile, 'r')
         xpt = etree.parse(xptfile)
-        # print(etree.tostring(xpt))
 
         codelist = xpt.xpath('//encoded_dfs')
         dfslist = []
         for code in codelist:
-            # print(f'{code.text}')
             dfs = decodedfs(code.text)
-            # dfs = decode('ff')
-            # print(f'dfs: {dfs}')
             dfslist.append(dfs)
 
         print(f'{oldfile}\t{len(dfslist)} motifs')
