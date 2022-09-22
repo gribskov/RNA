@@ -136,7 +136,7 @@ def safe_file(filename, mode):
     :return:
     ---------------------------------------------------------------------------------------------"""
     if mode == 'r':
-        print(f'safe_file r-branch file: {filename}')
+        # print(f'safe_file r-branch file: {filename}')
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -146,7 +146,7 @@ def safe_file(filename, mode):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
             return False
             # exit(4)
-        print(f"apparently {filename} doesn't exist")
+        # print(f"apparently {filename} doesn't exist")
 
     return True
 
@@ -287,11 +287,11 @@ def runfold(args, fasta, ct, percent):
     safe_file(fasta, 'r')
     if safe_file(ct, 'w'):
         # ct file does not exist
-        print(f'ctfile {ct} is writable')
+        # print(f'ctfile {ct} is writable')
         pass
     else:
         # probably ctfile exists so skip
-        print(f'ct file {ct} exists. {fasta} skipped')
+        # print(f'ct file {ct} exists. {fasta} skipped')
         return f'{fasta} skipped'
     #-----------------------------------------------------------------------------------------------
     # pass 1 to get DeltaG
@@ -428,14 +428,13 @@ if __name__ == '__main__':
     for fasta in fastafiles:
         fa_n += 1
         if not args.quiet:
-            print(f'processing {fasta}')
+            print(f'\nprocessing {fasta}')
 
         for window in range(args.window_min, args.window_max + 1):
-            print(f'\nmain loop window:{window}')
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = ct_from_fasta(args, fasta)
-            print(f'xios_from_rnastructure ct={ct}')
+            # print(f'xios_from_rnastructure ct={ct}')
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
