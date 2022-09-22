@@ -1164,6 +1164,8 @@ class Topology:
                     if adj[row][col] in 'ijo':
                         struct.append([row, col, edge[adj[row][col]]])
 
+        ## debugging
+        print(struct)
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):
