@@ -92,10 +92,10 @@ def options():
         minmax = args.ddG.split(',')
         if len(minmax) > 1:
             [args.ddG_min, args.ddG_max] = minmax
-            args.ddG_min = int(args.ddG_min)
-            args.ddG_max = int(args.ddG_max)
+            args.ddG_min = float(args.ddG_min)
+            args.ddG_max = float(args.ddG_max)
         else:
-            args.ddG_max = args.ddG_min = int(args.ddG)
+            args.ddG_max = args.ddG_min = float(args.ddG)
 
     if args.window.find(','):
         minmax = args.window.split(',')
@@ -301,7 +301,10 @@ def runfold(args, fasta, ct, percent):
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-mfe']
+    opt += ['-t', '298']
+    opt += ['-l','50', '-y']
     result = subprocess.run(opt, capture_output=True)
+    #print(result)
 
     mfe = get_mfe_from_ct(ct)
     try:
@@ -322,6 +325,8 @@ def runfold(args, fasta, ct, percent):
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
+    opt += ['-t', '298']
+    opt += ['-l','50', '-y']
     result = subprocess.run(opt, capture_output=True)
 
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
@@ -441,11 +446,14 @@ if __name__ == '__main__':
             # all XIOS output goes to args.xiosdir
             # the stems that are the same in structures with different ddG are merged
 
-            for ddG in range(args.ddG_min, args.ddG_max + 1):
-                args.ddg = int(ddG)
+            ddG = args.ddG_min
+            while ddG < args.ddG_max + 1:
+            #for ddG in range(args.ddG_min, args.ddG_max + 1):
+                args.ddg = float(ddG)
                 xios = f'{args.xiosdir}/{xios_from_ct(args, ct)}'
                 # sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
                 runmergestems(args, ct, xios, commentfold[ct])
+                ddG += 1
                 xios_n += 1
 
     # final report
