@@ -76,6 +76,75 @@ def read_target(fileglob):
     return targetdata
 
 
+def stem_overlap(rstem, tstem):
+    """---------------------------------------------------------------------------------------------
+    tests to see if both half stems overlap,
+    :param rstem: list  [lbegin, lend, rbegin, rend]
+    :param tstem: list  [lbegin, lend, rbegin, rend]
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    result = True
+    overlap = []
+    for i in [0, 2]:
+        minbegin = min(rstem[i], tstem[i])
+        minend = min(rstem[i + 1], tstem[i + 1])
+        maxbegin = max(rstem[i], tstem[i])
+        maxend = max(rstem[i + 1], tstem[i + 1])
+        overlap.append({'both':   minend - maxbegin + 1,
+                        'rlen':   rstem[i + 1] - rstem[i] + 1,
+                        'tlen':   tstem[i + 1] - tstem[i] + 1,
+                        'maxlen': maxend - minbegin + 1})
+        if overlap[-1]['both'] < 0:
+            result = False
+            break
+
+    if result:
+        return overlap
+    else:
+        return []
+
+
+def stem_compare(refstemlist, targetstemlist):
+    """---------------------------------------------------------------------------------------------
+
+    :param refstemlist:
+    :param targetstemlist:
+    :return: list
+    ---------------------------------------------------------------------------------------------"""
+    total = { 'both':0, 'rlen':0, 'tlen':0, 'maxlen':0 }
+
+    for rstem in refstemlist:
+        print(rstem)
+        f1_best = 0
+        overlap_best = []
+        for tstem in targetstemlist:
+            overlap = stem_overlap(rstem, tstem)
+            if overlap:
+                recall = (overlap[0]['both'] + overlap[1]['both'])
+                recall /= (overlap[0]['rlen'] + overlap[1]['rlen'])
+                precision = (overlap[0]['both'] + overlap[1]['both'])
+                precision /= (overlap[0]['tlen'] + overlap[1]['tlen'])
+                f1 = 0.5 * (precision + recall)
+
+                if f1 > f1_best:
+                    f1_best = f1
+                    overlap_best = overlap
+
+                print(f'\toverlap {tstem}: [{recall:.3f},{precision:.3f}]\t{overlap}')
+
+        if overlap_best:
+            # will be unset if there is no overlap of rstem to any tstem
+            print(f'best: {overlap_best}')
+            total['both'] += overlap_best['both']
+            total['rlen'] += overlap_best['rlen']
+            total['tlen'] += overlap_best['tlen']
+            total['maxlen'] += overlap_best['maxlen']
+
+    print(f'\ttotal: {total}')
+
+    return
+
+
 # --------------------------------------------------------------------------------------------------
 # main program
 # --------------------------------------------------------------------------------------------------
@@ -95,5 +164,6 @@ if __name__ == '__main__':
         suffixpos = name.index('.w')  # make sure no names have a .w, or this will fail
         base = name[:suffixpos]
         print(f'target:{target}\treference:{base}\texists:{base in refdata}')
+        result = stem_compare(refdata[base], targetdata[target])
 
     exit(0)
