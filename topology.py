@@ -99,7 +99,7 @@ class Topology:
         self.comment = []
 
         for key in kwds:
-            if key == 'xml':
+            if key == 'xml' or key =='xios':
                 self.XIOSread(kwds[key])
             else:
                 sys.stderr.write('Topology::init - unknown keyword ({})'.format(key))
