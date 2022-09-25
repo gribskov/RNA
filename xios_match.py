@@ -76,6 +76,19 @@ def read_target(fileglob):
     return targetdata
 
 
+def stats(overlap):
+    """---------------------------------------------------------------------------------------------
+    return precision, recall and F1
+    :param overlap: list [lbegin, lend, rbegin, rend]
+    :return: list   precision, recall, F1
+    ---------------------------------------------------------------------------------------------"""
+    recall = overlap['both'] / overlap['rlen']
+    precision = overlap['both'] / overlap['tlen']
+    f1 = 0.5 * (precision + recall)
+
+    return precision, recall, f1
+
+
 def stem_overlap(rstem, tstem):
     """---------------------------------------------------------------------------------------------
     tests to see if both half stems overlap,
@@ -84,19 +97,22 @@ def stem_overlap(rstem, tstem):
     :return:
     ---------------------------------------------------------------------------------------------"""
     result = True
-    overlap = []
+    overlap = {'both': 0, 'rlen': 0, 'tlen': 0, 'maxlen': 0}
     for i in [0, 2]:
         minbegin = min(rstem[i], tstem[i])
         minend = min(rstem[i + 1], tstem[i + 1])
         maxbegin = max(rstem[i], tstem[i])
         maxend = max(rstem[i + 1], tstem[i + 1])
-        overlap.append({'both':   minend - maxbegin + 1,
-                        'rlen':   rstem[i + 1] - rstem[i] + 1,
-                        'tlen':   tstem[i + 1] - tstem[i] + 1,
-                        'maxlen': maxend - minbegin + 1})
-        if overlap[-1]['both'] < 0:
+        common = minend - maxbegin + 1
+
+        if common < 0:
             result = False
             break
+        else:
+            overlap['both'] += minend - maxbegin + 1
+            overlap['rlen'] += rstem[i + 1] - rstem[i] + 1
+            overlap['tlen'] += tstem[i + 1] - tstem[i] + 1
+            overlap['maxlen'] += maxend - minbegin + 1
 
     if result:
         return overlap
@@ -111,38 +127,47 @@ def stem_compare(refstemlist, targetstemlist):
     :param targetstemlist:
     :return: list
     ---------------------------------------------------------------------------------------------"""
-    total = { 'both':0, 'rlen':0, 'tlen':0, 'maxlen':0 }
+    total = {'both': 0, 'rlen': 0, 'tlen': 0, 'maxlen': 0}
 
+    stem_n = 0
+    match_n = 0
     for rstem in refstemlist:
-        print(rstem)
+        # print(rstem)
+        stem_n += 1
         f1_best = 0
-        overlap_best = []
+        overlap_best = {}
         for tstem in targetstemlist:
             overlap = stem_overlap(rstem, tstem)
             if overlap:
-                recall = (overlap[0]['both'] + overlap[1]['both'])
-                recall /= (overlap[0]['rlen'] + overlap[1]['rlen'])
-                precision = (overlap[0]['both'] + overlap[1]['both'])
-                precision /= (overlap[0]['tlen'] + overlap[1]['tlen'])
-                f1 = 0.5 * (precision + recall)
+                precision, recall, f1 = stats(overlap)
 
                 if f1 > f1_best:
                     f1_best = f1
                     overlap_best = overlap
 
-                print(f'\toverlap {tstem}: [{recall:.3f},{precision:.3f}]\t{overlap}')
+                # print(f'\toverlap {tstem}: [{recall:.3f},{precision:.3f}]\t{overlap}')
 
         if overlap_best:
             # will be unset if there is no overlap of rstem to any tstem
-            print(f'best: {overlap_best}')
+            match_n += 1
+            # print(f'\tbest: {overlap_best}')
             total['both'] += overlap_best['both']
             total['rlen'] += overlap_best['rlen']
             total['tlen'] += overlap_best['tlen']
             total['maxlen'] += overlap_best['maxlen']
+        else:
+            # if not overlap, add tlen
+            total['tlen'] += tstem[1] + tstem[3] - tstem[0] - tstem[2] + 2
 
-    print(f'\ttotal: {total}')
+    bprecision, brecall, bf1 = stats(total)
+    sprecision = match_n / len(targetstemlist)
+    srecall = match_n / stem_n
+    sf1 = 0.5 * (sprecision + srecall)
+    # print(f'\nreference: {stem_n}\ttarget: {len(targetstemlist)}\tmatched:{match_n}')
+    # print(f'recall: {recall:.3f}\tprecision: {precision:.3f}\tf1:{f1:.3f}\ttotal: {total}')
 
-    return
+    return {'stem_precision': sprecision, 'stem_recall': srecall, 'stem_f1': sf1,
+            'base_precision': bprecision, 'base_recall': brecall, 'base_f1': bf1}
 
 
 # --------------------------------------------------------------------------------------------------
@@ -158,12 +183,60 @@ if __name__ == '__main__':
     # for each target file, compare to reference and calculate overlap
     targetdata = read_target(sys.argv[2])
 
+    columns = ['stem_precision', 'stem_recall', 'stem_f1',
+               'base_precision', 'base_recall', 'base_f1']
+    condition_average = {}
+    condition_n = {}
+
+    base_old = ''
     for target in targetdata:
         # get the base name that corresponds to the reference
         name = os.path.basename(target)
         suffixpos = name.index('.w')  # make sure no names have a .w, or this will fail
         base = name[:suffixpos]
-        print(f'target:{target}\treference:{base}\texists:{base in refdata}')
+        condition = name[suffixpos+1:len(name)-5]
+
+        if base_old != base:
+            base_old = base
+            print()
+            # print(f'\n{base}')
+        # print(f'target:{target}\treference:{base}\texists:{base in refdata}')
+
         result = stem_compare(refdata[base], targetdata[target])
+        print(f'{base}\t{condition}\t',
+              f'\tstem precision:{result["stem_precision"]:.3f}',
+              f'\tstem recall:{result["stem_recall"]:.3f}',
+              f'\tstem f1:{result["stem_f1"]:.3f}',
+              f'\tbase precision:{result["base_precision"]:.3f}',
+              f'\tbase recall:{result["base_recall"]:.3f}',
+              f'\tbase f1:{result["base_f1"]:.3f}'
+              )
+
+        if condition in condition_average:
+            condition_n[condition] += 1
+            for tag in columns:
+                condition_average[condition][tag] += result[tag]
+        else:
+            # new condition
+            condition_n[condition] = 1
+            condition_average[condition] = {t:result[t] for t in columns}
+
+    # end of loop over targets
+
+    print(f'averages by condition\n')
+    for cond in condition_n.keys():
+        for col in columns:
+            condition_average[cond][col] /= condition_n[condition]
+
+        result = condition_average[cond]
+        print(f'{cond}\t{condition}\t',
+              f'\tstem precision:{result["stem_precision"]:.3f}',
+              f'\tstem recall:{result["stem_recall"]:.3f}',
+              f'\tstem f1:{result["stem_f1"]:.3f}',
+              f'\tbase precision:{result["base_precision"]:.3f}',
+              f'\tbase recall:{result["base_recall"]:.3f}',
+              f'\tbase f1:{result["base_f1"]:.3f}'
+              )
+
 
     exit(0)
