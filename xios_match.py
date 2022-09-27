@@ -26,13 +26,21 @@ def get_options():
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
         )
     cl.add_argument('reference_files', nargs='?',
-                    help='file glob specifying path to reference files (%(default)s)',
-                    default='/depot/mgribsko/rna/curated/curated_Jiajie_Huang_20160220/xios_graph/*.xios')
+                    help='path to reference file directory (%(default)s)',
+                    default='/depot/mgribsko/rna/curated/curated_Jiajie_Huang_20160220/xios_graph/')
     cl.add_argument('target_files', nargs='?',
-                    help='file glob specifying path to target files (%(default)s)',
-                    default='xiosfiles/*.xios')
+                    help='path to target file directory (%(default)s)',
+                    default='xiosfiles/')
 
-    return cl.parse_args()
+    opts = cl.parse_args()
+
+    # make sure directories end in '/'
+    if not opts.reference_files.endswith('/'):
+        opts.reference_files = opts.reference_files + '/'
+    if not opts.target_files.endswith('/'):
+        opts.target_files = opts.target_files + '/'
+
+    return opts
 
 
 def read_xios_stems(fileglob):
@@ -172,12 +180,12 @@ if __name__ == '__main__':
     print(f'match_xios.py {runstart}\n')
 
     opt = get_options()
-    print(f'reference files: {opt.reference_files}', end='')
-    refdata = read_xios_stems(opt.reference_files)
+    print(f'reference files: {opt.reference_files+"*.xios"}', end='')
+    refdata = read_xios_stems(opt.reference_files+'*.xios')
     print(f'\t{len(refdata)} files read')
 
-    print(f'target files: {opt.target_files}', end='')
-    targetdata = read_xios_stems(opt.target_files)
+    print(f'target files: {opt.target_files+"*.xios"}', end='')
+    targetdata = read_xios_stems(opt.target_files+'*.xios')
     print(f'\t{len(targetdata)} files read')
     print()
 
@@ -227,7 +235,7 @@ if __name__ == '__main__':
             condition_average[cond][col] /= condition_n[condition]
 
         result = condition_average[cond]
-        print(f'{cond}\t',
+        print(f'{cond:10s}\t',
               f'\t{result["stem_precision"]:.3f}',
               f'\t{result["stem_recall"]:.3f}',
               f'\t{result["stem_f1"]:.3f}',
