@@ -7,73 +7,59 @@ Michael Gribskov     23 September 2022
 import sys
 import os
 import glob
+import argparse
+import datetime
 
 from lxml import etree
 
 from topology import Topology
 
 
-def read_stems_xml(refname):
+def get_options():
     """---------------------------------------------------------------------------------------------
+    Get options from command line using argparse
 
-    :param refname:
     :return:
     ---------------------------------------------------------------------------------------------"""
-    reffile = open(refname, 'r')
-    xpt = etree.parse(reffile)
+    cl = argparse.ArgumentParser(
+        description='Calculate precision/recall for sets of reference and target xios topologies',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+        )
+    cl.add_argument('reference_files', nargs='?',
+                    help='file glob specifying path to reference files (%(default)s)',
+                    default='/depot/mgribsko/rna/curated/curated_Jiajie_Huang_20160220/xios_graph/*.xios')
+    cl.add_argument('target_files', nargs='?',
+                    help='file glob specifying path to target files (%(default)s)',
+                    default='xiosfiles/*.xios')
 
-    stemlist = xpt.xpath('//stem_list')
-    text = stemlist[0].text
-    stems = []
-    for line in text.split('\n'):
-        field = line.split()
-        if len(field) < 1:
-            # blank line
-            continue
-
-        # use list comprehension to convert fields 3-6 to int and store
-        stems.append([int(field[i]) for i in range(3, 7)])
-
-    return stems
+    return cl.parse_args()
 
 
-def read_reference(fileglob):
+def read_xios_stems(fileglob):
     """---------------------------------------------------------------------------------------------
-    Read the reference topologies in sios XML format and store as a dictionary of
-    lists. Each dictionary value is a list of the stems given as a list of
-    [left_begin, left_end, right_begin, right_end]
-
-    :param fileglob: string     reference topology files (XML format)
-    :return: dictionary
+    Read stem lists in xios XML format from a fileglob specifying a set of files, i.e., *.xios.
+    Returns a dictionary with the base filename as the key and a list of [lbegin, lend, rbegin, rend]
+    as values. the suffix '.xios' is removed from the key
+    
+    :param fileglob:string  specifies a path to a set of xios files
+    :return:dictionary  
     ---------------------------------------------------------------------------------------------"""
-    # read reference files
-    reffilelist = glob.glob(fileglob)
-    refdata = {}
-    for ref in reffilelist:
-        name = os.path.basename(ref).replace('.xios', '')
-        refdata[name] = read_stems_xml(ref)
+    filelist = glob.glob(fileglob)
+    if not filelist:
+        sys.stderr.write(f'No files found in ({fileglob})')
+        exit(2)
 
-    return refdata
-
-
-def read_target(fileglob):
-    """---------------------------------------------------------------------------------------------
-    Read target files in xios XML format
-    # TODO since reference and target are both in XML, they can be read as xios objects
-
-    :param fileglob:
-    :return:
-    ---------------------------------------------------------------------------------------------"""
-    targetlist = glob.glob(fileglob)
-    targetdata = {}
-    for target in targetlist:
-        xios = Topology(xios=target)
+    data = {}
+    for f in filelist:
+        xios = Topology(xios=f)
         stems = []
         for s in xios.stem_list:
             stems.append([s.lbegin, s.lend, s.rbegin, s.rend])
-        targetdata[target] = stems
+        key = os.path.basename(f)
+        key = key.replace('.xios', '')
+        data[key] = stems
 
-    return targetdata
+    return data
 
 
 def stats(overlap):
@@ -122,6 +108,9 @@ def stem_overlap(rstem, tstem):
 
 def stem_compare(refstemlist, targetstemlist):
     """---------------------------------------------------------------------------------------------
+    for each reference stem find the biggest overlap in the targets. If multiple stems overlap, but
+    are not the best, they contribute to the denominator of the precision since only the best is
+    considered correct.
 
     :param refstemlist:
     :param targetstemlist:
@@ -134,12 +123,15 @@ def stem_compare(refstemlist, targetstemlist):
     for rstem in refstemlist:
         # print(rstem)
         stem_n += 1
+        tlen_total = 0
         f1_best = 0
         overlap_best = {}
         for tstem in targetstemlist:
+            # search the target stems for the one that best matches the references stem
             overlap = stem_overlap(rstem, tstem)
             if overlap:
                 precision, recall, f1 = stats(overlap)
+                tlen_total += overlap['tlen']
 
                 if f1 > f1_best:
                     f1_best = f1
@@ -153,7 +145,8 @@ def stem_compare(refstemlist, targetstemlist):
             # print(f'\tbest: {overlap_best}')
             total['both'] += overlap_best['both']
             total['rlen'] += overlap_best['rlen']
-            total['tlen'] += overlap_best['tlen']
+            # total['tlen'] += overlap_best['tlen']
+            total['tlen'] += tlen_total
             total['maxlen'] += overlap_best['maxlen']
         else:
             # if not overlap, add tlen
@@ -174,43 +167,55 @@ def stem_compare(refstemlist, targetstemlist):
 # main program
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    refdata = read_reference(sys.argv[1])
-    print(f'\treference topologies: {len(refdata)}')
+    daytime = datetime.datetime.now()
+    runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
+    print(f'match_xios.py {runstart}\n')
 
-    #     for m in refdata[r]:
-    #         print(f'\t{m}')
+    opt = get_options()
+    print(f'reference files: {opt.reference_files}', end='')
+    refdata = read_xios_stems(opt.reference_files)
+    print(f'\t{len(refdata)} files read')
+
+    print(f'target files: {opt.target_files}', end='')
+    targetdata = read_xios_stems(opt.target_files)
+    print(f'\t{len(targetdata)} files read')
+    print()
 
     # for each target file, compare to reference and calculate overlap
-    targetdata = read_target(sys.argv[2])
-
     columns = ['stem_precision', 'stem_recall', 'stem_f1',
                'base_precision', 'base_recall', 'base_f1']
+    print(f'# target\tcondition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
     condition_average = {}
     condition_n = {}
 
     base_old = ''
     for target in targetdata:
         # get the base name that corresponds to the reference
-        name = os.path.basename(target)
-        suffixpos = name.index('.w')  # make sure no names have a .w, or this will fail
-        base = name[:suffixpos]
-        condition = name[suffixpos+1:len(name)-5]
+        suffixpos = target.index('.w')  # make sure no target file names contain .w, or this will fail
+        base = target[:suffixpos]
+        condition = target[suffixpos + 1:]
 
         if base_old != base:
             base_old = base
             print()
-            # print(f'\n{base}')
-        # print(f'target:{target}\treference:{base}\texists:{base in refdata}')
 
         result = stem_compare(refdata[base], targetdata[target])
         print(f'{base}\t{condition}\t',
-              f'\tstem precision:{result["stem_precision"]:.3f}',
-              f'\tstem recall:{result["stem_recall"]:.3f}',
-              f'\tstem f1:{result["stem_f1"]:.3f}',
-              f'\tbase precision:{result["base_precision"]:.3f}',
-              f'\tbase recall:{result["base_recall"]:.3f}',
-              f'\tbase f1:{result["base_f1"]:.3f}'
+              f'\t{result["stem_precision"]:.3f}',
+              f'\t{result["stem_recall"]:.3f}',
+              f'\t{result["stem_f1"]:.3f}',
+              f'\t{result["base_precision"]:.3f}',
+              f'\t{result["base_recall"]:.3f}',
+              f'\t{result["base_f1"]:.3f}'
               )
+        # print(f'{base}\t{condition}\t',
+        #       f'\tstem precision:{result["stem_precision"]:.3f}',
+        #       f'\tstem recall:{result["stem_recall"]:.3f}',
+        #       f'\tstem f1:{result["stem_f1"]:.3f}',
+        #       f'\tbase precision:{result["base_precision"]:.3f}',
+        #       f'\tbase recall:{result["base_recall"]:.3f}',
+        #       f'\tbase f1:{result["base_f1"]:.3f}'
+        #       )
 
         if condition in condition_average:
             condition_n[condition] += 1
@@ -219,24 +224,24 @@ if __name__ == '__main__':
         else:
             # new condition
             condition_n[condition] = 1
-            condition_average[condition] = {t:result[t] for t in columns}
+            condition_average[condition] = {t: result[t] for t in columns}
 
-    # end of loop over targets
+        # end of loop over targets
 
-    print(f'averages by condition\n')
-    for cond in condition_n.keys():
-        for col in columns:
-            condition_average[cond][col] /= condition_n[condition]
+        print(f'# averages by condition\n')
+        print(f'# condition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
+        for cond in condition_n.keys():
+            for col in columns:
+                condition_average[cond][col] /= condition_n[condition]
 
-        result = condition_average[cond]
-        print(f'{cond}\t{condition}\t',
-              f'\tstem precision:{result["stem_precision"]:.3f}',
-              f'\tstem recall:{result["stem_recall"]:.3f}',
-              f'\tstem f1:{result["stem_f1"]:.3f}',
-              f'\tbase precision:{result["base_precision"]:.3f}',
-              f'\tbase recall:{result["base_recall"]:.3f}',
-              f'\tbase f1:{result["base_f1"]:.3f}'
-              )
+                result = condition_average[cond]
+                print(f'{cond}\t',
+                      f'\t{result["stem_precision"]:.3f}',
+                      f'\t{result["stem_recall"]:.3f}',
+                      f'\t{result["stem_f1"]:.3f}',
+                      f'\t{result["base_precision"]:.3f}',
+                      f'\t{result["base_recall"]:.3f}',
+                      f'\t{result["base_f1"]:.3f}'
+                      )
 
-
-    exit(0)
+        exit(0)
