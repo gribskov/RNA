@@ -197,7 +197,7 @@ if __name__ == '__main__':
 
         if base_old != base:
             base_old = base
-            print()
+            # print()
 
         result = stem_compare(refdata[base], targetdata[target])
         print(f'{base}\t{condition}\t',
@@ -208,14 +208,6 @@ if __name__ == '__main__':
               f'\t{result["base_recall"]:.3f}',
               f'\t{result["base_f1"]:.3f}'
               )
-        # print(f'{base}\t{condition}\t',
-        #       f'\tstem precision:{result["stem_precision"]:.3f}',
-        #       f'\tstem recall:{result["stem_recall"]:.3f}',
-        #       f'\tstem f1:{result["stem_f1"]:.3f}',
-        #       f'\tbase precision:{result["base_precision"]:.3f}',
-        #       f'\tbase recall:{result["base_recall"]:.3f}',
-        #       f'\tbase f1:{result["base_f1"]:.3f}'
-        #       )
 
         if condition in condition_average:
             condition_n[condition] += 1
@@ -226,22 +218,22 @@ if __name__ == '__main__':
             condition_n[condition] = 1
             condition_average[condition] = {t: result[t] for t in columns}
 
-        # end of loop over targets
+    # end of loop over targets
 
-        print(f'# averages by condition\n')
-        print(f'# condition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
-        for cond in condition_n.keys():
-            for col in columns:
-                condition_average[cond][col] /= condition_n[condition]
+    print(f'\n# averages by condition')
+    print(f'# condition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
+    for cond in sorted(condition_n.keys(), key=lambda x: condition_average[x]["stem_f1"]):
+        for col in columns:
+            condition_average[cond][col] /= condition_n[condition]
 
-                result = condition_average[cond]
-                print(f'{cond}\t',
-                      f'\t{result["stem_precision"]:.3f}',
-                      f'\t{result["stem_recall"]:.3f}',
-                      f'\t{result["stem_f1"]:.3f}',
-                      f'\t{result["base_precision"]:.3f}',
-                      f'\t{result["base_recall"]:.3f}',
-                      f'\t{result["base_f1"]:.3f}'
-                      )
+        result = condition_average[cond]
+        print(f'{cond}\t',
+              f'\t{result["stem_precision"]:.3f}',
+              f'\t{result["stem_recall"]:.3f}',
+              f'\t{result["stem_f1"]:.3f}',
+              f'\t{result["base_precision"]:.3f}',
+              f'\t{result["base_recall"]:.3f}',
+              f'\t{result["base_f1"]:.3f}'
+      )
 
-        exit(0)
+    exit(0)
