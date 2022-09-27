@@ -242,6 +242,6 @@ if __name__ == '__main__':
               f'\t{result["base_precision"]:.3f}',
               f'\t{result["base_recall"]:.3f}',
               f'\t{result["base_f1"]:.3f}'
-      )
+              )
 
     exit(0)
