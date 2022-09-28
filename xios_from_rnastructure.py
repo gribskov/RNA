@@ -71,7 +71,6 @@ def options():
                              help='Directory path for RNAstructure executables such as Fold (%(default)s)',
                              default='/scratch/bell/mgribsko/rna/RNAstructure/')
 
-
     # mergecase currently unused
     # commandline.add_argument('-c', '--mergecase',
     #                          help='Mergestems: merging cases (rules) for combining suboptimal '
@@ -88,14 +87,20 @@ def options():
             args.__dict__[path] += '/'
 
     # ddG and window may be comma separated ranges
+    # in the case of ddG, we expect a triple of begin, end, increment, if not specified, increment is 1.0
     if args.ddG.find(','):
+        # first the defaults
+        args.ddG_min = float(minmax[0])
+        args.ddG_max = float(minmax[0])
+        args.ddG_inc = 1.0
+
         minmax = args.ddG.split(',')
         if len(minmax) > 1:
-            [args.ddG_min, args.ddG_max] = minmax
-            args.ddG_min = int(args.ddG_min)
-            args.ddG_max = int(args.ddG_max)
-        else:
-            args.ddG_max = args.ddG_min = int(args.ddG)
+            # ddg_max is present
+            args.ddG_max = float(minmax[1])
+        elif len(minmax) > 2:
+            # ddg_inc is present
+            args.ddg_inc = float(minmax[2])
 
     if args.window.find(','):
         minmax = args.window.split(',')
@@ -109,7 +114,7 @@ def options():
     return args
 
 
-def safe_mkdir(args,dirname):
+def safe_mkdir(args, dirname):
     """---------------------------------------------------------------------------------------------
     Try to create a directory, if directory already exists, use existing directory
 
@@ -294,9 +299,9 @@ def runfold(args, fasta, ct, percent):
         # probably ctfile exists so skip
         print(f'ct file {ct} exists. {fasta} skipped')
         return f'{fasta} skipped'
-    #-----------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------
     # pass 1 to get DeltaG
-    #-----------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------
 
     print(f'running fold pass 1: {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
@@ -315,19 +320,18 @@ def runfold(args, fasta, ct, percent):
     # commentfold[ct] = runfold(args, fasta, ct, percent=percent)
     # ct_n += 1
 
-
-    #-----------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------
     # pass 2 to get suboptimal folds
-    #-----------------------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------------------
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
     result = subprocess.run(opt, capture_output=True)
-    #print(result)
-    #print(f'out:{result.stdout}')
-    #print(f'err:{result.stderr}')
+    # print(result)
+    # print(f'out:{result.stdout}')
+    # print(f'err:{result.stderr}')
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -337,7 +341,7 @@ def runfold(args, fasta, ct, percent):
 def runmergestems(arg, ct, xios, comment):
     """---------------------------------------------------------------------------------------------
     CT files are converted using CTread in Topology.
-    
+    TODO since the only thing passed in args is the ddG, it'd be more transparent to use an explicit argument
     :param mergecases: string, list of mergecases to apply (no longer used)
     :param ddG: maximum delta delta G for suboptimal structures
     :param ct: string, readable ct file
@@ -392,7 +396,7 @@ if __name__ == '__main__':
     os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
     input = args.indir + args.fasta
 
-    if  args.quiet:
+    if args.quiet:
         print(f'xios_from_rnastructure {time.asctime(now)}', end='')
         print(f'\tdirs;fasta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
     else:
@@ -405,7 +409,7 @@ if __name__ == '__main__':
         print(f'\tFold:percent={args.percent}')
         print(f'\tFold:maximum={args.maximum}')
         print(f'\tFold:window={args.window_min}, {args.window_max}')
-        print(f'\tdelta deltaG={args.ddG}')
+        print(f'\tdelta deltaG={args.ddG_min},{args.ddg_max},{args.ddg_inc}')
         # print(f'\tmergstems:mergecases={args.mergecase}')
 
         print('Inputs and outputs')
@@ -443,17 +447,18 @@ if __name__ == '__main__':
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
-
             # all XIOS output goes to the args.xiosdir
             # for each ct file we can use different ddG
             # the stems that are the same in structures with different ddG are merged
 
-            for ddG in range(args.ddG_min, args.ddG_max + 1):
-                args.ddg = int(ddG)
+            ddG = args.ddG_min
+            while ddG <= args.ddg_max:
+                args.ddg = ddG
                 xios = f'{args.xiosdir}/{xios_from_ct(args, ct)}'
                 # sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
                 runmergestems(args, ct, xios, commentfold[ct])
                 xios_n += 1
+                ddG += args.ddg_inc
 
     # final report
     if not args.quiet:
