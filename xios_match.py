@@ -59,7 +59,6 @@ def read_xios_stems(fileglob):
 
     data = {}
     seqlen = {}
-    total_len = 0
     for f in filelist:
         xios = Topology(xios=f)
         stems = []
@@ -69,13 +68,8 @@ def read_xios_stems(fileglob):
         key = key.replace('.xios', '')
         data[key] = stems
         seqlen[key] = len(xios.sequence)
-        total_len += len(xios.sequence)
 
-    if total_len > 0:
-        # only return sequence lengths if some were read
-        return data, seqlen
-    else:
-        return data
+    return [data, seqlen]
 
 
 def stats(overlap):
@@ -194,7 +188,7 @@ def base_compare(refstemlist, targetstemlist, seqlen):
     :param seqlen: int  length of sequence
     :return: dict   stem and base precision, recall, and f1
     ---------------------------------------------------------------------------------------------"""
-    map = [0 for _ in range(seqlen)]
+    map = [0 for _ in range(seqlen+1)]
 
     r_overlap = 0
     t_overlap = [0 for _ in range(len(targetstemlist))]
@@ -247,7 +241,10 @@ def map_bases(map, stem, key):
     for pos in range(stem[0], stem[1] + 1):
         map[pos] = map[pos] | key
     for pos in range(stem[2], stem[3] + 1):
-        map[pos] = map[pos] | key
+        try:
+            map[pos] = map[pos] | key
+        except IndexError:
+            print(f'index error pos={pos} len={len(map)}')
 
     return
 
@@ -282,15 +279,15 @@ if __name__ == '__main__':
     runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
     print(f'match_xios.py {runstart}\n')
 
+    dummy = {}
     opt = get_options()
     print(f'reference files: {opt.reference_files + "*.xios"}', end='')
-    refdata = read_xios_stems(opt.reference_files + '*.xios')
+    refdata, dummy = read_xios_stems(opt.reference_files + '*.xios')
     print(f'\t{len(refdata)} files read')
 
     print(f'target files: {opt.target_files + "*.xios"}', end='')
     targetdata, seqlen = read_xios_stems(opt.target_files + '*.xios')
     print(f'\t{len(targetdata)} files read')
-    print()
 
     # for each target file, compare to reference and calculate overlap
     columns = ['stem_precision', 'stem_recall', 'stem_f1',
