@@ -58,6 +58,8 @@ def read_xios_stems(fileglob):
         exit(2)
 
     data = {}
+    seqlen = {}
+    total_len = 0
     for f in filelist:
         xios = Topology(xios=f)
         stems = []
@@ -66,8 +68,14 @@ def read_xios_stems(fileglob):
         key = os.path.basename(f)
         key = key.replace('.xios', '')
         data[key] = stems
+        seqlen[key] = len(xios.sequence)
+        total_len += len(xios.sequence)
 
-    return data
+    if total_len > 0:
+        # only return sequence lengths if some were read
+        return data, seqlen
+    else:
+        return data
 
 
 def stats(overlap):
@@ -135,7 +143,7 @@ def stem_compare(refstemlist, targetstemlist):
         f1_best = 0
         overlap_best = {}
         for tstem in targetstemlist:
-            # search the target stems for the one that best matches the references stem
+            # search the target stems for the one that best matches the reference stem
             overlap = stem_overlap(rstem, tstem)
             if overlap:
                 precision, recall, f1 = stats(overlap)
@@ -171,6 +179,101 @@ def stem_compare(refstemlist, targetstemlist):
             'base_precision': bprecision, 'base_recall': brecall, 'base_f1': bf1}
 
 
+def base_compare(refstemlist, targetstemlist, seqlen):
+    """---------------------------------------------------------------------------------------------
+    calculate base precision and recall by constructing an image of the sequence indicating whether
+    each base is found in the reference, predicted in the target, and found in an overlapping
+    segment.  Use bits to indicate reference (1), target(2), overlap(4).  Possible values are
+    1   only in reference
+    2   only in target
+    3   reference and target but not in overlap
+    7   reference and target and in overlap
+
+    :param refstemlist: list    elements are [lbegin, lend, rbegin, rend]
+    :param targetstemlist: list    elements are [lbegin, lend, rbegin, rend]
+    :param seqlen: int  length of sequence
+    :return: dict   stem and base precision, recall, and f1
+    ---------------------------------------------------------------------------------------------"""
+    map = [0 for _ in range(seqlen)]
+
+    r_overlap = 0
+    t_overlap = [0 for _ in range(len(targetstemlist))]
+    for rstem in refstemlist:
+        # print(rstem)
+        map_bases(map, rstem, 1)
+        firstpass = True
+        firstoverlap = True
+        t = 0
+        for tstem in targetstemlist:
+
+            # search the target stems for stems that overlap each reference stem
+            if firstpass:
+                map_bases(map, tstem, 2)
+
+            if tstem[0] > rstem[1]:
+                # stems are ordered by lbegin
+                break
+
+            overlap = [max(rstem[0], tstem[0]), min(rstem[1], tstem[1]),
+                       max(rstem[2], tstem[2]), min(rstem[3], tstem[3])]
+            if overlap[0] <= overlap[1] and overlap[2] <= overlap[3]:
+                if firstoverlap:
+                    r_overlap += 1
+                    firstoverlap = False
+
+                t_overlap[t] = 1
+                map_bases(map, overlap, 4)
+
+            t += 1
+        firstpass = False
+
+    s_rec = r_overlap / len(refstemlist)
+    s_pre = sum(t_overlap) / len(targetstemlist)
+    s_f1 = 0.5 * (s_rec + s_pre)
+    b_pre, b_rec, bf1 = map_stats(map)
+
+    return {'stem_precision': s_pre, 'stem_recall': s_rec, 'stem_f1': s_f1,
+            'base_precision': b_pre, 'base_recall': b_rec, 'base_f1': bf1}
+
+
+def map_bases(map, stem, key):
+    """---------------------------------------------------------------------------------------------
+    mark the bases in stem by OR with key, expect 1=reference, 2=target, 4=overlap
+    :param map:list bit image of sequence with one int per base position
+    :param stem:list [lbegin, lend, rbegin, rend]
+    :param key:int  a binary key for the source of the stem
+    :return: None   map is modified
+    ---------------------------------------------------------------------------------------------"""
+    for pos in range(stem[0], stem[1] + 1):
+        map[pos] = map[pos] | key
+    for pos in range(stem[2], stem[3] + 1):
+        map[pos] = map[pos] | key
+
+    return
+
+
+def map_stats(map):
+    """---------------------------------------------------------------------------------------------
+    in the final map, compare to the keys and count the number of each type.
+    :param map: list bit image of sequence with one int per base position
+    :return: float, float, float    precision, recall, f1
+    ---------------------------------------------------------------------------------------------"""
+    reflen = tarlen = olen = 0
+    for pos in map:
+        if pos & 1:
+            reflen += 1
+        if pos & 2:
+            tarlen += 1
+        if pos & 4:
+            olen += 1
+
+    recall = olen / reflen
+    precision = olen / tarlen
+    f1 = 0.5 * (recall + precision)
+
+    return precision, recall, f1
+
+
 # --------------------------------------------------------------------------------------------------
 # main program
 # --------------------------------------------------------------------------------------------------
@@ -180,12 +283,12 @@ if __name__ == '__main__':
     print(f'match_xios.py {runstart}\n')
 
     opt = get_options()
-    print(f'reference files: {opt.reference_files+"*.xios"}', end='')
-    refdata = read_xios_stems(opt.reference_files+'*.xios')
+    print(f'reference files: {opt.reference_files + "*.xios"}', end='')
+    refdata = read_xios_stems(opt.reference_files + '*.xios')
     print(f'\t{len(refdata)} files read')
 
-    print(f'target files: {opt.target_files+"*.xios"}', end='')
-    targetdata = read_xios_stems(opt.target_files+'*.xios')
+    print(f'target files: {opt.target_files + "*.xios"}', end='')
+    targetdata, seqlen = read_xios_stems(opt.target_files + '*.xios')
     print(f'\t{len(targetdata)} files read')
     print()
 
@@ -207,7 +310,8 @@ if __name__ == '__main__':
             base_old = base
             # print()
 
-        result = stem_compare(refdata[base], targetdata[target])
+        # stemresult = stem_compare(refdata[base], targetdata[target])
+        result = base_compare(refdata[base], targetdata[target], seqlen[target])
         print(f'{base}\t{condition}\t',
               f'\t{result["stem_precision"]:.3f}',
               f'\t{result["stem_recall"]:.3f}',
