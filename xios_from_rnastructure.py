@@ -141,7 +141,7 @@ def safe_file(filename, mode):
     :return:
     ---------------------------------------------------------------------------------------------"""
     if mode == 'r':
-        print(f'safe_file r-branch file: {filename}')
+        # print(f'safe_file r-branch file: {filename}')
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -151,7 +151,7 @@ def safe_file(filename, mode):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
             return False
             # exit(4)
-        print(f"apparently {filename} doesn't exist")
+        # print(f"apparently {filename} doesn't exist")
 
     return True
 
@@ -218,8 +218,6 @@ def get_mfe_from_ct(CT):
             field = line.split()
 
     ct.close()
-    os.remove(CT)
-
     return abs(float(field[3]))
 
 
@@ -293,22 +291,23 @@ def runfold(args, fasta, ct, percent):
     # if ct file is present, assume this sequence has been processed already and skip
     safe_file(fasta, 'r')
     if safe_file(ct, 'w'):
-        print(f'ctfile {ct} is writable')
+        # ct file does not exist
+        # print(f'ctfile {ct} is writable')
         pass
     else:
         # probably ctfile exists so skip
-        print(f'ct file {ct} exists. {fasta} skipped')
+        # print(f'ct file {ct} exists. {fasta} skipped')
         return f'{fasta} skipped'
-    # -----------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------------
     # pass 1 to get DeltaG
-    # -----------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------------
 
     print(f'running fold pass 1: {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
-    opt += ['-p', f'{percent}']
-    opt += ['-m', f'{args.maximum}']
-    opt += ['-w', f'{args.window}']
+    opt += ['-mfe']
+    opt += ['-t', '298']
+    opt += ['-l','50', '-y']
     result = subprocess.run(opt, capture_output=True)
 
     mfe = get_mfe_from_ct(ct)
@@ -320,18 +319,19 @@ def runfold(args, fasta, ct, percent):
     # commentfold[ct] = runfold(args, fasta, ct, percent=percent)
     # ct_n += 1
 
-    # -----------------------------------------------------------------------------------------------
+
+    #-----------------------------------------------------------------------------------------------
     # pass 2 to get suboptimal folds
-    # -----------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------------
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
+    opt += ['-t', '298']
+    opt += ['-l','50', '-y']
     result = subprocess.run(opt, capture_output=True)
-    # print(result)
-    # print(f'out:{result.stdout}')
-    # print(f'err:{result.stderr}')
+
     comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
     comment += f'{time.asctime(time.localtime())}'
 
@@ -436,17 +436,17 @@ if __name__ == '__main__':
     for fasta in fastafiles:
         fa_n += 1
         if not args.quiet:
-            print(f'processing {fasta}')
+            print(f'\nprocessing {fasta}')
 
         for window in range(args.window_min, args.window_max + 1):
-            print(f'\nmain loop window:{window}')
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = ct_from_fasta(args, fasta)
-            print(f'xios_from_rnastructure ct={ct}')
+            # print(f'xios_from_rnastructure ct={ct}')
             # ctlist.append(ct)
             commentfold[ct] = runfold(args, fasta, ct, percent=0)
 
+            # all XIOS output goes to args.xiosdir
             # all XIOS output goes to the args.xiosdir
             # for each ct file we can use different ddG
             # the stems that are the same in structures with different ddG are merged

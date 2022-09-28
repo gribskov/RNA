@@ -99,7 +99,7 @@ class Topology:
         self.comment = []
 
         for key in kwds:
-            if key == 'xml':
+            if key == 'xml' or key =='xios':
                 self.XIOSread(kwds[key])
             else:
                 sys.stderr.write('Topology::init - unknown keyword ({})'.format(key))
@@ -960,6 +960,65 @@ class Topology:
         :param min_n: int, minimum size for sampled graph
         :return: list, list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
+        attempt_max = 50
+        nvertex = len(adj)
+        random.seed()
+
+        vlist = []
+        excluded = set()
+        # initialize neighbor with a random vertex for the first vertex
+        neighbor = set([random.randrange(nvertex)])
+        attempt = 0
+        while len(vlist) < n:
+            # print(attempt)
+            attempt += 1
+            # randomly determine starting vertex
+            v0 = random.sample(neighbor, 1)[0]
+            vlist.append(v0)
+            neighbor.discard(v0)
+            excluded.add(v0)
+            # update neighbor and exclude sets
+            for a in range(nvertex):
+                if adj[v0][a] == 'x':
+                    neighbor.discard(a)
+                    excluded.add(a)
+                if adj[v0][a] in 'ijo':
+                    neighbor.add(a)
+
+            # make sure no excluded are in the neighbor set
+            neighbor = neighbor - excluded
+
+            if len(vlist) >= n:
+                # sampled graph is large enough, exit sampling
+                break
+
+            if not neighbor:
+                # there are no more neighbors but the graph is too small
+                # reinitialize vlist, neighbor, and excluded and try again
+
+                vlist = []
+                neighbor = {random.randrange(nvertex)}
+                excluded.clear()
+                if attempt > attempt_max:
+                    break
+
+        # end of size < n loop
+
+        return sorted(vlist)
+
+    @staticmethod
+    def sample2(adj, n):
+        """-----------------------------------------------------------------------------------------
+        randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
+        connected by non-s (and currently non-x) edges, but size may be less than n if the graph
+        being sampled is smaller than size or has disconnected segments. Because there 9 graphs
+        with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
+        the adjacency matrix.
+
+        :param n: int, size of graph to sample
+        :param min_n: int, minimum size for sampled graph
+        :return: list, list of vertices in sampled graph
+        -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
         random.seed()
@@ -1004,8 +1063,6 @@ class Topology:
                     # passed all tests, add a to neighbor list
                     neighbor.append(a)
 
-
-
             # if not neighbor:
             #     # neighbor list is empty
             #     break
@@ -1038,7 +1095,6 @@ class Topology:
         # end of test for size >= n
 
         vlist.sort()
-
         return vlist
 
     @staticmethod
@@ -1134,7 +1190,7 @@ class Topology:
 
         :param self: Xios object
         :param n: int, number of stems to sample
-        :param retttry: int, number of times to retry if vlist is too small
+        :param retry: int, number of times to retry if vlist is too small
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
@@ -1144,10 +1200,6 @@ class Topology:
         vlist = []
         tries = 0
         while len(vlist) < n and tries < retry:
-            # graph is too small
-            # if tries:
-            #    print(f'retry topology:sample_xios\tvlist:{vlist}')
-
             tries += 1
             vlist = Topology.sample(self.adjacency, n)
 
@@ -1159,11 +1211,10 @@ class Topology:
                 row = vlist[r]
                 for c in range(r + 1, len(vlist)):
                     col = vlist[c]
-                    # if col <= row:
-                    #     continue
                     if adj[row][col] in 'ijo':
                         struct.append([row, col, edge[adj[row][col]]])
 
+        # print(struct)
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):
