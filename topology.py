@@ -1910,14 +1910,14 @@ class RNAstructure(Topology):
         try:
             ct = open(filename, 'r')
         except OSError:
-            sys.stderr.write("RNAstructure::CTRead - unable to open CT file ({})".format(filename))
+            sys.stderr.write("Topology/RNAstructure::CTRead - unable to open CT file ({})".format(filename))
 
         nbase = 0
         path = filename.split('/')
         self.filename = path[-1]
 
         nstruct = 0
-        comment = f'Converting CT file {filename} to XIOS\n'
+        comment = f'\tTopology/RNAStructure::CTRead - Converting CT file {filename} to XIOS delta deltaG={ddG}\n'
         for line in ct:
             if not line:
                 # skip blank lines?
@@ -1926,7 +1926,6 @@ class RNAstructure(Topology):
 
             if self.is_ctheader(field):
                 # add provenance information to Topology comment
-                comment += f'\t structure {nstruct}: {line}\n'
                 if nstruct == 0:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
@@ -1935,12 +1934,14 @@ class RNAstructure(Topology):
 
                 else:
                     # second or later structure, save the stems, check that we are below mfe + ddG
-                    #
-                    self.stemlist_from_pairs(unpaired=2)
-                    if self.energy > mfe + ddG:
+                    # 0.01 is a fudge factor to make sure floating point differences don't
+                    # cause problems
+                    if self.energy > mfe + ddG + 0.01:
                         break
+                    self.stemlist_from_pairs(unpaired=2)
                     self.pair = [0] * (self.sequence_length + 1)
 
+                comment += f'\tstructure {nstruct}: {line}\n'
                 nstruct += 1
 
 
@@ -1961,7 +1962,7 @@ class RNAstructure(Topology):
         # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
         dedup_n = self.stemlist_deduplicate()
-        comment += f'{dedup_n} stems after removing duplicates'
+        comment += f'\t{dedup_n} stems after removing duplicates'
         self.comment.append(comment)
 
         return nbase
