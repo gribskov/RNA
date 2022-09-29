@@ -4,13 +4,11 @@ bases
 
 Michael Gribskov     23 September 2022
 ================================================================================================="""
-import sys
-import os
-import glob
 import argparse
 import datetime
-
-from lxml import etree
+import glob
+import os
+import sys
 
 from topology import Topology
 
@@ -188,7 +186,7 @@ def base_compare(refstemlist, targetstemlist, seqlen):
     :param seqlen: int  length of sequence
     :return: dict   stem and base precision, recall, and f1
     ---------------------------------------------------------------------------------------------"""
-    map = [0 for _ in range(seqlen+2)]
+    map = [0 for _ in range(seqlen + 2)]
 
     r_overlap = 0
     t_overlap = [0 for _ in range(len(targetstemlist))]
@@ -279,7 +277,7 @@ if __name__ == '__main__':
     runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
     print(f'match_xios.py {runstart}\n')
 
-    dummy = {}
+    # dummy = {}
     opt = get_options()
     print(f'reference files: {opt.reference_files + "*.xios"}', end='')
     refdata, dummy = read_xios_stems(opt.reference_files + '*.xios')
@@ -333,7 +331,7 @@ if __name__ == '__main__':
     print(f'# condition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
     for cond in sorted(condition_n.keys(), key=lambda x: condition_average[x]["stem_f1"]):
         for col in columns:
-            condition_average[cond][col] /= condition_n[condition]
+            condition_average[cond][col] /= condition_n[cond]
 
         result = condition_average[cond]
         print(f'{cond:10s}\t',
