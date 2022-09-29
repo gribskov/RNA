@@ -8,7 +8,7 @@ import os
 import datetime
 import argparse
 from topology import Topology
-from xios import Xios, Gspan, MotifDB
+from xios import Gspan, MotifDB
 from fingerprint import Fingerprint
 
 
