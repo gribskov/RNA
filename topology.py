@@ -13,7 +13,7 @@
     mfold/unafold).  Multiple structures can be read to creat a single topology if the CT file is
     produced by the Fold program
 
-    TODO: check if PairRNA and SerialRNA completely populated a usable Topology object
+    TODO: check if PairRNA and SerialRNA completely populate a usable Topology object
     PairRNA produces Topology objects from the pair representation (see below)
     SerialRNA produces Topology objects from the serial format (see below)
 
@@ -99,7 +99,7 @@ class Topology:
         self.comment = []
 
         for key in kwds:
-            if key == 'xml' or key =='xios':
+            if key == 'xml' or key == 'xios':
                 self.XIOSread(kwds[key])
             else:
                 sys.stderr.write('Topology::init - unknown keyword ({})'.format(key))
@@ -956,9 +956,9 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int, size of graph to sample
-        :param min_n: int, minimum size for sampled graph
-        :return: list, list of vertices in sampled graph
+        :param n: int   size of graph to sample
+        :param n: int   minimum size for sampled graph
+        :return: list   list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         attempt_max = 50
         nvertex = len(adj)
@@ -967,7 +967,8 @@ class Topology:
         vlist = []
         excluded = set()
         # initialize neighbor with a random vertex for the first vertex
-        neighbor = set([random.randrange(nvertex)])
+        # neighbor = set([random.randrange(nvertex)])
+        neighbor = {random.randrange(nvertex)}
         attempt = 0
         while len(vlist) < n:
             # print(attempt)
@@ -1015,9 +1016,9 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int, size of graph to sample
-        :param min_n: int, minimum size for sampled graph
-        :return: list, list of vertices in sampled graph
+        :param n: int    size of graph to sample
+        :param n: int   minimum size for sampled graph
+        :return: list   list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
@@ -1227,10 +1228,11 @@ class Topology:
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
 
-        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = self.samplebyweight(n, w)
-
         adj = self.adjacency
+        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
+        vlist = self.samplebyweight(adj, n, w)
+
+
         struct = []
         for row in vlist:
             for col in vlist:
@@ -1249,13 +1251,16 @@ class SerialRNA(list):
     for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
     ============================================================================================="""
 
-    def __init__(self, list=[]):
+    def __init__(self, list=None):
         """-----------------------------------------------------------------------------------------
         SerialRNA is a list with some extra methods.  Technically it doesn't need a constructor
         since it inherits one from list, but just in case attributes need to be added, this
         constructor just calls the parent's
         -----------------------------------------------------------------------------------------"""
+        if list is None:
+            list = []
         super(SerialRNA, self).__init__(list)
+
 
         # add additional attributes
 
@@ -1481,7 +1486,7 @@ class PairRNA:
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self, topology=[], topology_type='pair'):
+    def __init__(self, topology=None, topology_type='pair'):
         """-----------------------------------------------------------------------------------------
         Internal data structure is a list of lists:
         each element in the list of the begin, end position of a stem.  The stems
@@ -1492,6 +1497,9 @@ class PairRNA:
 
         :param inlist: a list of lists with coordinates of left and right half stems
         -----------------------------------------------------------------------------------------"""
+        if topology is None:
+            # avoid mutable initialization in arguments
+            topology = []
         self.pairs = []
         self.nstem = 0
 
@@ -1529,7 +1537,7 @@ class PairRNA:
         read in a graph as a SerialRNA object.  A Serial RNA list will look like [0,1,1,2,2,0]
         which is the structure (()()) and the PairRNA [0,5,1,2,3,4]
 
-        :param g: SerialRNA object, structure in list format
+        :param serial: SerialRNA object, structure in list format
         :return: int, number of stems
         -----------------------------------------------------------------------------------------"""
         self.nstem = int(len(serial) // 2)
@@ -1558,7 +1566,7 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         the input list is a string separated by sep, e.g. '0 1 1 0'
 
-        :param g: string, input graph as a SerialRNA string
+        :param serialstr: string, input graph as a SerialRNA string
         :param sep: string, separation character in input string
         :return: integer, number of stems
         -----------------------------------------------------------------------------------------"""
@@ -1926,6 +1934,7 @@ class RNAstructure(Topology):
 
             if self.is_ctheader(field):
                 # add provenance information to Topology comment
+                mfe = 0.0
                 if nstruct == 0:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
@@ -2170,11 +2179,12 @@ class RNAstructure(Topology):
         edgestr = ''
         # e = self.edgelist(include,whole)
         n = 0
-        for edge in self.edge_list(include, whole):
+        for edge in self.edge_list:
+            # include and whole arguments don't do anything
             n += 1
-            edgestr += '{}: '.format(n)
+            edgestr += f'{n}: '
             for neighbor in edge:
-                edgestr += '{}{}, '.format(neighbor[0], neighbor[1])
+                edgestr += '{neighbor[0]}{neighbor[1]}, '
 
             edgestr = edgestr.rstrip(', ')
             edgestr += '\n'
