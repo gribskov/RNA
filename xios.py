@@ -175,9 +175,7 @@ class Xios(list):
         :param ingraph: Graph object from RNA/graph.py
         :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
-        from topology import PairRNA
         self.clear()
-        # graph = PairRNA(ingraph)
 
         begin = 0
         end = 1
