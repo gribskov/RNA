@@ -188,7 +188,7 @@ def base_compare(refstemlist, targetstemlist, seqlen):
     :param seqlen: int  length of sequence
     :return: dict   stem and base precision, recall, and f1
     ---------------------------------------------------------------------------------------------"""
-    map = [0 for _ in range(seqlen+1)]
+    map = [0 for _ in range(seqlen+2)]
 
     r_overlap = 0
     t_overlap = [0 for _ in range(len(targetstemlist))]
