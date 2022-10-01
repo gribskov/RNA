@@ -293,6 +293,8 @@ if __name__ == '__main__':
     print(f'# target\tcondition\tsprecision\tsrecall\tsf1\tbprecision\tbrecall\tbf1')
     condition_average = {}
     condition_n = {}
+    bestbytype = {}
+    bestf1 = {}
 
     base_old = ''
     for target in targetdata:
@@ -300,12 +302,14 @@ if __name__ == '__main__':
         suffixpos = target.index('.w')  # make sure no target file names contain .w, or this will fail
         base = target[:suffixpos]
         condition = target[suffixpos + 1:]
+        token = base.split('.', maxsplit=1)
+        token = token[0].split('_', maxsplit=1)
+        rnatype = token[0]
 
         if base_old != base:
             base_old = base
             # print()
 
-        # stemresult = stem_compare(refdata[base], targetdata[target])
         result = base_compare(refdata[base], targetdata[target], seqlen[target])
         print(f'{base}\t{condition}\t',
               f'\t{result["stem_precision"]:.3f}',
@@ -325,6 +329,14 @@ if __name__ == '__main__':
             condition_n[condition] = 1
             condition_average[condition] = {t: result[t] for t in columns}
 
+        if rnatype in bestf1:
+            if result['stem_f1'] > bestf1[rnatype]:
+                bestf1[rnatype] = result['stem_f1']
+                bestbytype[rnatype] = result
+        else:
+            bestf1[rnatype] = result['stem_f1']
+            bestbytype[rnatype] = result
+
     # end of loop over targets
 
     print(f'\n# averages by condition')
@@ -343,4 +355,15 @@ if __name__ == '__main__':
               f'\t{result["base_f1"]:.3f}'
               )
 
+    print('\n# best by RNA type')
+    for rna in bestbytype:
+        result = bestbytype[rna]
+        print(f'{rna:10s}\t',
+              f'\t{result["stem_precision"]:.3f}',
+              f'\t{result["stem_recall"]:.3f}',
+              f'\t{result["stem_f1"]:.3f}',
+              f'\t{result["base_precision"]:.3f}',
+              f'\t{result["base_recall"]:.3f}',
+              f'\t{result["base_f1"]:.3f}'
+              )
     exit(0)
