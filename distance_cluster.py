@@ -376,7 +376,35 @@ if __name__ == '__main__':
                 print(tree.active())
                 print(tree.dmat_format())
 
+            tree.tree[0].id += ';'
             print(tree.tree[0].id)
+
+            pos = 0
+            tree = tree.tree[0].id
+            indent = 0
+            start = 0
+            while pos < len(tree):
+                if tree[pos] == '(':
+                    print(f'{" "*indent}(')
+                    indent += 4
+                    start = pos + 1
+                elif tree[pos] == ')':
+                    print(f'{" " * indent}{tree[start:pos]}')
+                    indent -= 4
+                    print(f'{" " * indent})', end='')
+                    start = pos + 1
+
+                elif tree[pos] == ',':
+                    if tree[start] == ':':
+                        print(f'{tree[start:pos]},')
+                    else:
+                        print(f'{" "*indent}{tree[start:pos]},')
+                    start = pos + 1
+                pos += 1
+
+
+
+
 
     #         print(f'cluster {c}= {cluster[c]}')
     #         dmat = distance_matrix(distance, cluster[c])
