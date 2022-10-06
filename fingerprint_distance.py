@@ -62,8 +62,6 @@ if __name__ == '__main__':
         f = Fingerprint()
         f.readYAML(this_fpt)
         fpt.append(f)
-        if fpt_n > 20:
-            break
 
     fpt_n = len(fpt)
     print(f'{fpt_n} fingerprints read')
