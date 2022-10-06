@@ -268,7 +268,7 @@ class Upgma:
                     srow = row
                     scol = col
 
-        print(smallest, srow, scol)
+        # print(smallest, srow, scol)
         return srow, scol
 
     def mergetaxa(self, row, col):
@@ -304,7 +304,7 @@ class Upgma:
         new_node.id = f'({node_row.id}:{branch:.3f},{node_col.id}:{branch:.3f})'
 
         self.tree[row] = new_node
-        print(len(active), row, self.tree[row].id)
+        # print(len(active), row, self.tree[row].id)
         # self.tree.remove(node_col)
         self.tree[col] = None
 
@@ -392,23 +392,24 @@ if __name__ == '__main__':
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
             i = 0
+            print(f'cluster: {c} input taxa')
             for taxon in cluster[c]:
                 print(f'{i}\t{taxon}')
                 i += 1
 
-            print('\n')
-
-            # print(tree.dmat_format())
             while taxa_n > 1:
                 row, col = tree.smallest()
                 taxa_n = tree.mergetaxa(row, col)
-                print(f'taxa_n = {taxa_n}')
-                print(tree.active())
-                # print(tree.dmat_format())
+                # print(f'taxa_n = {taxa_n}')
+                # print(tree.active())
 
+            # final tree is always taxon 0
+            print(f'\nfinal tree')
             tree.tree[0].id += ';'
             print(tree.tree[0].id)
 
+            # indented Newick pseudo tree
+            print(f'\nindented tree')
             pos = 0
             tree = tree.tree[0].id
             indent = 0
@@ -433,9 +434,5 @@ if __name__ == '__main__':
 
                 pos += 1
 
-    #         print(f'cluster {c}= {cluster[c]}')
-    #         dmat = distance_matrix(distance, cluster[c])
-    #         print(dmat)
-    #         upgma(dmat)
 
     exit(0)
