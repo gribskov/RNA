@@ -164,7 +164,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         idx = []
         for node in self.tree:
-            idx.append(node.idx)
+            if node is not None:
+                idx.append(node.idx)
 
         return idx
 
@@ -225,12 +226,31 @@ class Upgma:
 
         return dmatstr
 
+    def similarity_to_distance(self, big):
+        """-----------------------------------------------------------------------------------------
+        convert a similarity measure (such as Jaccard) to distance by subtracting each value from
+        the largest value.
+
+        :param big: int largest value in dmat
+        :return:int, int    new min and max of dmat
+        -----------------------------------------------------------------------------------------"""
+        dmat = self.dmat
+        size = len(dmat)
+        dmax = dmin = dmat[0][0]
+        for i in range(size):
+            for j in range(size):
+                dmat[i][j] = big - dmat[i][j]
+                dmax = max(dmat[i][j], dmax)
+                dmin = min(dmat[i][j], dmin)
+
+        return dmin, dmax
+
     def smallest(self, initval=10):
         """---------------------------------------------------------------------------------------------
         find the smallest value in the current distance matrix, only look at values in groups, other
         indices have been merged
 
-        :return: int, int, indices of the smallest distance
+        :return: int, int, indices of the smallest distance in dmat coordinates
         ---------------------------------------------------------------------------------------------"""
         smallest = initval
         dmat = self.dmat
@@ -253,7 +273,8 @@ class Upgma:
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
-        merge the row and column taxa with the smallest value
+        merge the row and column taxa with the smallest value. the row and column are given in dmat
+        coordinates
 
         :param row: index of row (will be kept)
         :param col: index of column (will be merged)
@@ -270,8 +291,12 @@ class Upgma:
             dmat[i][row] = (dmat[i][row] + dmat[i][col]) / 2.0
             dmat[row][i] = dmat[i][row]
 
-        node_row = self.tree[active.index(row)]
-        node_col = self.tree[active.index(col)]
+        arow = active.index(row)
+        acol = active.index(col)
+        # node_row = self.tree[active.index(row)]
+        # node_col = self.tree[active.index(col)]
+        node_row = self.tree[row]
+        node_col = self.tree[col]
 
         # create a new Tree node for the merged taxa
         new_node = Tree()
@@ -279,9 +304,11 @@ class Upgma:
         new_node.id = f'({node_row.id}:{branch:.3f},{node_col.id}:{branch:.3f})'
 
         self.tree[row] = new_node
-        self.tree.remove(node_col)
+        print(len(active), row, self.tree[row].id)
+        # self.tree.remove(node_col)
+        self.tree[col] = None
 
-        return len(self.tree)
+        return len(active) - 1
 
 
 def upgma2(dmat):
@@ -352,7 +379,7 @@ def smallest2(dmat, groups, initval=10):
 if __name__ == '__main__':
     # single linkage clusters
     distance_file = 'distance.out'
-    threshold = 0.5
+    threshold = 0.05
     distance, maximum, minimum = read_distance(distance_file)
     cluster, index = connected(distance, threshold)
 
@@ -362,6 +389,8 @@ if __name__ == '__main__':
         if taxa_n > 1:
             tree = Upgma()
             tree.load(distance, cluster[c])
+            if tree.dtype == 'jaccard':
+                minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
             i = 0
             for taxon in cluster[c]:
                 print(f'{i}\t{taxon}')
@@ -369,12 +398,13 @@ if __name__ == '__main__':
 
             print('\n')
 
-            print(tree.dmat_format())
+            # print(tree.dmat_format())
             while taxa_n > 1:
                 row, col = tree.smallest()
                 taxa_n = tree.mergetaxa(row, col)
+                print(f'taxa_n = {taxa_n}')
                 print(tree.active())
-                print(tree.dmat_format())
+                # print(tree.dmat_format())
 
             tree.tree[0].id += ';'
             print(tree.tree[0].id)
@@ -385,7 +415,7 @@ if __name__ == '__main__':
             start = 0
             while pos < len(tree):
                 if tree[pos] == '(':
-                    print(f'{" "*indent}(')
+                    print(f'{" " * indent}(')
                     indent += 4
                     start = pos + 1
                 elif tree[pos] == ')':
@@ -398,13 +428,10 @@ if __name__ == '__main__':
                     if tree[start] == ':':
                         print(f'{tree[start:pos]},')
                     else:
-                        print(f'{" "*indent}{tree[start:pos]},')
+                        print(f'{" " * indent}{tree[start:pos]},')
                     start = pos + 1
+
                 pos += 1
-
-
-
-
 
     #         print(f'cluster {c}= {cluster[c]}')
     #         dmat = distance_matrix(distance, cluster[c])
