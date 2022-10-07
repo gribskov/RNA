@@ -373,14 +373,65 @@ def smallest2(dmat, groups, initval=10):
     return srow, scol
 
 
+def get_group(name):
+    """---------------------------------------------------------------------------------------------
+    extract the part of the fingerprint file name up to the first period or underline
+    :param name: string fingerprint file name
+    :return: string     group name
+    ---------------------------------------------------------------------------------------------"""
+    breakpoint = len(name)
+    for c in ('.', '_'):
+        pos = name.find(c)
+        if pos > 0:
+            breakpoint = min(breakpoint, pos)
+
+    return name[:breakpoint]
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    calcroc = True
     # single linkage clusters
     distance_file = 'distance.out'
     threshold = 0.05
     distance, maximum, minimum = read_distance(distance_file)
+    count = {'positive': 0, 'negative': 0}
+    roc = []
+    auc = 0
+    if calcroc:
+        for pair in sorted(distance, key=lambda x: x['jaccard'], reverse=True):
+            print(pair)
+            f1 = get_group(pair['fpt1'])
+            f2 = get_group(pair['fpt2'])
+            if f1 == f2:
+                count['positive'] += 1
+                roc.append({'score': pair['jaccard'], 'match': True, 'tp': count['positive'], 'fp': count['negative']})
+            else:
+                count['negative'] += 1
+                roc.append({'score': pair['jaccard'], 'match': False, 'tp': count['positive'], 'fp': count['negative']})
+
+        begin = 0
+        end = 0
+        value = roc[0]['score']
+        for point in roc:
+            if point['score'] == value:
+                end += 1
+                continue
+            else:
+                if roc[end]['fp'] > roc[begin]['fp']:
+                    # area of trapezoid
+                    area = (roc[begin]['tp'] + roc[end]['tp']) / count['positive']
+                    area *= (roc[end]['fp'] - roc[begin]['fp']) / count['negative'] / 2.0
+                    auc += area
+                    begin = end
+                    print(f'score:{point["score"]},{begin},{end}\tp:{point["tp"]}\tn:{point["fp"]}\t area:{area}\tauc'
+                          f':{auc}')
+            end += 1
+
+        print(f'ROC AUC = {auc}')
+
     cluster, index = connected(distance, threshold)
 
     # for each cluster, make upgma tree
@@ -391,6 +442,7 @@ if __name__ == '__main__':
             tree.load(distance, cluster[c])
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+
             i = 0
             print(f'cluster: {c} input taxa')
             for taxon in cluster[c]:
@@ -433,6 +485,5 @@ if __name__ == '__main__':
                     start = pos + 1
 
                 pos += 1
-
 
     exit(0)
