@@ -12,10 +12,11 @@ import sys
 def read_distance(filename):
     """---------------------------------------------------------------------------------------------
     Read distances from fingerprint_distance.py.  Distances are stored in a list of dict
-    distance = [ {fpt1, fpt2, jaccard, bray_curtis}, ...]
+    distance = [ {fpt1, fpt2, jaccard, bray_curtis}, ...]. Also counts the number of cases where
+    the group of fpt1 matches fpt2 (true positive) and where they don't match (false positive
     
     :param filename: string, name of file with distances
-    :return: distance (list of dict), maximum (float), minimum (float)
+    :return: distance (list of dict), maximum (float), minimum (float), pos(int), neg(int)
     ---------------------------------------------------------------------------------------------"""
     try:
         distance = open(filename, 'r')
@@ -25,6 +26,9 @@ def read_distance(filename):
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
 
+    pos = 0
+    neg = 0
+    ispos = None
     distance_n = 0
     distance_list = []
     for line in distance:
@@ -37,12 +41,23 @@ def read_distance(filename):
         minimum['jaccard'] = min(minimum['jaccard'], float(jaccard))
         maximum['bray-curtis'] = max(maximum['bray-curtis'], float(bray_curtis))
         minimum['bray-curtis'] = min(minimum['bray-curtis'], float(bray_curtis))
+
+        f1 = get_group(fpt1)
+        f2 = get_group(fpt2)
+        ispos = False
+        if f1 == f2:
+            ispos = True
+            pos += 1
+        else:
+            neg += 1
+
         distance_list.append({'fpt1':        fpt1,
                               'fpt2':        fpt2,
                               'jaccard':     float(jaccard),
-                              'bray-curtis': float(bray_curtis)})
+                              'bray-curtis': float(bray_curtis),
+                              'ispos':       ispos})
 
-    return distance_list, maximum, minimum
+    return distance_list, maximum, minimum, pos, neg
 
 
 def connected(distance, threshold, dtype='jaccard'):
@@ -388,6 +403,146 @@ def get_group(name):
     return name[:breakpoint]
 
 
+def ROC2(roc_file, distance, score, npos, nneg):
+    """---------------------------------------------------------------------------------------------
+    calculate Receiver Operating Characteristic and area under curve (AUC)
+    :param roc_file:    string, filename for ROC output
+    :param distance:    list of dict, distance information
+    :param npos:        int, number of positive comparisons
+    :param nneg:        int, number of negative comparisons
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+
+    nstep = 1.0 / nneg
+    pstep = 1.0 / npos
+    pbeg = pend = 0
+    nbeg = nend = 0
+    dirup = True
+    value = 0
+    auc = area = 0.0
+    for point in sorted(distance, key=lambda x: x[score], reverse=True):
+        # print(point)
+
+        if point[score] == value:
+            # items with same value cannot be sorted so they are a single step
+            if point['ispos']:
+                pend += 1
+            else:
+                nend += 1
+            continue
+
+        else:
+            # value has changed but you don't need to calculate until both pos
+            # and negative values change
+            if not dirup and not point['ispos']:
+                # this step is negative, following previous negative, just increment neg
+                nend += 1
+            if dirup and point['ispos']:
+                # positive step following previous positives, i.e., straight up
+                pend += 1
+                pbeg += 1
+            else:
+                # area of trapezoid
+                area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+                auc += area
+                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+
+                if point['ispos']:
+                    pend += 1
+                    dirup = True
+                else:
+                    dirup = False
+                    nend += 1
+
+                pbeg = pend
+                nbeg = nend
+
+                value = point[score]
+
+    area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+    auc += area
+
+
+    print(f'ROC AUC = {auc}')
+
+    return
+
+def ROC(roc_file, distance, score, npos, nneg):
+    """---------------------------------------------------------------------------------------------
+    calculate Receiver Operating Characteristic and area under curve (AUC)
+    :param roc_file:    string, filename for ROC output
+    :param distance:    list of dict, distance information
+    :param npos:        int, number of positive comparisons
+    :param nneg:        int, number of negative comparisons
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+
+    nstep = 1.0 / nneg
+    pstep = 1.0 / npos
+    pbeg = pend = 0
+    nbeg = nend = 0
+    go_up = True
+    go_right = False
+    value = 0
+    auc = area = 0.0
+    for point in sorted(distance, key=lambda x: x[score], reverse=True):
+        # print(point)
+
+        # detect blocks where items have the same value, these cannot be sorted
+        # so they are a single step
+        if point[score] == value:
+            if point['ispos']:
+                pend += 1
+            else:
+                nend += 1
+            continue
+
+        else:
+            # we get here if we have completed a block if both p and n ranges
+            # have changed we have to go directly to calculation
+            if pend > pbeg and nend > nbeg:
+                go_up = None
+                go_right = None
+
+            if go_right and go_up and not point['ispos'] and go_up:
+                # if we are going right, keep going right as long as possible
+                nend += 1
+            elif go_up and not go_right and point['ispos'] :
+                # if going up, keep going as far as possible, don't go up after going right
+                pend += 1
+                pbeg += 1
+            elif go_up and not point['ispos']:
+                # if going up, turn right
+                go_right = True
+                pbeg = pend
+                nend += 1
+            else:
+                # area of trapezoid
+                area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+                auc += area
+                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+
+                if point['ispos']:
+                    pend += 1
+                    go_up = True
+                    go_right = False
+                else:
+                    go_up = False
+                    go_right = True
+                    nend += 1
+
+                pbeg = pend
+                nbeg = nend
+
+                value = point[score]
+
+    area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+    auc += area
+
+
+    print(f'ROC AUC = {auc}')
+
+    return
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -395,41 +550,12 @@ if __name__ == '__main__':
     calcroc = True
     # single linkage clusters
     distance_file = 'distance.out'
+    roc_file = 'roc.out'
     threshold = 0.05
-    distance, maximum, minimum = read_distance(distance_file)
-    count = {'positive': 0, 'negative': 0}
-    roc = []
-    auc = 0
+    distance, maximum, minimum, pos, neg = read_distance(distance_file)
+
     if calcroc:
-        for pair in sorted(distance, key=lambda x: x['jaccard'], reverse=True):
-            print(pair)
-            f1 = get_group(pair['fpt1'])
-            f2 = get_group(pair['fpt2'])
-            if f1 == f2:
-                count['positive'] += 1
-                roc.append({'score': pair['jaccard'], 'match': True, 'tp': count['positive'], 'fp': count['negative']})
-            else:
-                count['negative'] += 1
-                roc.append({'score': pair['jaccard'], 'match': False, 'tp': count['positive'], 'fp': count['negative']})
-
-        begin = 0
-        end = 0
-        value = roc[0]['score']
-        for point in roc:
-            if point['score'] == value:
-                end += 1
-                continue
-            else:
-                if roc[end]['fp'] > roc[begin]['fp']:
-                    # area of trapezoid
-                    area = (roc[begin]['tp'] + roc[end]['tp']) / count['positive']
-                    area *= (roc[end]['fp'] - roc[begin]['fp']) / count['negative'] / 2.0
-                    auc += area
-                    begin = end
-                    print(f'score:{point["score"]},{begin},{end}\tp:{point["tp"]}\tn:{point["fp"]}\t area:{area}\tauc'
-                          f':{auc}')
-            end += 1
-
+        roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
         print(f'ROC AUC = {auc}')
 
     cluster, index = connected(distance, threshold)
