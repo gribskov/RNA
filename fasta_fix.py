@@ -23,7 +23,7 @@ def read_directories(path, dir_list):
         files = os.listdir(dir_path)
         for file in files:  # for each file in subdirectory
             split_file = file.split('.')
-            if split_file[1] == 'fa':  # make sure file is fasta file
+            if split_file[1] == 'fa' or split_file[1] == 'fasta':  # make sure file is fasta file
                 file_path = (dir_path + '/' + file)
                 with open(file_path, 'r') as fa_file:  # open fasta file
                     for line in fa_file:  # for each line in fasta file
