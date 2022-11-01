@@ -66,14 +66,6 @@ if __name__ == '__main__':
     fpt_n = len(fpt)
     print(f'{fpt_n} fingerprints read')
 
-    # distance calculation
-    # for i in range(fpt_n):
-    #     fpt1 = fpt[i].information['File']
-    #     for j in range(i + 1, fpt_n):
-    #         fpt2 = fpt[j].information['File']
-    #         j = fpt.jaccard_sim([i,j])
-    #         bc = fpt.bray_curtis_dis([i,j])
-    #         print(f'{fpt1}\t{fpt2}\t{j[2]:.3f}\t{bc:[2]:.3f}')
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
 
