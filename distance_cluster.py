@@ -462,10 +462,10 @@ def ROC2(roc_file, distance, score, npos, nneg):
     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
     auc += area
 
-
     print(f'ROC AUC = {auc}')
 
     return
+
 
 def ROC(roc_file, distance, score, npos, nneg):
     """---------------------------------------------------------------------------------------------
@@ -483,10 +483,11 @@ def ROC(roc_file, distance, score, npos, nneg):
     nbeg = nend = 0
     go_up = True
     go_right = False
-    value = 0
+    value = 1.0
     auc = area = 0.0
+    print(f'{npos}\t{nneg}')
     for point in sorted(distance, key=lambda x: x[score], reverse=True):
-        # print(point)
+        print(f'{pbeg}\t{pend}\t{nbeg}\t{nend}\t{point["jaccard"]}\t{point["ispos"]}')
 
         # detect blocks where items have the same value, these cannot be sorted
         # so they are a single step
@@ -498,51 +499,78 @@ def ROC(roc_file, distance, score, npos, nneg):
             continue
 
         else:
-            # we get here if we have completed a block if both p and n ranges
+            # we get here if we have completed a block of equal valuesif both p and n ranges
             # have changed we have to go directly to calculation
-            if pend > pbeg and nend > nbeg:
-                go_up = None
-                go_right = None
-
-            if go_right and go_up and not point['ispos'] and go_up:
-                # if we are going right, keep going right as long as possible
-                nend += 1
-            elif go_up and not go_right and point['ispos'] :
-                # if going up, keep going as far as possible, don't go up after going right
+            pdelta = pend - pbeg
+            ndelta = nend - nbeg
+            # if ndelta > 0 and pdelta > 0:
+            # if ndelta > 0:
+                # both have changed, calculate trapezoidal area
+            area = (pbeg + pend) * pstep * ndelta * nstep / 2.0
+            auc += area
+            print(f'score:{point[score]:.3g}\t area:{area}\tauc:{auc:.3g}')
+            nbeg = nend
+            pbeg = pend
+            if point['ispos']:
                 pend += 1
-                pbeg += 1
-            elif go_up and not point['ispos']:
-                # if going up, turn right
-                go_right = True
-                pbeg = pend
-                nend += 1
             else:
-                # area of trapezoid
-                area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
-                auc += area
-                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+                nend += 1
 
-                if point['ispos']:
-                    pend += 1
-                    go_up = True
-                    go_right = False
-                else:
-                    go_up = False
-                    go_right = True
-                    nend += 1
 
-                pbeg = pend
-                nbeg = nend
+            # if pdelta > 0:
+            #     # going straight up, we can update pbeg and pend, no area to calculate
+            #     pbeg = pend
+            #     pend += 1
+            # if ndelta > 0:
+            #     # going right, update nend
+            #     nend += 1
+            # print(f'{pbeg}\t{pend}\t{nbeg}\t{nend}')
+            value = point[score]
 
-                value = point[score]
+        # if pbeg > 300:
+        #     break
 
     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
     auc += area
 
-
     print(f'ROC AUC = {auc}')
 
+    # if pend > pbeg and nend > nbeg:
+    #     go_up = None
+    #     go_right = None
+    #
+    # if go_right and go_up and not point['ispos'] and go_up:
+    #     # if we are going right, keep going right as long as possible
+    #     nend += 1
+    # elif go_up and not go_right and point['ispos']:
+    #     # if going up, keep going as far as possible, don't go up after going right
+    #     pend += 1
+    #     pbeg += 1
+    # elif go_up and not point['ispos']:
+    #     # if going up, turn right
+    #     go_right = True
+    #     pbeg = pend
+    #     nend += 1
+    # else:
+    #     # area of trapezoid
+    #     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+    #     auc += area
+    #     print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+    #
+    #     pbeg = pend
+    #     nbeg = nend
+    #     if point['ispos']:
+    #         pend += 1
+    #         go_up = True
+    #         go_right = False
+    #     else:
+    #         go_up = False
+    #         go_right = True
+    #         nend += 1
+
     return
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
