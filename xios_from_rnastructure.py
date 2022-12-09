@@ -1,10 +1,18 @@
 """=================================================================================================
-Pipeline for generating XIOS structures using the program fold in the RNAStructure package.
+Pipeline for generating XIOS structures using the program Fold in the RNAStructure package. By
+specifying a range of delta deltaG, a series of results can be generated at different deltaG cutoffs
+using a single CT file. a new CT file must be generated for each different window.
 
 Steps:
-    fold program (RNAstructure) - calculate suboptimal structures --> ct file
-    mergestems.pl -- merge multiple suboptimal structures --> XIOS file
+    1) fold program (RNAstructure) - calculate suboptimal structures --> ct file
+    run in --MFE mode and get the MFE
+    2) convert the desired delta deltaG to percent using the MFE and run FOLD a second time to get
+    the desired suboptimal structures
+    3) use topology/CTread to merge structures in desired delta deltaG range and convert to XIOS
 
+sample command:
+xios_from_rnastructure.py -i ../data/fasta/ -f rnasep_a1.Buchnera_APS.fa -d 0.5,4.0,0.5
+run xios_from_rnastructure.py -h for help with command line arguments
 ================================================================================================="""
 import argparse
 import glob
@@ -12,6 +20,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 
 from topology import RNAstructure
 
@@ -58,19 +67,18 @@ def options():
                              help='Fold: maximum number of suboptimal structures (%(default)s)',
                              default=100)
     commandline.add_argument('-w', '--window',
-                             help='Fold: window for suboptimal structures (%(default)s) or comma separated',
+                             help='Fold: window for suboptimal structures (%(default)s) or comma separated (%(default)s)',
                              default='4')
     commandline.add_argument('-d', '--ddG',
-                             help='Mergestems: delta deltaG limit for supoptimal structures (%(default)s) '
+                             help='Mergestems: delta deltaG limit for supoptimal structures (%(default)s)'
                                   'or comma separated',
-                             default='5')
+                             default='5.0')
     commandline.add_argument('-y', '--python',
                              help='Directory path for python executables such as ct2xios (%(default)s)',
                              default='/scratch/bell/mgribsko/rna/RNA/')
     commandline.add_argument('-r', '--rnastructure',
                              help='Directory path for RNAstructure executables such as Fold (%(default)s)',
                              default='/scratch/bell/mgribsko/rna/RNAstructure/')
-
 
     # mergecase currently unused
     # commandline.add_argument('-c', '--mergecase',
@@ -88,14 +96,24 @@ def options():
             args.__dict__[path] += '/'
 
     # ddG and window may be comma separated ranges
+    # in the case of ddG, we expect a triple of begin, end, increment, if not specified, increment is 1.0
+    # first the defaults
     if args.ddG.find(','):
         minmax = args.ddG.split(',')
+        args.ddG_min = float(minmax[0])
+        args.ddG_max = args.ddG_min
+        args.ddG_inc = 1.0
         if len(minmax) > 1:
-            [args.ddG_min, args.ddG_max] = minmax
-            args.ddG_min = int(args.ddG_min)
-            args.ddG_max = int(args.ddG_max)
-        else:
-            args.ddG_max = args.ddG_min = int(args.ddG)
+            # ddg_max is present
+            args.ddG_max = float(minmax[1])
+        if len(minmax) > 2:
+            # ddg_inc is present
+            args.ddG_inc = float(minmax[2])
+
+    else:
+        args.ddG_max = float(args.ddG)
+        args.ddG_min = float(args.ddG)
+        args.ddG_inc = 1.0
 
     if args.window.find(','):
         minmax = args.window.split(',')
@@ -109,11 +127,13 @@ def options():
     return args
 
 
-def safe_mkdir(args,dirname):
+def safe_mkdir(args, dirname):
     """---------------------------------------------------------------------------------------------
     Try to create a directory, if directory already exists, use existing directory
 
+    :param args: namespace  command line arguments from argparse
     :param dirname: string, path to directory
+    :return: True
     ---------------------------------------------------------------------------------------------"""
     try:
         os.mkdir(dirname)
@@ -132,10 +152,11 @@ def safe_file(filename, mode):
     Exit with status = 3 or status = 4, respectively if the tests fail
 
     :param filename: string
-    :param mode: string, 'r' or 'w'
-    :return:
+    :param mode: string 'r' or 'w'
+    :return: True
     ---------------------------------------------------------------------------------------------"""
     if mode == 'r':
+        # print(f'safe_file r-branch file: {filename}')
         if not os.access(filename, os.R_OK):
             sys.stderr.write(f'File {filename} cannot be read\n')
             exit(3)
@@ -143,7 +164,9 @@ def safe_file(filename, mode):
     else:
         if os.path.exists(filename):
             sys.stderr.write(f'File {filename} already exists, move or delete {filename}\n')
+            return False
             # exit(4)
+        # print(f"apparently {filename} doesn't exist")
 
     return True
 
@@ -178,10 +201,9 @@ def xios_from_ct(args, ct):
     2. remove the last suffix if it is .ct
     3. add the suffix .xios
 
-    :param args: Namespace, command line arguments
+    :param args: Namespace, command line arguments, contains ddG
     :param ct: string, name of ct file
-    :param ddG: int, delta deltaG cutoff value
-    :return ct: string, name of xios file
+    :return: string, name of xios file
     ---------------------------------------------------------------------------------------------"""
     xios = os.path.basename(ct)
     l = len(xios)
@@ -191,32 +213,37 @@ def xios_from_ct(args, ct):
     # xios += f'.c{args.mergecase}'
 
     xios += '.xios'
-    # print(f'ddg file:{xios}')
+
     return xios
 
 
 def get_mfe_from_ct(CT):
     """---------------------------------------------------------------------------------------------
     Read the first energy from the CT file the first energy is the MFE
+    396  ENERGY = -27.6  tmRNA.Gracilaria_tenuistipitata.AY673996.fa
 
-    :param ct: string, filename
+    :param CT: string, filename of input CT file
     :return: float, MFE
     ---------------------------------------------------------------------------------------------"""
+    ct = None
     if safe_file(CT, 'r'):
         ct = open(CT, 'r')
 
+    field = []
     for line in ct:
         if line.find('ENERGY'):
             field = line.split()
+            break
 
     ct.close()
-    os.remove(CT)
-
-    return abs(float(field[3]))
+    return float(field[3])
 
 
 def runfold(args, fasta, ct, percent):
     """---------------------------------------------------------------------------------------------
+    Fold is run twice, the first time to just get the MFE. The second time under the ddG and window
+    parameters to get the suboptimal alignments
+
     Run the RNAstructure Fold program
     USAGE: Fold <sequence file> <CT file> [options]
     All flags are case-insensitive, and grouping of flags is not allowed.
@@ -272,26 +299,62 @@ def runfold(args, fasta, ct, percent):
             etc to detect problems.
           * off -- Do not display warnings at all (not recommended).
 
-    :param args: Namespace, command line arguments from options()
-    :param fasta: string, readable fasta file
-    :param ct: string, writable ct file
-    :return: string, comment for inclusion in XIOS file
+    :param args: Namespace  command line arguments from options() using argparse
+    :param fasta: string    readable fasta file
+    :param ct: string       writable ct file
+    :return: string         comment for inclusion in XIOS file
     ---------------------------------------------------------------------------------------------"""
-    safe_file(fasta, 'r')
-    safe_file(ct, 'w')
 
+    # check the input (fa) and output files. Fail if input file is not available/readable.
+    # if ct file is present, assume this sequence has been processed already and skip
+    safe_file(fasta, 'r')
+    if safe_file(ct, 'w'):
+        # ct file does not exist
+        # print(f'ctfile {ct} is writable')
+        pass
+    else:
+        # probably ctfile exists so skip
+        # print(f'ct file {ct} exists. {fasta} skipped')
+        return f'{fasta} skipped'
+    # -----------------------------------------------------------------------------------------------
+    # pass 1 to get DeltaG
+    # -----------------------------------------------------------------------------------------------
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    comment = f'\tRNAstructure/Fold {now}\n'
+
+    if not args.quiet:
+        print(f'\trunning fold pass 1: {fasta} => {ct}')
+    exe = args.rnastructure + '/exe/Fold'
+    opt = [exe, fasta, ct]
+    opt += ['-mfe']
+    opt += ['-t', '298']
+    opt += ['-l', '50', '-y']
+    result = subprocess.run(opt, capture_output=True)
+
+    mfe = get_mfe_from_ct(ct)
+    comment += f'\tMFE: {mfe} delta(deltaG): {args.ddG_max}\n'
+    try:
+        percent = int(-100 * args.ddG_max / mfe) + 1  # round up to make sure you get all structures
+    except ZeroDivisionError:
+        percent = args.percent
+
+    # -----------------------------------------------------------------------------------------------
+    # pass 2 to get suboptimal folds
+    # -----------------------------------------------------------------------------------------------
+    if not args.quiet:
+        print(f'\trunning fold pass 2: {fasta} => {ct}')
     exe = args.rnastructure + '/exe/Fold'
     opt = [exe, fasta, ct]
     opt += ['-p', f'{percent}']
     opt += ['-m', f'{args.maximum}']
     opt += ['-w', f'{args.window}']
-    # subprocess.call(opt, stdout=subprocess.DEVNULL)
+    opt += ['-t', '298']
+    opt += ['-l', '50', '-y']
     result = subprocess.run(opt, capture_output=True)
-    #print(result)
-    #print(f'out:{result.stdout}')
-    #print(f'err:{result.stderr}')
-    comment = f'{exe} -p {args.percent} -m {args.maximum} -w {args.window} {fasta} {ct}\n'
-    comment += f'{time.asctime(time.localtime())}'
+
+    comment += f'\tcommand options: {" ".join(opt[3:])}\n'
+    comment += f'\tinput: {fasta}\n'
+    comment += f'\toutput: {ct}\n'
 
     return comment
 
@@ -299,43 +362,36 @@ def runfold(args, fasta, ct, percent):
 def runmergestems(arg, ct, xios, comment):
     """---------------------------------------------------------------------------------------------
     CT files are converted using CTread in Topology.
-    
-    :param mergecases: string, list of mergecases to apply (no longer used)
-    :param ddG: maximum delta delta G for suboptimal structures
-    :param ct: string, readable ct file
-    :param comment: string, string to add to XIOS comment block
-    :return: 
+    TODO since the only thing passed in args is the ddG, it'd be more transparent to use an explicit
+    argument
+    :param arg: namespace   command line argument namespace, contains ddG_max
+    :param ct: string       readable ct file
+    :param xios: string     name of xios file to generate
+    :param comment: string  string to add to XIOS comment block when topology is created in
+                            runmergestructure()
+    :return: string         updated comment string for later use
     ---------------------------------------------------------------------------------------------"""
-    safe_file(xios, 'w')
+    if safe_file(xios, 'w'):
+        pass
+    else:
+        return f'runmergestems skipping {xios}'
 
     xiosout = open(xios, 'w')
 
-    exe = args.python + '/ct2xios.py'
-    opt = ['python3', exe, ct]
-    # opt += ['-c', f'{args.mergecase}']
-    opt += ['-d', f'{args.ddg}']
-    try:
-        subprocess.call(opt, stdout=xiosout)
-    except Exception as err:
-        sys.stderr.write(f'{err} {exe} {opt}\n')
-        print(f'error in mergestems {exe} {opt}')
-
-    xiosout.close()
-
     rna = RNAstructure()
+    # add the comment passed in from runfold
     rna.comment.append(comment)
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    comment = f'\trunmergestems delta(deltaG) = {args.ddg} {now}\n'
+    comment += f'\tinput_file: {ct}\n'
+    comment += f'\toutput_file: {xios}\n'
+    rna.comment.append(comment)
+
     rna.CTRead(ct, ddG=args.ddg)
-    # now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    # rna.comment.append('creation_date {}'.format(now))
-    # rna.comment.append('input_file {}'.format(ctfile))
-    # if rna.energy:
-    #     rna.comment.append('input_format unifold')
-    # else:
-    #     rna.comment.append('input_format RNAstructure')
     rna.adjacency_from_stemlist()
     rna.edgelist_from_adjacency(include="ijo", whole=False)
 
-    # rna.XIOSwrite(sys.stdout)
+    rna.XIOSwrite(xiosout)
 
     return
 
@@ -351,7 +407,7 @@ if __name__ == '__main__':
     os.environ['DATAPATH'] = args.rnastructure + 'data_tables'
     input = args.indir + args.fasta
 
-    if  args.quiet:
+    if args.quiet:
         print(f'xios_from_rnastructure {time.asctime(now)}', end='')
         print(f'\tdirs;fasta:{args.indir};ct:{args.ctdir};xios:{args.xiosdir}\tinput:{input}')
     else:
@@ -363,8 +419,8 @@ if __name__ == '__main__':
         print('Parameters')
         print(f'\tFold:percent={args.percent}')
         print(f'\tFold:maximum={args.maximum}')
-        print(f'\tFold:window={args.window}')
-        print(f'\tdelta deltaG={args.ddG}')
+        print(f'\tFold:window={args.window_min},{args.window_max}')
+        print(f'\tdelta deltaG={args.ddG_min},{args.ddG_max},{args.ddG_inc}')
         # print(f'\tmergstems:mergecases={args.mergecase}')
 
         print('Inputs and outputs')
@@ -383,7 +439,7 @@ if __name__ == '__main__':
     safe_mkdir(args, args.xiosdir)
 
     # for each FastA file, generate the CT file, then convert to XIOS
-    commentfold = {}
+    commentfold = ''
     ctlist = []
     fa_n = 0
     ct_n = 0
@@ -391,35 +447,26 @@ if __name__ == '__main__':
     for fasta in fastafiles:
         fa_n += 1
         if not args.quiet:
-            print(f'processing {fasta}')
+            print(f'\nprocessing {fasta}')
 
         for window in range(args.window_min, args.window_max + 1):
             # run fold for each window size, CT files go to args.ctdir
             args.window = window
             ct = ct_from_fasta(args, fasta)
-            print(f'xios_from_rnastructure ct={ct}')
-            # ctlist.append(ct)
-            commentfold[ct] = runfold(args, fasta, ct, percent=0)
+            commentfold = runfold(args, fasta, ct, percent=0)
 
-            mfe = get_mfe_from_ct(ct)
-            try:
-                percent = int(100 * args.ddG_max / mfe)
-            except ZeroDivisionError:
-                percent = args.percent
-
-            commentfold[ct] = runfold(args, fasta, ct, percent=percent)
-            ct_n += 1
-
-            # all XIOS output goes to the args.xiosdir
-            # for each ct file we can use different ddG
+            # all XIOS output goes to args.xiosdir
             # the stems that are the same in structures with different ddG are merged
 
-            for ddG in range(args.ddG_min, args.ddG_max + 1):
-                args.ddg = int(ddG)
+            ddG = args.ddG_min
+            while ddG <= args.ddG_max:
+                print(f'ddg loop')
+                args.ddg = ddG
                 xios = f'{args.xiosdir}/{xios_from_ct(args, ct)}'
                 # sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
-                runmergestems(args, ct, xios, commentfold[ct])
+                runmergestems(args, ct, xios, commentfold)
                 xios_n += 1
+                ddG += args.ddG_inc
 
     # final report
     if not args.quiet:
