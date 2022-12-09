@@ -1,6 +1,4 @@
-import sys
 import re
-import hashlib
 
 
 class XiosEdge(list):
@@ -112,7 +110,7 @@ class Xios(list):
             elif arg == 'string':
                 self.len = self.from_string(kwargs['string'])
             elif arg == 'graph':
-                self.len = self.from_graph(kwargs['graph'])
+                self.len = self.from_pair(kwargs['graph'])
             elif arg == 'serial':
                 self.len = self.from_serial(kwargs['serial'])
             else:
@@ -169,24 +167,22 @@ class Xios(list):
 
         return len(self)
 
-    def from_pair(self, graph, sedge=False):
+    def from_pair(self, ingraph, sedge=False):
         """-----------------------------------------------------------------------------------------
         Converts a PairRNA object to Xios. This requires determining the nesting relationships
         between each pair of stems.
 
-        :param graph: Graph object from RNA/graph.py
+        :param ingraph: Graph object from RNA/graph.py
         :return: int, number of edges
         -----------------------------------------------------------------------------------------"""
-        from topology import PairRNA
-
         self.clear()
 
         begin = 0
         end = 1
-        for si in range(len(graph)):
-            s1 = [graph.pairs[si * 2], graph.pairs[si * 2 + 1]]
-            for sj in range(si + 1, len(graph)):
-                s2 = [graph.pairs[sj * 2], graph.pairs[sj * 2 + 1]]
+        for si in range(len(ingraph)):
+            s1 = ingraph[si]
+            for sj in range(si + 1, len(ingraph)):
+                s2 = ingraph[sj]
 
                 # assuming that s1[begin] is always < s2[begin], i.e., that the PairRNA is canonical
 
@@ -244,7 +240,7 @@ class Xios(list):
 
             pos += 1
 
-        self.from_graph(pair)
+        self.from_pair(pair)
         return self
 
     def normalize(self):
@@ -467,7 +463,7 @@ import sys
 import copy
 import random
 from functools import total_ordering
-from xios import XiosEdge, Xios
+from xios import XiosEdge
 
 """=================================================================================================
 MotifDB class is for creating and using XIOS graph dictionaries
@@ -972,7 +968,7 @@ class Gspan:
         Read a topology as PairRNA object (see Topology). since it is stored in Gspan as a Xios
         object, read the PairRNA object into Xios and store in Gspan
 
-        :param pair: PairRNA
+        :param pair_rna: PairRNA
         :return: True
         -----------------------------------------------------------------------------------------"""
         xios = Xios(pair=pair_rna)
@@ -1737,9 +1733,9 @@ if __name__ == '__main__':
 
     def test_Main():
         # test_XiosEdge()
-        # test_Xios()
+        test_Xios()
         # test_Gspan()
-        test_MotifDB()
+        # test_MotifDB()
 
         return
 
