@@ -43,6 +43,10 @@ def process_command_line():
         out = args.distance
         out = out.replace('*', '_all')
         args.distance = out
+    if args.dir.endswith('/'):
+        pass
+    else:
+        args.dir += '/'
 
     return args
 
