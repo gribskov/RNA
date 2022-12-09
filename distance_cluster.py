@@ -12,10 +12,11 @@ import sys
 def read_distance(filename):
     """---------------------------------------------------------------------------------------------
     Read distances from fingerprint_distance.py.  Distances are stored in a list of dict
-    distance = [ {fpt1, fpt2, jaccard, bray_curtis}, ...]
+    distance = [ {fpt1, fpt2, jaccard, bray_curtis}, ...]. Also counts the number of cases where
+    the group of fpt1 matches fpt2 (true positive) and where they don't match (false positive
     
     :param filename: string, name of file with distances
-    :return: distance (list of dict), maximum (float), minimum (float)
+    :return: distance (list of dict), maximum (float), minimum (float), pos(int), neg(int)
     ---------------------------------------------------------------------------------------------"""
     try:
         distance = open(filename, 'r')
@@ -25,6 +26,9 @@ def read_distance(filename):
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
 
+    pos = 0
+    neg = 0
+    ispos = None
     distance_n = 0
     distance_list = []
     for line in distance:
@@ -37,12 +41,23 @@ def read_distance(filename):
         minimum['jaccard'] = min(minimum['jaccard'], float(jaccard))
         maximum['bray-curtis'] = max(maximum['bray-curtis'], float(bray_curtis))
         minimum['bray-curtis'] = min(minimum['bray-curtis'], float(bray_curtis))
+
+        f1 = get_group(fpt1)
+        f2 = get_group(fpt2)
+        ispos = False
+        if f1 == f2:
+            ispos = True
+            pos += 1
+        else:
+            neg += 1
+
         distance_list.append({'fpt1':        fpt1,
                               'fpt2':        fpt2,
                               'jaccard':     float(jaccard),
-                              'bray-curtis': float(bray_curtis)})
+                              'bray-curtis': float(bray_curtis),
+                              'ispos':       ispos})
 
-    return distance_list, maximum, minimum
+    return distance_list, maximum, minimum, pos, neg
 
 
 def connected(distance, threshold, dtype='jaccard'):
@@ -164,7 +179,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         idx = []
         for node in self.tree:
-            idx.append(node.idx)
+            if node is not None:
+                idx.append(node.idx)
 
         return idx
 
@@ -225,12 +241,31 @@ class Upgma:
 
         return dmatstr
 
+    def similarity_to_distance(self, big):
+        """-----------------------------------------------------------------------------------------
+        convert a similarity measure (such as Jaccard) to distance by subtracting each value from
+        the largest value.
+
+        :param big: int largest value in dmat
+        :return:int, int    new min and max of dmat
+        -----------------------------------------------------------------------------------------"""
+        dmat = self.dmat
+        size = len(dmat)
+        dmax = dmin = dmat[0][0]
+        for i in range(size):
+            for j in range(size):
+                dmat[i][j] = big - dmat[i][j]
+                dmax = max(dmat[i][j], dmax)
+                dmin = min(dmat[i][j], dmin)
+
+        return dmin, dmax
+
     def smallest(self, initval=10):
         """---------------------------------------------------------------------------------------------
         find the smallest value in the current distance matrix, only look at values in groups, other
         indices have been merged
 
-        :return: int, int, indices of the smallest distance
+        :return: int, int, indices of the smallest distance in dmat coordinates
         ---------------------------------------------------------------------------------------------"""
         smallest = initval
         dmat = self.dmat
@@ -248,12 +283,13 @@ class Upgma:
                     srow = row
                     scol = col
 
-        print(smallest, srow, scol)
+        # print(smallest, srow, scol)
         return srow, scol
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
-        merge the row and column taxa with the smallest value
+        merge the row and column taxa with the smallest value. the row and column are given in dmat
+        coordinates
 
         :param row: index of row (will be kept)
         :param col: index of column (will be merged)
@@ -270,8 +306,12 @@ class Upgma:
             dmat[i][row] = (dmat[i][row] + dmat[i][col]) / 2.0
             dmat[row][i] = dmat[i][row]
 
-        node_row = self.tree[active.index(row)]
-        node_col = self.tree[active.index(col)]
+        arow = active.index(row)
+        acol = active.index(col)
+        # node_row = self.tree[active.index(row)]
+        # node_col = self.tree[active.index(col)]
+        node_row = self.tree[row]
+        node_col = self.tree[col]
 
         # create a new Tree node for the merged taxa
         new_node = Tree()
@@ -279,9 +319,11 @@ class Upgma:
         new_node.id = f'({node_row.id}:{branch:.3f},{node_col.id}:{branch:.3f})'
 
         self.tree[row] = new_node
-        self.tree.remove(node_col)
+        # print(len(active), row, self.tree[row].id)
+        # self.tree.remove(node_col)
+        self.tree[col] = None
 
-        return len(self.tree)
+        return len(active) - 1
 
 
 def upgma2(dmat):
@@ -346,14 +388,154 @@ def smallest2(dmat, groups, initval=10):
     return srow, scol
 
 
+def get_group(name):
+    """---------------------------------------------------------------------------------------------
+    extract the part of the fingerprint file name up to the first period or underline
+    :param name: string fingerprint file name
+    :return: string     group name
+    ---------------------------------------------------------------------------------------------"""
+    breakpoint = len(name)
+    for c in ('.', '_'):
+        pos = name.find(c)
+        if pos > 0:
+            breakpoint = min(breakpoint, pos)
+
+    return name[:breakpoint]
+
+
+def ROC2(roc_file, distance, score, npos, nneg):
+    """---------------------------------------------------------------------------------------------
+    calculate Receiver Operating Characteristic and area under curve (AUC)
+    :param roc_file:    string, filename for ROC output
+    :param distance:    list of dict, distance information
+    :param npos:        int, number of positive comparisons
+    :param nneg:        int, number of negative comparisons
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+
+    nstep = 1.0 / nneg
+    pstep = 1.0 / npos
+    pbeg = pend = 0
+    nbeg = nend = 0
+    dirup = True
+    value = 0
+    auc = area = 0.0
+    for point in sorted(distance, key=lambda x: x[score], reverse=True):
+        # print(point)
+
+        if point[score] == value:
+            # items with same value cannot be sorted so they are a single step
+            if point['ispos']:
+                pend += 1
+            else:
+                nend += 1
+            continue
+
+        else:
+            # value has changed but you don't need to calculate until both pos
+            # and negative values change
+            if not dirup and not point['ispos']:
+                # this step is negative, following previous negative, just increment neg
+                nend += 1
+            if dirup and point['ispos']:
+                # positive step following previous positives, i.e., straight up
+                pend += 1
+                pbeg += 1
+            else:
+                # area of trapezoid
+                area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+                auc += area
+                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+
+                if point['ispos']:
+                    pend += 1
+                    dirup = True
+                else:
+                    dirup = False
+                    nend += 1
+
+                pbeg = pend
+                nbeg = nend
+
+                value = point[score]
+
+    area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+    auc += area
+
+    print(f'ROC AUC = {auc}')
+
+    return
+
+
+def ROC(roc_file, distance, score, npos, nneg):
+    """---------------------------------------------------------------------------------------------
+    calculate Receiver Operating Characteristic and area under curve (AUC)
+    :param roc_file:    string, filename for ROC output
+    :param distance:    list of dict, distance information
+    :param npos:        int, number of positive comparisons
+    :param nneg:        int, number of negative comparisons
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    roc = 'pbegin\tpend\tnbegin\tnend\tarea\tAUC\n'
+    auc = area = 0.0
+
+    nstep = 1.0 / nneg
+    pstep = 1.0 / npos
+    pbeg = pend = 0
+    nbeg = nend = 0
+    value = 1.0
+
+    # print(f'{npos}\t{nneg}')
+    for point in sorted(distance, key=lambda x: x[score], reverse=True):
+        # print(f'{pbeg}\t{pend}\t{nbeg}\t{nend}\t{point["jaccard"]}\t{point["ispos"]}')
+
+        # detect blocks where items have the same value, these cannot be sorted
+        # so they are a single step
+        if point[score] == value:
+            if point['ispos']:
+                pend += pstep
+            else:
+                nend += nstep
+            continue
+
+        else:
+            # we get here if we have completed a block of equal valuesif both p and n ranges
+            # calculate trapezoidal area
+            area = (pbeg + pend) * (nend - nbeg) / 2.0
+            auc += area
+            roc += f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t{area:.3g}\t{auc:.3g}\n'
+            nbeg = nend
+            pbeg = pend
+            if point['ispos']:
+                pend += pstep
+            else:
+                nend += nstep
+
+            value = point[score]
+
+    area = (pbeg + pend) * (nend - nbeg) / 2.0
+    auc += area
+    print(f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t area:{area:.3g}\tauc:{auc:.3g}')
+
+    return roc, auc
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    calcroc = True
     # single linkage clusters
     distance_file = 'distance.out'
-    threshold = 0.5
-    distance, maximum, minimum = read_distance(distance_file)
+    roc_file = 'roc.out'
+    threshold = 0.05
+    distance, maximum, minimum, pos, neg = read_distance(distance_file)
+
+    if calcroc:
+        roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
+        print(f'ROC AUC = {auc:.4g}')
+        print(roc)
+
     cluster, index = connected(distance, threshold)
 
     # for each cluster, make upgma tree
@@ -362,25 +544,50 @@ if __name__ == '__main__':
         if taxa_n > 1:
             tree = Upgma()
             tree.load(distance, cluster[c])
+            if tree.dtype == 'jaccard':
+                minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+
             i = 0
+            print(f'cluster: {c} input taxa')
             for taxon in cluster[c]:
                 print(f'{i}\t{taxon}')
                 i += 1
 
-            print('\n')
-
-            print(tree.dmat_format())
             while taxa_n > 1:
                 row, col = tree.smallest()
                 taxa_n = tree.mergetaxa(row, col)
-                print(tree.active())
-                print(tree.dmat_format())
+                # print(f'taxa_n = {taxa_n}')
+                # print(tree.active())
 
+            # final tree is always taxon 0
+            print(f'\nfinal tree')
+            tree.tree[0].id += ';'
             print(tree.tree[0].id)
 
-    #         print(f'cluster {c}= {cluster[c]}')
-    #         dmat = distance_matrix(distance, cluster[c])
-    #         print(dmat)
-    #         upgma(dmat)
+            # indented Newick pseudo tree
+            print(f'\nindented tree')
+            pos = 0
+            tree = tree.tree[0].id
+            indent = 0
+            start = 0
+            while pos < len(tree):
+                if tree[pos] == '(':
+                    print(f'{" " * indent}(')
+                    indent += 4
+                    start = pos + 1
+                elif tree[pos] == ')':
+                    print(f'{" " * indent}{tree[start:pos]}')
+                    indent -= 4
+                    print(f'{" " * indent})', end='')
+                    start = pos + 1
+
+                elif tree[pos] == ',':
+                    if tree[start] == ':':
+                        print(f'{tree[start:pos]},')
+                    else:
+                        print(f'{" " * indent}{tree[start:pos]},')
+                    start = pos + 1
+
+                pos += 1
 
     exit(0)
