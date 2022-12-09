@@ -8,7 +8,7 @@ import os
 import datetime
 import argparse
 from topology import Topology
-from xios import Xios, Gspan, MotifDB
+from xios import Gspan, MotifDB
 from fingerprint import Fingerprint
 
 
@@ -28,13 +28,13 @@ def process_command_line():
                                             Size subgraph to sample (default=6)
       -c COVERAGE, --coverage COVERAGE      Minimum coverage for sampled graphs (default=3)
       -l LIMIT, --limit LIMIT               Maximum random graphs to sample (default=10000)
-      -n, --noparent                        Eexclude parent graphs from fingerprint (default=False)
+      -n, --noparent                        Exclude parent graphs from fingerprint (default=False)
       -q, --quiet                           Minimal output on stdout (default=False)
 
 
     :return:
     ---------------------------------------------------------------------------------------------"""
-    default_subgraphsize = 3
+    default_subgraphsize = 6
     default_coverage = 3
     default_sampling_limit = 10000
 
@@ -177,7 +177,7 @@ if opt.noparent:
     if opt.quiet:
         print(f'fpt: {fingerprint.n} : {fingerprint.count}')
     else:
-        print('Simple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
+        print('\tSimple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
                                                       fingerprint.mincount()))
 else:
     # add the parents
@@ -195,14 +195,12 @@ else:
         print(f'{fingerprint.mincount()}')
         print(f'{simple_n} simple fingerprints extended to {extended_n}')
 
-# print(fingerprint.toYAML())
 if not opt.quiet:
     print(f'\twriting to {opt.fpt}')
 
-print()
 fingerprint.writeYAML(opt.fpt)
 daytime = datetime.datetime.now()
 runend = daytime.strftime('%Y-%m-%d %H:%M:%S')
-sys.stdout.write('\nCompleted: {}'.format(runend))
+sys.stdout.write('Completed: {}'.format(runend))
 
 exit(0)
