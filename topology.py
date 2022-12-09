@@ -13,7 +13,7 @@
     mfold/unafold).  Multiple structures can be read to creat a single topology if the CT file is
     produced by the Fold program
 
-    TODO: check if PairRNA and SerialRNA completely populated a usable Topology object
+    TODO: check if PairRNA and SerialRNA completely populate a usable Topology object
     PairRNA produces Topology objects from the pair representation (see below)
     SerialRNA produces Topology objects from the serial format (see below)
 
@@ -99,7 +99,7 @@ class Topology:
         self.comment = []
 
         for key in kwds:
-            if key == 'xml':
+            if key == 'xml' or key == 'xios':
                 self.XIOSread(kwds[key])
             else:
                 sys.stderr.write('Topology::init - unknown keyword ({})'.format(key))
@@ -956,9 +956,69 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int, size of graph to sample
-        :param min_n: int, minimum size for sampled graph
-        :return: list, list of vertices in sampled graph
+        :param n: int   size of graph to sample
+        :param n: int   minimum size for sampled graph
+        :return: list   list of vertices in sampled graph
+        -----------------------------------------------------------------------------------------"""
+        attempt_max = 50
+        nvertex = len(adj)
+        random.seed()
+
+        vlist = []
+        excluded = set()
+        # initialize neighbor with a random vertex for the first vertex
+        # neighbor = set([random.randrange(nvertex)])
+        neighbor = {random.randrange(nvertex)}
+        attempt = 0
+        while len(vlist) < n:
+            # print(attempt)
+            attempt += 1
+            # randomly determine starting vertex
+            v0 = random.sample(neighbor, 1)[0]
+            vlist.append(v0)
+            neighbor.discard(v0)
+            excluded.add(v0)
+            # update neighbor and exclude sets
+            for a in range(nvertex):
+                if adj[v0][a] == 'x':
+                    neighbor.discard(a)
+                    excluded.add(a)
+                if adj[v0][a] in 'ijo':
+                    neighbor.add(a)
+
+            # make sure no excluded are in the neighbor set
+            neighbor = neighbor - excluded
+
+            if len(vlist) >= n:
+                # sampled graph is large enough, exit sampling
+                break
+
+            if not neighbor:
+                # there are no more neighbors but the graph is too small
+                # reinitialize vlist, neighbor, and excluded and try again
+
+                vlist = []
+                neighbor = {random.randrange(nvertex)}
+                excluded.clear()
+                if attempt > attempt_max:
+                    break
+
+        # end of size < n loop
+
+        return sorted(vlist)
+
+    @staticmethod
+    def sample2(adj, n):
+        """-----------------------------------------------------------------------------------------
+        randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
+        connected by non-s (and currently non-x) edges, but size may be less than n if the graph
+        being sampled is smaller than size or has disconnected segments. Because there 9 graphs
+        with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
+        the adjacency matrix.
+
+        :param n: int    size of graph to sample
+        :param n: int   minimum size for sampled graph
+        :return: list   list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
@@ -974,7 +1034,7 @@ class Topology:
             v0 = random.choice(neighbor)
             vlist.append(v0)
             neighbor.remove(v0)
-            print(f'topology:sample v0={v0}\tnvertex={nvertex}')
+            # print(f'topology:sample v0={v0}\tnvertex={nvertex}')
             size += 1
 
             for a in neighbor:
@@ -1004,8 +1064,6 @@ class Topology:
                     # passed all tests, add a to neighbor list
                     neighbor.append(a)
 
-
-
             # if not neighbor:
             #     # neighbor list is empty
             #     break
@@ -1018,7 +1076,7 @@ class Topology:
                 # loop checks to make sure the sample graph is at least size == min_n
                 # v0 = random.randrange(nvertex)
                 # print(f'v0={v0}\tnvertex={nvertex}')
-                print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
+                # print(f'topology:sample retry\tsize:{size}\tneighbor:{neighbor}\tvlist:{vlist}\tn:{n}')
                 vlist = []
                 neighbor = [random.randrange(nvertex)]
                 size = 0
@@ -1038,7 +1096,6 @@ class Topology:
         # end of test for size >= n
 
         vlist.sort()
-
         return vlist
 
     @staticmethod
@@ -1134,7 +1191,7 @@ class Topology:
 
         :param self: Xios object
         :param n: int, number of stems to sample
-        :param retttry: int, number of times to retry if vlist is too small
+        :param retry: int, number of times to retry if vlist is too small
         :return: Xios object (see xios.py)
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
@@ -1144,10 +1201,6 @@ class Topology:
         vlist = []
         tries = 0
         while len(vlist) < n and tries < retry:
-            # graph is too small
-            if tries:
-                print(f'retry topology:sample_xios\tvlist:{vlist}')
-
             tries += 1
             vlist = Topology.sample(self.adjacency, n)
 
@@ -1159,11 +1212,10 @@ class Topology:
                 row = vlist[r]
                 for c in range(r + 1, len(vlist)):
                     col = vlist[c]
-                    # if col <= row:
-                    #     continue
                     if adj[row][col] in 'ijo':
                         struct.append([row, col, edge[adj[row][col]]])
 
+        # print(struct)
         return Xios(list=struct)
 
     def sample_xios_weighted(self, n, w):
@@ -1176,10 +1228,11 @@ class Topology:
         -----------------------------------------------------------------------------------------"""
         from xios import Xios
 
-        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
-        vlist = self.samplebyweight(n, w)
-
         adj = self.adjacency
+        edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
+        vlist = self.samplebyweight(adj, n, w)
+
+
         struct = []
         for row in vlist:
             for col in vlist:
@@ -1198,13 +1251,16 @@ class SerialRNA(list):
     for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
     ============================================================================================="""
 
-    def __init__(self, list=[]):
+    def __init__(self, list=None):
         """-----------------------------------------------------------------------------------------
         SerialRNA is a list with some extra methods.  Technically it doesn't need a constructor
         since it inherits one from list, but just in case attributes need to be added, this
         constructor just calls the parent's
         -----------------------------------------------------------------------------------------"""
+        if list is None:
+            list = []
         super(SerialRNA, self).__init__(list)
+
 
         # add additional attributes
 
@@ -1430,7 +1486,7 @@ class PairRNA:
         graph.reverse()     # reverse the order of stems left-right
     ============================================================================================="""
 
-    def __init__(self, topology=[], topology_type='pair'):
+    def __init__(self, topology=None, topology_type='pair'):
         """-----------------------------------------------------------------------------------------
         Internal data structure is a list of lists:
         each element in the list of the begin, end position of a stem.  The stems
@@ -1441,6 +1497,9 @@ class PairRNA:
 
         :param inlist: a list of lists with coordinates of left and right half stems
         -----------------------------------------------------------------------------------------"""
+        if topology is None:
+            # avoid mutable initialization in arguments
+            topology = []
         self.pairs = []
         self.nstem = 0
 
@@ -1478,7 +1537,7 @@ class PairRNA:
         read in a graph as a SerialRNA object.  A Serial RNA list will look like [0,1,1,2,2,0]
         which is the structure (()()) and the PairRNA [0,5,1,2,3,4]
 
-        :param g: SerialRNA object, structure in list format
+        :param serial: SerialRNA object, structure in list format
         :return: int, number of stems
         -----------------------------------------------------------------------------------------"""
         self.nstem = int(len(serial) // 2)
@@ -1507,7 +1566,7 @@ class PairRNA:
         """-----------------------------------------------------------------------------------------
         the input list is a string separated by sep, e.g. '0 1 1 0'
 
-        :param g: string, input graph as a SerialRNA string
+        :param serialstr: string, input graph as a SerialRNA string
         :param sep: string, separation character in input string
         :return: integer, number of stems
         -----------------------------------------------------------------------------------------"""
@@ -1859,14 +1918,14 @@ class RNAstructure(Topology):
         try:
             ct = open(filename, 'r')
         except OSError:
-            sys.stderr.write("RNAstructure::CTRead - unable to open CT file ({})".format(filename))
+            sys.stderr.write("Topology/RNAstructure::CTRead - unable to open CT file ({})".format(filename))
 
         nbase = 0
         path = filename.split('/')
         self.filename = path[-1]
 
         nstruct = 0
-        comment = f'Converting CT file {filename} to XIOS\n'
+        comment = f'\tTopology/RNAStructure::CTRead - Converting CT file {filename} to XIOS delta deltaG={ddG}\n'
         for line in ct:
             if not line:
                 # skip blank lines?
@@ -1875,7 +1934,7 @@ class RNAstructure(Topology):
 
             if self.is_ctheader(field):
                 # add provenance information to Topology comment
-                comment += f'\t structure {nstruct}: {line}\n'
+                mfe = 0.0
                 if nstruct == 0:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
@@ -1884,12 +1943,14 @@ class RNAstructure(Topology):
 
                 else:
                     # second or later structure, save the stems, check that we are below mfe + ddG
-                    #
-                    self.stemlist_from_pairs(unpaired=2)
-                    if self.energy > mfe + ddG:
+                    # 0.01 is a fudge factor to make sure floating point differences don't
+                    # cause problems
+                    if self.energy > mfe + ddG + 0.01:
                         break
+                    self.stemlist_from_pairs(unpaired=2)
                     self.pair = [0] * (self.sequence_length + 1)
 
+                comment += f'\tstructure {nstruct}: {line}\n'
                 nstruct += 1
 
 
@@ -1910,7 +1971,7 @@ class RNAstructure(Topology):
         # add the final structure, energy is checked vs ddG before reading pairs, above
         self.stemlist_from_pairs(unpaired=2)
         dedup_n = self.stemlist_deduplicate()
-        comment += f'{dedup_n} stems after removing duplicates'
+        comment += f'\t{dedup_n} stems after removing duplicates'
         self.comment.append(comment)
 
         return nbase
@@ -2086,7 +2147,8 @@ class RNAstructure(Topology):
                     a[j][i] = 's'
                     edges['s'] += 1
 
-                elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
+                # elif stem_i.lend < stem_j.lbegin and stem_i.rend < stem_j.rbegin:
+                elif stem_i.lend < stem_j.lbegin and stem_i.rbegin > stem_j.lend and stem_i.rend < stem_j.rbegin:
                     # overlap edge (pseudoknot)
                     a[i][j] = 'o'
                     a[j][i] = 'o'
@@ -2117,11 +2179,12 @@ class RNAstructure(Topology):
         edgestr = ''
         # e = self.edgelist(include,whole)
         n = 0
-        for edge in self.edge_list(include, whole):
+        for edge in self.edge_list:
+            # include and whole arguments don't do anything
             n += 1
-            edgestr += '{}: '.format(n)
+            edgestr += f'{n}: '
             for neighbor in edge:
-                edgestr += '{}{}, '.format(neighbor[0], neighbor[1])
+                edgestr += '{neighbor[0]}{neighbor[1]}, '
 
             edgestr = edgestr.rstrip(', ')
             edgestr += '\n'
