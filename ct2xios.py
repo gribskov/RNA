@@ -33,7 +33,7 @@ def options():
     commandline.add_argument('ctfile')
     commandline.add_argument('-d', '--ddG',
                              help='delta deltaG limit for supoptimal structures (%(''default)s) ',
-                             type=int,
+                             type=float,
                              default='5')
 
     args = commandline.parse_args()
