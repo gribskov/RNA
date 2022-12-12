@@ -230,7 +230,7 @@ class FingerprintSet(list):
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-
+        Fingerprint set is basically just a list with extra methods
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
 
