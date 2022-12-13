@@ -161,11 +161,11 @@ def process_command_line():
 
     args = cl.parse_args()
 
-    for path in ('inprefix', 'insuffix'):
+    for path in ('inprefix',):
         thispath = getattr(args, path)
         if not thispath.endswith('/'):
             thispath += '/'
-            setattr(args,thispath, path)
+            setattr(args,path, thispath)
 
     return args
 
