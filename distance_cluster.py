@@ -21,7 +21,7 @@ def read_distance(filename):
     try:
         distance = open(filename, 'r')
     except OSError:
-        sys.stderr.write(f'distance_cluster - read_distance: cannot open distance file{filename}')
+        sys.stderr.write(f'distance_cluster - read_distance: cannot open distance file{filename}{newline}')
 
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
@@ -524,11 +524,14 @@ def ROC(roc_file, distance, score, npos, nneg):
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+
+    newline = '\n'
     calcroc = True
+
     # single linkage clusters
-    distance_file = 'distance.out'
+    distance_file = sys.argv[1]
     roc_file = 'roc.out'
-    threshold = 0.05
+    threshold = -0.1
     distance, maximum, minimum, pos, neg = read_distance(distance_file)
 
     if calcroc:
