@@ -528,7 +528,7 @@ if __name__ == '__main__':
     # single linkage clusters
     distance_file = 'distance.out'
     roc_file = 'roc.out'
-    threshold = -0.01
+    threshold = 0.05
     distance, maximum, minimum, pos, neg = read_distance(distance_file)
 
     if calcroc:
@@ -543,7 +543,7 @@ if __name__ == '__main__':
         taxa_n = len(cluster[c])
         if taxa_n > 1:
             tree = Upgma()
-            tree.dtype = 'bray-curtis'
+            #tree.dtype = 'bray-curtis'
             tree.load(distance, cluster[c])
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
