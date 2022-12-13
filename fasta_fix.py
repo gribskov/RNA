@@ -115,7 +115,7 @@ def fasta_fixbases(fasta):
     base = list(fasta['sequence'])
     changed = 0
     for i in range(len(base)):
-        if base[i] not in 'ACGT':
+        if base[i] not in 'ACGTU':
             base[i] = newbase
             changed += 1
 
