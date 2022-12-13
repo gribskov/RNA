@@ -1925,7 +1925,8 @@ class RNAstructure(Topology):
         self.filename = path[-1]
 
         nstruct = 0
-        comment = f'\tTopology/RNAStructure::CTRead - Converting CT file {filename} to XIOS delta deltaG={ddG}\n'
+        comment = f'\tTopology/RNAStructure::CTRead - Converting CT file {filename} to XIOS delta(deltaG)={ddG}\n'
+        mfe = 0.0
         for line in ct:
             if not line:
                 # skip blank lines?
@@ -1934,7 +1935,6 @@ class RNAstructure(Topology):
 
             if self.is_ctheader(field):
                 # add provenance information to Topology comment
-                mfe = 0.0
                 if nstruct == 0:
                     # for the first structure the pair array is empty, save mfe and create pair list
                     # pairlist is the workspace for the stem calculation
