@@ -7,6 +7,7 @@ First cluster in to connected components, then run UPGMA on each cluster
 Michael Gribskov     06 May 2022
 ================================================================================================="""
 import sys
+from datetime import datetime
 
 
 def read_distance(filename):
@@ -338,7 +339,7 @@ def upgma2(dmat):
 
     ngroups = len(groups)
     while ngroups > 1:
-        row, col = smallest(dmat, groups)
+        row, col = smallest2(dmat, groups)
         branch = dmat[row][col] / 2.0
 
         names[row] = f'({names[row]}:{branch:.3f},{names[col]}:{branch:.3f})'
@@ -520,33 +521,68 @@ def ROC(roc_file, distance, score, npos, nneg):
     return roc, auc
 
 
+def process_command_line():
+    """---------------------------------------------------------------------------------------------
+    read command line options and return as a Namespace object. The Namespace object behaves much as
+    a dictionary, and can be converted to a dictionary using the vars() method
+
+    :return: Namespace object
+    ---------------------------------------------------------------------------------------------"""
+    import argparse
+
+    cl = argparse.ArgumentParser(
+        description='Cluster and calculate ROC from distance',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+        )
+    cl.add_argument('-d', '--distance',
+                    help='distance file from fingerprint_distance (default=%(default)s)',
+                    default='fingerprint.distance')
+    cl.add_argument('-r', '--roc',
+                    help='calculate ROC and AUC (default=%(default)s)', type=bool,
+                    default=True)
+    cl.add_argument('-m', '--mindist',
+                    help='Minimum distance for clustering (default=%(default)s)', type=float,
+                    default=0.0)
+    # TODO tree options (tree format)
+    # condensed, indented (list)
+    # TODO cluster prefixes for tree output (tree output)
+    # use False for none? or add tree option prefix, stdout
+
+    args = cl.parse_args()
+
+    return args
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     newline = '\n'
-    calcroc = True
+
+    opt = process_command_line()
+    sys.stderr.write(f'distance_cluster: Cluster and calculate ROC from distance{newline}')
+    sys.stderr.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{newline}{newline}")
+    sys.stderr.write(f"distance file: {opt.distance}{newline}")
+    sys.stderr.write(f"clustering threshold: {opt.mindist}{newline}")
 
     # single linkage clusters
-    distance_file = sys.argv[1]
-    roc_file = 'roc.out'
-    threshold = -0.1
-    distance, maximum, minimum, pos, neg = read_distance(distance_file)
+    distance, maximum, minimum, pos, neg = read_distance(opt.distance)
 
-    if calcroc:
+    if opt.roc:
+        roc_file = 'roc.out'
         roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
-        print(f'ROC AUC = {auc:.4g}')
-        print(roc)
+        sys.stderr.write(f'{newline}ROC AUC = {auc:.4g}{newline}')
 
-    cluster, index = connected(distance, threshold)
+    cluster, index = connected(distance, opt.mindist)
 
     # for each cluster, make upgma tree
     for c in range(len(cluster)):
         taxa_n = len(cluster[c])
         if taxa_n > 1:
             tree = Upgma()
-            #tree.dtype = 'bray-curtis'
+            # TODO select distance type on command line
+            # tree.dtype = 'bray-curtis'
             tree.load(distance, cluster[c])
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
@@ -560,8 +596,6 @@ if __name__ == '__main__':
             while taxa_n > 1:
                 row, col = tree.smallest()
                 taxa_n = tree.mergetaxa(row, col)
-                # print(f'taxa_n = {taxa_n}')
-                # print(tree.active())
 
             # final tree is always taxon 0
             print(f'\nfinal tree')
