@@ -539,10 +539,10 @@ def ROC(roc_file, distance, score, npos, nneg):
     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
     auc += area
 
-
+    
     print(f'ROC AUC = {auc}')
+    return ROC, auc
 
-    return
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -551,11 +551,12 @@ if __name__ == '__main__':
     # single linkage clusters
     distance_file = 'distance.out'
     roc_file = 'roc.out'
-    threshold = 0.05
+    threshold = -0.01
     distance, maximum, minimum, pos, neg = read_distance(distance_file)
 
     if calcroc:
-        roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
+        # (roc, auc) = ROC(roc_file, distance, 'jaccard', pos, neg)
+        (roc, auc) = ROC(roc_file, distance, 'bray-curtis', pos, neg)
         print(f'ROC AUC = {auc}')
 
     cluster, index = connected(distance, threshold)
@@ -565,6 +566,7 @@ if __name__ == '__main__':
         taxa_n = len(cluster[c])
         if taxa_n > 1:
             tree = Upgma()
+            tree.dtype = 'bray-curtis'
             tree.load(distance, cluster[c])
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
