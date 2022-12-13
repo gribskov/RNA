@@ -6,6 +6,8 @@ all fingerprints matching fptsuffix are used
 #################################################################################################"""
 import glob
 import os
+import sys
+from datetime import datetime
 
 
 class Motif:
@@ -127,6 +129,47 @@ class Motif:
         return fptname
 
 
+# ===================================================================================================
+# end of class Motif
+# ===================================================================================================
+
+def process_command_line():
+    """---------------------------------------------------------------------------------------------
+    read command line options and return as a Namespace object. The Namespace object behaves much as
+    a dictionary, and can be converted to a dictionary using the vars() method
+
+    :return: Namespace object
+    ---------------------------------------------------------------------------------------------"""
+    import argparse
+
+    cl = argparse.ArgumentParser(
+        description='Compare and select motifs',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+        )
+    cl.add_argument('-p', '--inprefix',
+                    help='Directory with fingerprint files, can be wildcard (default=%(default)s)',
+                    default='../data/fpt/')
+    cl.add_argument('-s', '--insuffix',
+                    help='filename suffix for fingerprint files, can be wildcard  (default=%(default)s',
+                    default='*.fpt')
+    cl.add_argument('-m', '--motif',
+                    help='Distance output file name (default=%(default)s, auto=calculate from fpt)',
+                    default='selected.motiflist')
+    cl.add_argument('-c', '--cutoff',
+                    help='Minimum number of motif occurrences (default=%(default)s)', type=int,
+                    default='8')
+
+    args = cl.parse_args()
+
+    for path in ('inprefix', 'insuffix'):
+        thispath = getattr(args, path)
+        if not thispath.endswith('/'):
+            thispath += '/'
+            setattr(args,thispath, path)
+
+    return args
+
+
 def curated_group(name):
     """---------------------------------------------------------------------------------------------
     icountgroup callback function
@@ -144,7 +187,7 @@ def curated_group(name):
 
 def select_by_min(icount, cutoff):
     """---------------------------------------------------------------------------------------------
-    select a set of motifs that meet a minimum threshold of occurences (cutoff) across all motifs
+    select a set of motifs that meet a minimum threshold of occurrences (cutoff) across all motifs
 
     :param icount: dict     count matrix from Motif.icountgroup
     :param cutoff: int      counts must >= cutoff
@@ -158,22 +201,34 @@ def select_by_min(icount, cutoff):
     return selected
 
 
-"""=================================================================================================
-main
-================================================================================================="""
+# ===================================================================================================
+# main
+###=================================================================================================
 if __name__ == '__main__':
-    fptglob = 'data/fpt/*'
-    fptsuffix = '.fpt'
-    cutoff = 8
+    newline = '\n'
+    opt = process_command_line()
+    sys.stderr.write(f'motif_compare: compare and select motifs for use{newline}')
+    sys.stderr.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{newline}{newline}")
+    sys.stderr.write(f"target fingerprints: {opt.inprefix}{opt.insuffix}{newline}")
+    sys.stderr.write(f"selected motifs: {opt.motif}{newline}")
+    sys.stderr.write(f"cutoff: {opt.cutoff}{newline}")
+
+    try:
+        out = open(opt.motif, 'w')
+    except OSError:
+        sys.stderr.write(f"{newline}Error opening selected motif file ({opt.motif}{newline}")
+        exit(1)
 
     motif = Motif()
-    motif.motifread(f'{fptglob}{fptsuffix}')
+    motif.motifread(f"{opt.inprefix}{opt.insuffix}")
 
     icount, ncount = motif.icountgroup(curated_group)
 
-    selected = select_by_min(icount, cutoff)
-    print(f'{len(selected)} genes with counts >= {cutoff}')
+    selected = select_by_min(icount, opt.cutoff)
+    sys.stderr.write(f"{newline}{len(selected)} motifs with counts >= {opt.cutoff} written to {opt.motif}{newline}")
     for motif in selected:
-        print(f'{motif}\t\t{selected[motif]}')
+        out.write(f'{motif}\t{selected[motif]}{newline}')
 
-    exit(1)
+    out.close()
+
+    exit(0)
