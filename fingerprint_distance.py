@@ -30,8 +30,8 @@ def process_command_line():
                     help='Directory with fingerprint files (default=%(default)s)',
                     default='../data/fpt/')
     cl.add_argument('-f', '--fpt',
-                    help='filename for fingerprint files, can be wildcard  (default=%(default)s',
-                    default='.fpt')
+                    help='filename for fingerprint files, can be wildcard  (default=%(default)s)',
+                    default='*.fpt')
     cl.add_argument('-d', '--distance',
                     help='Distance output file name (default=%(default)s, auto=calculate from fpt)',
                     default='fingerprint.distance')
@@ -88,12 +88,12 @@ if __name__ == '__main__':
     opt = process_command_line()
     sys.stderr.write(f"fingerprint distance: calculate distance between sets of fingerprints{newline}")
     daytime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S{newline}')
-    sys.stderr.write(f"{newline}fingerprint files: {opt.indir}*{opt.fpt}{newline}")
+    sys.stderr.write(f"{newline}fingerprint files: {opt.indir}{opt.fpt}{newline}")
     sys.stderr.write(f"motif file: {opt.motif}{newline}")
     sys.stderr.write(f"distance output: {opt.distance}{newline}")
 
     # make a list of all fingerprints in the target directory and read into a FingerprintSet
-    fpt_list = glob.glob(f'{opt.indir}*{opt.fpt}')
+    fpt_list = glob.glob(f'{opt.indir}{opt.fpt}')
 
     fpt = FingerprintSet()
     for this_fpt in fpt_list:
