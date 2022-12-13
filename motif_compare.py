@@ -146,10 +146,10 @@ def process_command_line():
         description='Compare and select motifs',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
         )
-    cl.add_argument('-p', '--inprefix',
+    cl.add_argument('-p', '--prefix',
                     help='Directory with fingerprint files, can be wildcard (default=%(default)s)',
                     default='../data/fpt/')
-    cl.add_argument('-s', '--insuffix',
+    cl.add_argument('-s', '--suffix',
                     help='filename suffix for fingerprint files, can be wildcard  (default=%(default)s',
                     default='*.fpt')
     cl.add_argument('-m', '--motif',
