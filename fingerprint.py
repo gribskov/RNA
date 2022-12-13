@@ -230,9 +230,11 @@ class FingerprintSet(list):
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-        Fingerprint set is basically just a list with extra methods
+        Fingerprint set is basically just a list with extra methods, since fingerprint inherits
+        from list, self is a list.
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
+
 
     def fill(self):
         """-----------------------------------------------------------------------------------------
@@ -284,18 +286,19 @@ class FingerprintSet(list):
 
         jaccard = []
         for i in range(len(idx)):
-            m0 = self[idx[i]].motif
+            m_i = self[idx[i]].motif
 
             for j in range(i + 1, len(idx)):
+                m_j = self[idx[j]].motif
                 intersect = []
                 union = []
 
-                for motif in m0:
-                    if motif in m1:
+                for motif in m_i:
+                    if motif in m_j:
                         intersect.append(motif)
                     union.append(motif)
 
-                for motif in m1:
+                for motif in m_j:
                     if motif not in union:
                         union.append(motif)
 
@@ -325,21 +328,21 @@ class FingerprintSet(list):
 
         bc = []
         for i in range(len(idx)):
-            m0 = self[idx[i]].motif
+            m_i = self[idx[i]].motif
 
             for j in range(i + 1, len(idx)):
-                m1 = self[idx[j]].motif
+                m_j = self[idx[j]].motif
 
                 intersect = 0
                 union = 0
-                for motif in m0:
-                    print(f'bc `{i} x {j}')
-                    if motif in m1:
-                        intersect += min(m0[motif], m1[motif])
-                    union += m0[motif]
+                for motif in m_i:
+                    # print(f'bc {i} x {j}')
+                    if motif in m_j:
+                        intersect += min(m_i[motif], m_j[motif])
+                    union += m_i[motif]
 
-                for motif in m1:
-                    union += m1[motif]
+                for motif in m_j:
+                    union += m_j[motif]
 
                 try:
                     bc.append([idx[i], idx[j], 2 * intersect / union])
@@ -349,6 +352,28 @@ class FingerprintSet(list):
 
         return bc
 
+    def select(self, selected):
+        """-----------------------------------------------------------------------------------------
+        Filter each fingeprint in the fingerprint set retaining only those in selected. If selected
+        is empty, do nothing and return
+
+        :param selected: list       motif names
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if not selected:
+            return
+
+        for fpt in self:
+            ok_motifs = {}
+            for motif in fpt.motif:
+                if motif in selected:
+                    ok_motifs[motif] = fpt.motif[motif]
+                else:
+                    fpt.count -= 1
+
+            fpt.motif = ok_motifs
+
+        return
 
 # ##################################################################################################
 # Testing
