@@ -462,10 +462,10 @@ def ROC2(roc_file, distance, score, npos, nneg):
     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
     auc += area
 
-
     print(f'ROC AUC = {auc}')
 
     return
+
 
 def ROC(roc_file, distance, score, npos, nneg):
     """---------------------------------------------------------------------------------------------
@@ -476,72 +476,49 @@ def ROC(roc_file, distance, score, npos, nneg):
     :param nneg:        int, number of negative comparisons
     :return:
     ---------------------------------------------------------------------------------------------"""
+    roc = 'pbegin\tpend\tnbegin\tnend\tarea\tAUC\n'
+    auc = area = 0.0
 
     nstep = 1.0 / nneg
     pstep = 1.0 / npos
     pbeg = pend = 0
     nbeg = nend = 0
-    go_up = True
-    go_right = False
-    value = 0
-    auc = area = 0.0
+    value = 1.0
+
+    # print(f'{npos}\t{nneg}')
     for point in sorted(distance, key=lambda x: x[score], reverse=True):
-        # print(point)
+        # print(f'{pbeg}\t{pend}\t{nbeg}\t{nend}\t{point["jaccard"]}\t{point["ispos"]}')
 
         # detect blocks where items have the same value, these cannot be sorted
         # so they are a single step
         if point[score] == value:
             if point['ispos']:
-                pend += 1
+                pend += pstep
             else:
-                nend += 1
+                nend += nstep
             continue
 
         else:
-            # we get here if we have completed a block if both p and n ranges
-            # have changed we have to go directly to calculation
-            if pend > pbeg and nend > nbeg:
-                go_up = None
-                go_right = None
-
-            if go_right and go_up and not point['ispos'] and go_up:
-                # if we are going right, keep going right as long as possible
-                nend += 1
-            elif go_up and not go_right and point['ispos'] :
-                # if going up, keep going as far as possible, don't go up after going right
-                pend += 1
-                pbeg += 1
-            elif go_up and not point['ispos']:
-                # if going up, turn right
-                go_right = True
-                pbeg = pend
-                nend += 1
+            # we get here if we have completed a block of equal valuesif both p and n ranges
+            # calculate trapezoidal area
+            area = (pbeg + pend) * (nend - nbeg) / 2.0
+            auc += area
+            roc += f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t{area:.3g}\t{auc:.3g}\n'
+            nbeg = nend
+            pbeg = pend
+            if point['ispos']:
+                pend += pstep
             else:
-                # area of trapezoid
-                area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
-                auc += area
-                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+                nend += nstep
 
-                if point['ispos']:
-                    pend += 1
-                    go_up = True
-                    go_right = False
-                else:
-                    go_up = False
-                    go_right = True
-                    nend += 1
+            value = point[score]
 
-                pbeg = pend
-                nbeg = nend
-
-                value = point[score]
-
-    area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
+    area = (pbeg + pend) * (nend - nbeg) / 2.0
     auc += area
+    print(f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t area:{area:.3g}\tauc:{auc:.3g}')
 
-    
-    print(f'ROC AUC = {auc}')
-    return ROC, auc
+    return roc, auc
+
 
 # --------------------------------------------------------------------------------------------------
 # main
@@ -555,9 +532,9 @@ if __name__ == '__main__':
     distance, maximum, minimum, pos, neg = read_distance(distance_file)
 
     if calcroc:
-        # (roc, auc) = ROC(roc_file, distance, 'jaccard', pos, neg)
-        (roc, auc) = ROC(roc_file, distance, 'bray-curtis', pos, neg)
-        print(f'ROC AUC = {auc}')
+        roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
+        print(f'ROC AUC = {auc:.4g}')
+        print(roc)
 
     cluster, index = connected(distance, threshold)
 

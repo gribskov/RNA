@@ -460,7 +460,7 @@ if __name__ == '__main__':
 
             ddG = args.ddG_min
             while ddG <= args.ddG_max:
-                print(f'ddg loop')
+                # print(f'ddg loop')
                 args.ddg = ddG
                 xios = f'{args.xiosdir}/{xios_from_ct(args, ct)}'
                 # sys.stderr.write(f'filecheck ct={ct}\txios={xios}\n')
