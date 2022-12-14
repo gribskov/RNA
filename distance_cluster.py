@@ -179,6 +179,7 @@ class Upgma:
         # tree is actually a list of Tree objects corresponding to the leaves until build converts
         # it to a list of a single Tree (the root of the final tree)
         self.tree = []
+        self.leaf = []      # list of leaf IDs
 
     def active(self):
         """-----------------------------------------------------------------------------------------
@@ -215,13 +216,14 @@ class Upgma:
         :param cluster: list of string, IDs fo fingerprints
         :return: int, number of taxa
         -----------------------------------------------------------------------------------------"""
-        leaves = Tree[]
+        tree = self.tree
         taxa_n = 0
         for id in cluster:
-            leaf = self.tree
+            self.leaf.append(id)
+            leaf = Tree()
             leaf.id = id
             leaf.idx = taxa_n
-            leaves.append(leaf)
+            tree.append(leaf)
             taxa_n += 1
 
         self.dmat = [[0 for i in range(len(cluster))] for j in range(len(cluster))]
@@ -308,6 +310,20 @@ class Upgma:
 
         # print(smallest, srow, scol)
         return srow, scol
+
+    def write_leaves(self, file):
+        """-----------------------------------------------------------------------------------------
+        Write the list of leaves to the output file
+
+        :param file: fp     file open for writing
+        :return: int        number of leaves written
+        -----------------------------------------------------------------------------------------"""
+        i = 0
+        for leaf in self.leaf:
+            file.write(f'{i}\t{self.leaf[i]}{newline}')
+            i += 1
+
+        return i
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
@@ -639,14 +655,9 @@ if __name__ == '__main__':
         if tree.dtype == 'jaccard':
             minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
 
-        i = 0
-        for taxon in cluster[c]:
-            print(f'{i}\t{taxon}')
-            i += 1
-
-        while taxa_n > 1:
-            row, col = tree.smallest()
-            taxa_n = tree.mergetaxa(row, col)
+        sys.stdout.write(f'{newline}# Leaf IDs{newline}')
+        tree.write_leaves(sys.stdout)
+        tree.build()
 
         # final tree is always taxon 0
         print(f'\nfinal tree')
