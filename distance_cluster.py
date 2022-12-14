@@ -22,7 +22,8 @@ def read_distance(filename):
     try:
         distance = open(filename, 'r')
     except OSError:
-        sys.stderr.write(f'distance_cluster - read_distance: cannot open distance file{filename}{newline}')
+        sys.stderr.write(
+            f'distance_cluster - read_distance: cannot open distance file{filename}{newline}')
 
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
@@ -52,11 +53,11 @@ def read_distance(filename):
         else:
             neg += 1
 
-        distance_list.append({'fpt1':        fpt1,
-                              'fpt2':        fpt2,
-                              'jaccard':     float(jaccard),
+        distance_list.append({'fpt1'       : fpt1,
+                              'fpt2'       : fpt2,
+                              'jaccard'    : float(jaccard),
                               'bray-curtis': float(bray_curtis),
-                              'ispos':       ispos})
+                              'ispos'      : ispos})
 
     return distance_list, maximum, minimum, pos, neg
 
@@ -175,6 +176,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         self.dtype = 'jaccard'
         self.dmat = []
+        # tree is actually a list of Tree objects corresponding to the leaves until build converts
+        # it to a list of a single Tree (the root of the final tree)
         self.tree = []
 
     def active(self):
@@ -201,10 +204,10 @@ class Upgma:
         while taxa_n > 1:
             row, col = tree.smallest()
             taxa_n = tree.mergetaxa(row, col)
-        def load(self, distance, cluster):
 
-         return
+        return
 
+    def load(self, distance, cluster):
         """-----------------------------------------------------------------------------------------
         Load the distance matrix and initialize tree leaves
 
@@ -212,13 +215,13 @@ class Upgma:
         :param cluster: list of string, IDs fo fingerprints
         :return: int, number of taxa
         -----------------------------------------------------------------------------------------"""
-        tree = self.tree
+        leaves = Tree[]
         taxa_n = 0
         for id in cluster:
-            leaf = Tree()
+            leaf = self.tree
             leaf.id = id
             leaf.idx = taxa_n
-            tree.append(leaf)
+            leaves.append(leaf)
             taxa_n += 1
 
         self.dmat = [[0 for i in range(len(cluster))] for j in range(len(cluster))]
@@ -519,11 +522,12 @@ def ROC(roc_file, distance, score, npos, nneg):
             continue
 
         else:
-            # we get here if we have completed a block of equal valuesif both p and n ranges
+            # we get here if we have completed a block of equal values if both p and n ranges
             # calculate trapezoidal area
             area = (pbeg + pend) * (nend - nbeg) / 2.0
             auc += area
-            roc += f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t{area:.3g}\t{auc:.3g}\n'
+            roc += f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}'
+            roc += f'\t{area:.3g}\t{auc:.3g}\n'
             nbeg = nend
             pbeg = pend
             if point['ispos']:
@@ -535,9 +539,11 @@ def ROC(roc_file, distance, score, npos, nneg):
 
     area = (pbeg + pend) * (nend - nbeg) / 2.0
     auc += area
-    print(f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}\t area:{area:.3g}\tauc:{auc:.3g}')
+    print(f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}', end='')
+    print(f'\t area:{area:.3g}\tauc:{auc:.3g}')
 
     return roc, auc
+
 
 def make_trees(opt, distance, cluster):
     """---------------------------------------------------------------------------------------------
@@ -549,6 +555,7 @@ def make_trees(opt, distance, cluster):
     ---------------------------------------------------------------------------------------------"""
     pass
     return
+
 
 def process_command_line():
     """---------------------------------------------------------------------------------------------
@@ -562,7 +569,7 @@ def process_command_line():
     cl = argparse.ArgumentParser(
         description='Cluster and calculate ROC from distances',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=140, max_help_position=80)
-        )
+    )
     cl.add_argument('-t', '--type',
                     help='distance type: jaccard or bray-curtis (default=%(default)s)', type=str,
                     choices=['jaccard', 'bray-curtis'], nargs='*',
@@ -575,20 +582,19 @@ def process_command_line():
                     help='Minimum distance for clustering (default=%(default)s)', type=float,
                     default=0.0)
 
-
     rocoptions = cl.add_argument_group('ROC options')
     rocoptions.add_argument('-r', '--roc',
-                    help='do not calculate ROC and AUC', action='store_false')
+                            help='do not calculate ROC and AUC', action='store_false')
     rocoptions.add_argument('-p', '--plotable', action='store_true',
-                    help='save ROC histogram for plotting')
+                            help='save ROC histogram for plotting')
 
     treeoptions = cl.add_argument_group('Tree options')
     treeoptions.add_argument('-c', '--condensed', action='store_false',
-                    help='include Newick formatted tree (default=%(default)s)',
-                    default=False)
+                             help='include Newick formatted tree (default=%(default)s)',
+                             default=False)
     treeoptions.add_argument('-i', '--indented', action='store_false',
-                    help='include indented Newick formatted tree (default=%(default)s)',
-                    default=False)
+                             help='include indented Newick formatted tree (default=%(default)s)',
+                             default=False)
 
     # TODO cluster prefixes for tree output (tree output)
     # use False for none? or add tree option prefix, stdout
@@ -627,51 +633,50 @@ if __name__ == '__main__':
         taxa_n = len(cluster[c])
         sys.stdout.write(f'{newline}# Cluster_{c}: {taxa_n} fingerprints{newline}')
 
-        if taxa_n > 0:
-            tree = Upgma()
+        tree = Upgma()
 
-            tree.load(distance, cluster[c])
-            if tree.dtype == 'jaccard':
-                minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+        tree.load(distance, cluster[c])
+        if tree.dtype == 'jaccard':
+            minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
 
-            i = 0
-            for taxon in cluster[c]:
-                print(f'{i}\t{taxon}')
-                i += 1
+        i = 0
+        for taxon in cluster[c]:
+            print(f'{i}\t{taxon}')
+            i += 1
 
-            while taxa_n > 1:
-                row, col = tree.smallest()
-                taxa_n = tree.mergetaxa(row, col)
+        while taxa_n > 1:
+            row, col = tree.smallest()
+            taxa_n = tree.mergetaxa(row, col)
 
-            # final tree is always taxon 0
-            print(f'\nfinal tree')
-            tree.tree[0].id += ';'
-            print(tree.tree[0].id)
+        # final tree is always taxon 0
+        print(f'\nfinal tree')
+        tree.tree[0].id += ';'
+        print(tree.tree[0].id)
 
-            # indented Newick pseudo tree
-            print(f'\nindented tree')
-            pos = 0
-            tree = tree.tree[0].id
-            indent = 0
-            start = 0
-            while pos < len(tree):
-                if tree[pos] == '(':
-                    print(f'{" " * indent}(')
-                    indent += 4
-                    start = pos + 1
-                elif tree[pos] == ')':
-                    print(f'{" " * indent}{tree[start:pos]}')
-                    indent -= 4
-                    print(f'{" " * indent})', end='')
-                    start = pos + 1
+        # indented Newick pseudo tree
+        print(f'\nindented tree')
+        pos = 0
+        tree = tree.tree[0].id
+        indent = 0
+        start = 0
+        while pos < len(tree):
+            if tree[pos] == '(':
+                print(f'{" " * indent}(')
+                indent += 4
+                start = pos + 1
+            elif tree[pos] == ')':
+                print(f'{" " * indent}{tree[start:pos]}')
+                indent -= 4
+                print(f'{" " * indent})', end='')
+                start = pos + 1
 
-                elif tree[pos] == ',':
-                    if tree[start] == ':':
-                        print(f'{tree[start:pos]},')
-                    else:
-                        print(f'{" " * indent}{tree[start:pos]},')
-                    start = pos + 1
+            elif tree[pos] == ',':
+                if tree[start] == ':':
+                    print(f'{tree[start:pos]},')
+                else:
+                    print(f'{" " * indent}{tree[start:pos]},')
+                start = pos + 1
 
-                pos += 1
+            pos += 1
 
     exit(0)
