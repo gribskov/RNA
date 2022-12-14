@@ -520,6 +520,15 @@ def ROC(roc_file, distance, score, npos, nneg):
 
     return roc, auc
 
+def make_trees(opt, distance, cluster):
+    """---------------------------------------------------------------------------------------------
+
+    :param opt:
+    :param distance:
+    :param cluster:
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+
 
 def process_command_line():
     """---------------------------------------------------------------------------------------------
@@ -531,20 +540,36 @@ def process_command_line():
     import argparse
 
     cl = argparse.ArgumentParser(
-        description='Cluster and calculate ROC from distance',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+        description='Cluster and calculate ROC from distances',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=140, max_help_position=80)
         )
+    cl.add_argument('-t', '--type',
+                    help='distance type: jaccard or bray-curtis (default=%(default)s)', type=str,
+                    choices=['jaccard', 'bray-curtis'], nargs='*',
+                    default=['jaccard'])
+    # action = 'extend',
     cl.add_argument('-d', '--distance',
                     help='distance file from fingerprint_distance (default=%(default)s)',
                     default='fingerprint.distance')
-    cl.add_argument('-r', '--roc',
-                    help='calculate ROC and AUC (default=%(default)s)', type=bool,
-                    default=True)
     cl.add_argument('-m', '--mindist',
                     help='Minimum distance for clustering (default=%(default)s)', type=float,
                     default=0.0)
-    # TODO tree options (tree format)
-    # condensed, indented (list)
+
+
+    rocoptions = cl.add_argument_group('ROC options')
+    rocoptions.add_argument('-r', '--roc',
+                    help='do not calculate ROC and AUC', action='store_false')
+    rocoptions.add_argument('-p', '--plotable', action='store_true',
+                    help='save ROC histogram for plotting')
+
+    treeoptions = cl.add_argument_group('Tree options')
+    treeoptions.add_argument('-c', '--condensed', action='store_false',
+                    help='include Newick formatted tree (default=%(default)s)',
+                    default=False)
+    treeoptions.add_argument('-i', '--indented', action='store_false',
+                    help='include indented Newick formatted tree (default=%(default)s)',
+                    default=False)
+
     # TODO cluster prefixes for tree output (tree output)
     # use False for none? or add tree option prefix, stdout
 
@@ -577,12 +602,14 @@ if __name__ == '__main__':
     cluster, index = connected(distance, opt.mindist)
 
     # for each cluster, make upgma tree
+    if opt.condensed or opt.indented
     for c in range(len(cluster)):
         taxa_n = len(cluster[c])
-        if taxa_n > 1:
+        sys.stdout.write(f'# Cluster_{c}: {taxa_n} fingerprints')
+
+        if taxa_n > 0:
             tree = Upgma()
-            # TODO select distance type on command line
-            # tree.dtype = 'bray-curtis'
+
             tree.load(distance, cluster[c])
             if tree.dtype == 'jaccard':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
