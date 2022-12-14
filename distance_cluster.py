@@ -325,6 +325,44 @@ class Upgma:
 
         return i
 
+    def write_indented(self, file):
+        """-----------------------------------------------------------------------------------------
+        Write the current tree[0] in indented newick format
+
+        :param file: fp     file open for reading
+        :return: int        number of lines written
+        -----------------------------------------------------------------------------------------"""
+        tree = self.tree[0].id
+        nline = 0
+        pos = 0
+        indent = 0
+        start = 0
+        while pos < len(tree):
+            if tree[pos] == '(':
+                file.write(f'{" " * indent}({newline}')
+                nline += 1
+                indent += 4
+                start = pos + 1
+            elif tree[pos] == ')':
+                file.write(f'{" " * indent}{tree[start:pos]}{newline}')
+                nline += 1
+                indent -= 4
+                print(f'{" " * indent})', end='')
+                start = pos + 1
+
+            elif tree[pos] == ',':
+                if tree[start] == ':':
+                    file.write(f'{tree[start:pos]},{newline}')
+                    nline += 1
+                else:
+                    file.write(f'{" " * indent}{tree[start:pos]},{newline}')
+                    nline += 1
+                start = pos + 1
+
+            pos += 1
+
+        return nline
+
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
         merge the row and column taxa with the smallest value. the row and column are given in dmat
@@ -605,10 +643,10 @@ def process_command_line():
                             help='save ROC histogram for plotting')
 
     treeoptions = cl.add_argument_group('Tree options')
-    treeoptions.add_argument('-c', '--condensed', action='store_false',
+    treeoptions.add_argument('-c', '--condensed', action='store_true',
                              help='include Newick formatted tree (default=%(default)s)',
                              default=False)
-    treeoptions.add_argument('-i', '--indented', action='store_false',
+    treeoptions.add_argument('-i', '--indented', action='store_true',
                              help='include indented Newick formatted tree (default=%(default)s)',
                              default=False)
 
@@ -659,35 +697,38 @@ if __name__ == '__main__':
         tree.write_leaves(sys.stdout)
         tree.build()
 
-        # final tree is always taxon 0
-        print(f'\nfinal tree')
-        tree.tree[0].id += ';'
-        print(tree.tree[0].id)
+        if opt.condensed:
+            # final tree is always tree[0]
+            sys.stdout.write(f'{newline}# Final tree{newline}')
+            sys.stdout.write(f'{newline}{tree.tree[0].id};{newline}')
 
-        # indented Newick pseudo tree
-        print(f'\nindented tree')
-        pos = 0
-        tree = tree.tree[0].id
-        indent = 0
-        start = 0
-        while pos < len(tree):
-            if tree[pos] == '(':
-                print(f'{" " * indent}(')
-                indent += 4
-                start = pos + 1
-            elif tree[pos] == ')':
-                print(f'{" " * indent}{tree[start:pos]}')
-                indent -= 4
-                print(f'{" " * indent})', end='')
-                start = pos + 1
+        if opt.indented:
+            # indented Newick pseudo tree
+            sys.stdout.write(f'{newline}# Final tree{newline}')
+            tree.write_indented(sys.stdout)
 
-            elif tree[pos] == ',':
-                if tree[start] == ':':
-                    print(f'{tree[start:pos]},')
-                else:
-                    print(f'{" " * indent}{tree[start:pos]},')
-                start = pos + 1
-
-            pos += 1
+        # pos = 0
+        # tree = tree.tree[0].id
+        # indent = 0
+        # start = 0
+        # while pos < len(tree):
+        #     if tree[pos] == '(':
+        #         print(f'{" " * indent}(')
+        #         indent += 4
+        #         start = pos + 1
+        #     elif tree[pos] == ')':
+        #         print(f'{" " * indent}{tree[start:pos]}')
+        #         indent -= 4
+        #         print(f'{" " * indent})', end='')
+        #         start = pos + 1
+        #
+        #     elif tree[pos] == ',':
+        #         if tree[start] == ':':
+        #             print(f'{tree[start:pos]},')
+        #         else:
+        #             print(f'{" " * indent}{tree[start:pos]},')
+        #         start = pos + 1
+        #
+        #     pos += 1
 
     exit(0)
