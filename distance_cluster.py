@@ -76,7 +76,13 @@ def connected(distance, threshold, dtype='jaccard'):
         if d[dtype] > threshold:
             cluster_merge(cluster, index, c1, c2)
 
-    return cluster, index
+    # remove all clusters with no members
+    shortened = []
+    for c in cluster:
+        if c:
+            shortened.append(c)
+
+    return shortened, index
 
 
 def cluster_get(cluster, index, id):
@@ -185,7 +191,20 @@ class Upgma:
 
         return idx
 
-    def load(self, distance, cluster):
+    def build(self):
+        """-----------------------------------------------------------------------------------------
+        Construct the tree from the distance matrix
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        taxa_n = len(self.dmat)
+        while taxa_n > 1:
+            row, col = tree.smallest()
+            taxa_n = tree.mergetaxa(row, col)
+        def load(self, distance, cluster):
+
+         return
+
         """-----------------------------------------------------------------------------------------
         Load the distance matrix and initialize tree leaves
 
@@ -522,13 +541,14 @@ def ROC(roc_file, distance, score, npos, nneg):
 
 def make_trees(opt, distance, cluster):
     """---------------------------------------------------------------------------------------------
-
+    TODO move construction code here
     :param opt:
     :param distance:
     :param cluster:
     :return:
     ---------------------------------------------------------------------------------------------"""
-
+    pass
+    return
 
 def process_command_line():
     """---------------------------------------------------------------------------------------------
@@ -602,10 +622,10 @@ if __name__ == '__main__':
     cluster, index = connected(distance, opt.mindist)
 
     # for each cluster, make upgma tree
-    if opt.condensed or opt.indented
+    # if opt.condensed or opt.indented
     for c in range(len(cluster)):
         taxa_n = len(cluster[c])
-        sys.stdout.write(f'# Cluster_{c}: {taxa_n} fingerprints')
+        sys.stdout.write(f'{newline}# Cluster_{c}: {taxa_n} fingerprints{newline}')
 
         if taxa_n > 0:
             tree = Upgma()
@@ -615,7 +635,6 @@ if __name__ == '__main__':
                 minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
 
             i = 0
-            print(f'cluster: {c} input taxa')
             for taxon in cluster[c]:
                 print(f'{i}\t{taxon}')
                 i += 1
