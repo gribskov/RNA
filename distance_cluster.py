@@ -53,11 +53,11 @@ def read_distance(filename):
         else:
             neg += 1
 
-        distance_list.append({'fpt1'       : fpt1,
-                              'fpt2'       : fpt2,
-                              'jaccard'    : float(jaccard),
+        distance_list.append({'fpt1':        fpt1,
+                              'fpt2':        fpt2,
+                              'jaccard':     float(jaccard),
                               'bray-curtis': float(bray_curtis),
-                              'ispos'      : ispos})
+                              'ispos':       ispos})
 
     return distance_list, maximum, minimum, pos, neg
 
@@ -179,7 +179,7 @@ class Upgma:
         # tree is actually a list of Tree objects corresponding to the leaves until build converts
         # it to a list of a single Tree (the root of the final tree)
         self.tree = []
-        self.leaf = []      # list of leaf IDs
+        self.leaf = []  # list of leaf IDs
 
     def active(self):
         """-----------------------------------------------------------------------------------------
@@ -402,9 +402,9 @@ class Upgma:
 
         return len(active) - 1
 
-    #===============================================================================================
+    # ===============================================================================================
     # end of Upgma
-    #===============================================================================================
+    # ===============================================================================================
 
 
 def upgma2(dmat):
@@ -487,6 +487,7 @@ def get_group(name):
 def ROC2(roc_file, distance, score, npos, nneg):
     """---------------------------------------------------------------------------------------------
     calculate Receiver Operating Characteristic and area under curve (AUC)
+
     :param roc_file:    string, filename for ROC output
     :param distance:    list of dict, distance information
     :param npos:        int, number of positive comparisons
@@ -502,7 +503,6 @@ def ROC2(roc_file, distance, score, npos, nneg):
     value = 0
     auc = area = 0.0
     for point in sorted(distance, key=lambda x: x[score], reverse=True):
-        # print(point)
 
         if point[score] == value:
             # items with same value cannot be sorted so they are a single step
@@ -526,26 +526,28 @@ def ROC2(roc_file, distance, score, npos, nneg):
                 # area of trapezoid
                 area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
                 auc += area
-                print(f'score:{point[score]}\t area:{area}\tauc:{auc}')
+                roc_file.write(f'{pend*pstep:.6f}\t{nend*nstep:.6f}\t{point[score]}\t{area:.4g}\t{auc:.6f}{newline}')
+                # print(f'score:{point[score]}\t area:auc:')
 
                 if point['ispos']:
                     pend += 1
                     dirup = True
                 else:
                     dirup = False
-                    nend += 1
+                    # nend += 1
 
                 pbeg = pend
                 nbeg = nend
 
-                value = point[score]
+            value = point[score]
+            print(f'pend={pend}/{npos}\tnend={nend}/{nneg}\tvalue={value}')
 
+    roc_file.write(f'{pend*pstep:.4f}\t{(nend)*nstep:.4f}\t{point[score]}\t{area:.4f}\t{auc:.4f}{newline}')
+    print(f'pend={pend}/{npos}\tnend={nend}/{nneg}')
     area = (pbeg + pend) * pstep * (nend - nbeg) * nstep / 2.0
     auc += area
 
-    print(f'ROC AUC = {auc}')
-
-    return
+    return auc
 
 
 def ROC(roc_file, distance, score, npos, nneg):
@@ -586,6 +588,7 @@ def ROC(roc_file, distance, score, npos, nneg):
             auc += area
             roc += f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}'
             roc += f'\t{area:.3g}\t{auc:.3g}\n'
+            print(roc)
             nbeg = nend
             pbeg = pend
             if point['ispos']:
@@ -600,36 +603,7 @@ def ROC(roc_file, distance, score, npos, nneg):
     print(f'{pbeg:.3g}\t{pend:.3g}\t{nbeg:.3g}\t{nend:.3g}\t{point[score]:.3g}', end='')
     print(f'\t area:{area:.3g}\tauc:{auc:.3g}')
 
-    return roc, auc
-
-
-def make_tree(opt, distance, cluster):
-    """---------------------------------------------------------------------------------------------
-    TODO move construction code here
-    :param opt:
-    :param distance:
-    :param cluster:
-    :return:
-
-    :param opt: namespace       program options from command line
-    :param distance: list       distances between taxa
-    :param cluster: list        taxa in this cluster
-    :return: Upgma object
-    ---------------------------------------------------------------------------------------------"""
-    pass
-    return
-    tree = Upgma()
-
-    tree.load(distance, cluster)
-    if tree.dtype == 'jaccard':
-        minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
-
-
-    while len(cluster) > 1:
-        row, col = tree.smallest()
-        taxa_n = tree.mergetaxa(row, col)
-
-    return tree
+    return auc
 
 
 def process_command_line():
@@ -643,13 +617,11 @@ def process_command_line():
 
     cl = argparse.ArgumentParser(
         description='Cluster and calculate ROC from distances',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=140, max_help_position=80)
-    )
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=140, max_help_position=80))
     cl.add_argument('-t', '--type',
                     help='distance type: jaccard or bray-curtis (default=%(default)s)', type=str,
                     choices=['jaccard', 'bray-curtis'], nargs='*',
                     default=['jaccard'])
-    # action = 'extend',
     cl.add_argument('-d', '--distance',
                     help='distance file from fingerprint_distance (default=%(default)s)',
                     default='fingerprint.distance')
@@ -696,8 +668,7 @@ if __name__ == '__main__':
     distance, maximum, minimum, pos, neg = read_distance(opt.distance)
 
     if opt.roc:
-        roc_file = 'roc.out'
-        roc, auc = ROC(roc_file, distance, 'jaccard', pos, neg)
+        auc = ROC2(sys.stdout, distance, 'jaccard', pos, neg)
         sys.stderr.write(f'{newline}ROC AUC = {auc:.4g}{newline}')
 
     cluster, index = connected(distance, opt.mindist)
@@ -727,29 +698,5 @@ if __name__ == '__main__':
             # indented Newick pseudo tree
             sys.stdout.write(f'{newline}# Final tree{newline}')
             tree.write_indented(sys.stdout)
-
-        # pos = 0
-        # tree = tree.tree[0].id
-        # indent = 0
-        # start = 0
-        # while pos < len(tree):
-        #     if tree[pos] == '(':
-        #         print(f'{" " * indent}(')
-        #         indent += 4
-        #         start = pos + 1
-        #     elif tree[pos] == ')':
-        #         print(f'{" " * indent}{tree[start:pos]}')
-        #         indent -= 4
-        #         print(f'{" " * indent})', end='')
-        #         start = pos + 1
-        #
-        #     elif tree[pos] == ',':
-        #         if tree[start] == ':':
-        #             print(f'{tree[start:pos]},')
-        #         else:
-        #             print(f'{" " * indent}{tree[start:pos]},')
-        #         start = pos + 1
-        #
-        #     pos += 1
 
     exit(0)
