@@ -326,6 +326,10 @@ class Upgma:
 
         return len(active) - 1
 
+    #===============================================================================================
+    # end of Upgma
+    #===============================================================================================
+
 
 def upgma2(dmat):
     """---------------------------------------------------------------------------------------------
@@ -520,14 +524,26 @@ def ROC(roc_file, distance, score, npos, nneg):
 
     return roc, auc
 
-def make_trees(opt, distance, cluster):
+def make_tree(opt, distance, cluster):
     """---------------------------------------------------------------------------------------------
 
-    :param opt:
-    :param distance:
-    :param cluster:
-    :return:
+    :param opt: namespace       program options from command line
+    :param distance: list       distances between taxa
+    :param cluster: list        taxa in this cluster
+    :return: Upgma object
     ---------------------------------------------------------------------------------------------"""
+    tree = Upgma()
+
+    tree.load(distance, cluster)
+    if tree.dtype == 'jaccard':
+        minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+
+
+    while len(cluster) > 1:
+        row, col = tree.smallest()
+        taxa_n = tree.mergetaxa(row, col)
+
+    return tree
 
 
 def process_command_line():
@@ -602,57 +618,63 @@ if __name__ == '__main__':
     cluster, index = connected(distance, opt.mindist)
 
     # for each cluster, make upgma tree
-    if opt.condensed or opt.indented
+    # if opt.condensed or opt.indented
     for c in range(len(cluster)):
         taxa_n = len(cluster[c])
-        sys.stdout.write(f'# Cluster_{c}: {taxa_n} fingerprints')
+        i = 0
+        sys.stdout.write(f'# Cluster_{c}: {taxa_n} fingerprints{newline}')
+        for taxon in cluster[c]:
+            sys.stdout.write(f'{i}\t{taxon}{newline}')
+            i += 1
 
-        if taxa_n > 0:
-            tree = Upgma()
+        make_tree(opt, distance, cluster)
 
-            tree.load(distance, cluster[c])
-            if tree.dtype == 'jaccard':
-                minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+        # if taxa_n > 0:
+        #     tree = Upgma()
+        #
+        #     tree.load(distance, cluster[c])
+        #     if tree.dtype == 'jaccard':
+        #         minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+        #
+        #     i = 0
+        #     print(f'cluster: {c} input taxa')
+        #     for taxon in cluster[c]:
+        #         print(f'{i}\t{taxon}')
+        #         i += 1
+        #
+        #     while taxa_n > 1:
+        #         row, col = tree.smallest()
+        #         taxa_n = tree.mergetaxa(row, col)
 
-            i = 0
-            print(f'cluster: {c} input taxa')
-            for taxon in cluster[c]:
-                print(f'{i}\t{taxon}')
-                i += 1
+        # final tree is always taxon 0
+        print(f'\nfinal tree')
+        tree.tree[0].id += ';'
+        print(tree.tree[0].id)
 
-            while taxa_n > 1:
-                row, col = tree.smallest()
-                taxa_n = tree.mergetaxa(row, col)
+        # indented Newick pseudo tree
+        print(f'\nindented tree')
+        pos = 0
+        tree = tree.tree[0].id
+        indent = 0
+        start = 0
+        while pos < len(tree):
+            if tree[pos] == '(':
+                print(f'{" " * indent}(')
+                indent += 4
+                start = pos + 1
+            elif tree[pos] == ')':
+                print(f'{" " * indent}{tree[start:pos]}')
+                indent -= 4
+                print(f'{" " * indent})', end='')
+                start = pos + 1
 
-            # final tree is always taxon 0
-            print(f'\nfinal tree')
-            tree.tree[0].id += ';'
-            print(tree.tree[0].id)
+            elif tree[pos] == ',':
+                if tree[start] == ':':
+                    print(f'{tree[start:pos]},')
+                else:
+                    print(f'{" " * indent}{tree[start:pos]},')
+                start = pos + 1
 
-            # indented Newick pseudo tree
-            print(f'\nindented tree')
-            pos = 0
-            tree = tree.tree[0].id
-            indent = 0
-            start = 0
-            while pos < len(tree):
-                if tree[pos] == '(':
-                    print(f'{" " * indent}(')
-                    indent += 4
-                    start = pos + 1
-                elif tree[pos] == ')':
-                    print(f'{" " * indent}{tree[start:pos]}')
-                    indent -= 4
-                    print(f'{" " * indent})', end='')
-                    start = pos + 1
-
-                elif tree[pos] == ',':
-                    if tree[start] == ':':
-                        print(f'{tree[start:pos]},')
-                    else:
-                        print(f'{" " * indent}{tree[start:pos]},')
-                    start = pos + 1
-
-                pos += 1
+            pos += 1
 
     exit(0)
