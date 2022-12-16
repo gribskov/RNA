@@ -540,7 +540,7 @@ def ROC2(roc_file, distance, score, npos, nneg):
                 nbeg = nend
 
             value = point[score]
-            print(f'pend={pend}/{npos}\tnend={nend}/{nneg}\tvalue={value}')
+            print(f'pend={pend}/{npos}\tnend={nend}/{nneg}\tvalue={value}\t{dirup}')
 
     roc_file.write(f'{pend*pstep:.4f}\t{(nend)*nstep:.4f}\t{point[score]}\t{area:.4f}\t{auc:.4f}{newline}')
     print(f'pend={pend}/{npos}\tnend={nend}/{nneg}')
