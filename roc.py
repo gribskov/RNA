@@ -101,21 +101,49 @@ def ROC(data, label):
     return points, area
 
 
+def sortbydata(data, labels, dir='high'):
+    """---------------------------------------------------------------------------------------------
+    sort the data and labels. if dir begins with 'h' or 'H', the sort is high to low, otherwise it
+    is low to high.
+
+    :param data: list of int/float
+    :param labels: list of bool
+    :param dir: string
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    newdata = []
+    newlabels = []
+    order = []
+    if dir.lower().startswith('h'):
+        order = sorted(range(len(data)), key=lambda i: data[i], reverse=True)
+    else:
+        order = sorted(range(len(data)), key=lambda i: data[i])
+    for i in order:
+        newdata.append(data[i])
+        newlabels.append(labels[i])
+
+    data = newdata
+    labels = newlabels
+
+    return data, labels
+
+
 # --------------------------------------------------------------------------------------------------
 # Testing
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
     data = [9, 8, 6, 6, 6, 6, 5, 4, 4, 2, 2]
-    label = [True, True, True, False, True, True, False, False, True, False, False]
+    labels = [True, True, True, False, True, True, False, False, True, False, False]
     # data = [1, 1, 2, 2, 3, 3.5, 4, 4, 5, 5]
     # label = [False, False, False, False, False, True, True, True, True, True, ]
 
+    data, labels = sortbydata(data, labels, dir='low')
     for i in range(len(data)):
-        print(f'{i}  {data[i]}  {label[i]}')
+        print(f'{i}  {data[i]}  {labels[i]}')
 
     # tranche = find_tranche(data)
-    points, auc = ROC(data, label)
+    points, auc = ROC(data, labels)
     print(f'\nfinal area:{auc:.4f}')
     print(points)
 
