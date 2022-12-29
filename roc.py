@@ -1,109 +1,16 @@
-# def find_tranche(data):
-#     """---------------------------------------------------------------------------------------------
-#     Find data groups that have the same value, referred to here as a tranche
-#
-#     :param data: list       int or float proxy statistic values
-#     :return: list           positions of beginning of each tranche
-#     ---------------------------------------------------------------------------------------------"""
-#     # tranche = [0]
-#     # value = data[0]
-#     # for i in range(1, len(data)):
-#     #     if data[i] == value:
-#     #         continue
-#     #
-#     #     else:
-#     #         tranche.append(i)
-#     #         value = data[i]
-#     tranche = []
-#     value = data[0]
-#     inside = False
-#     for i in range(1, len(data)):
-#         if data[i] == value:
-#             # next value is the same (a tranche)
-#             if inside:
-#                 continue
-#             else:
-#                 tranche.append(i - 1)
-#                 inside = True
-#         else:
-#             # next value is different (end open tranches)
-#             if inside:
-#                 inside = False
-#                 tranche.append(i)
-#
-#         value = data[i]
-#     if inside:
-#         tranche.append(len(data))
-#
-#     return tranche
-#
-#
-# def tranche2(data):
-#     tranche = []
-#     value = data[0]
-#     dir = label[0]
-#     p0 = n0 = p = n = 0
-#     i = 1
-#     while i < len(data):
-#         # i is the next value (incremented at end of loop)
-#
-#         # add the next range of values
-#         while value == label[i]:
-#             # when i exit, i will be the first point with a new value
-#             dir = None
-#             p += label[i]
-#             n += not label[i]
-#             i += 1
-#
-#         if dir == label[i]:
-#             # next value is the same continue in current direction
-#             p1 += label[i]
-#             n1 += not label[i]
-#         else:
-#             # direction changed - calculate area
-#             a = a2(n, p, p0)
-#             p0 += p
-#             n = 0
-#
-#         # update direction, value, and i
-#
-#         dir = label[i]
-#         value = value[i]
-#         i += 1
-#
-#
-# def a2(n, p, p0):
-#     pass
-#
-#     return
-#
-#
-# def area(p0, p1, pn, n0, n1, nn):
-#     """--------------------------------------------------------------------------------------------
-#     calculate trapezoidal area
-#     :param p0: int      positive begin
-#     :param p1: int      positive end
-#     :param pn: int      n positive
-#     :param n0: int      negative begin
-#     :param n1: int      negative begin
-#     :param nn: int      n negative
-#     :return: float      area
-#     --------------------------------------------------------------------------------------------"""
-#     if n1 == n0:
-#         return 0.0
-#
-#     a = 0.5 * (p0 + p1) / pn
-#     a *= (n1 - n0) / nn
-#
-#     return a
-
-
 def ROC(data, label):
     """---------------------------------------------------------------------------------------------
+    Calculate the receiver operating characteristic (ROC) curve and the area under the curve (AUC).
+    This is an exact calculation taking into account identical values.
 
-    :param data:
-    :param label:
-    :return:
+    Data values and labels (True, False) are provided as two lists. Use the sort option if the data
+    is not sorted by value.
+
+    :param data: list of int/float  data values
+    :param label: list of bool      data labels
+    :param sort: bool               sort the data and labels
+    :param sortdir: string          sort direction high/low only the first char is checked, case insensitive
+    :return: list of float/ float   points for drawing curve, AUC
     ---------------------------------------------------------------------------------------------"""
     # get numbers of positives and negatives
     pn = nn = 0
@@ -114,19 +21,27 @@ def ROC(data, label):
     dir = label[0]
     value = data[0]
     area = 0
-    p0 = p = n = 0
+    p0 = n0 = p = n = 0
 
     p += dir
     n += not dir
 
     i = 1
+    points = [[0, 0]]
     while i < len(data) - 1:
 
         # look forward, is value the same
+        firstpt = True
         while data[i] == value:
-            # read in tranche, stopping i = first different value
+            # read in tranche, a tranche is a set of points with the same data value
+            # stopping i = first different value
             p += label[i]
             n += not label[i]
+            if firstpt:
+                # draw to the starting point of the tranche
+                points.append([n0 + n, p0 + p])
+                firstpt = False
+
             dir = None  # set direction == None
             if i + 1 < len(data):
                 i += 1
@@ -144,94 +59,54 @@ def ROC(data, label):
                 break
 
             if data[i] == value:
-                # back out the first point in a tranche
+                # back out the first point in a subsequent tranche
                 i -= 1
                 p -= label[i]
                 n -= not label[i]
                 value = data[i]
 
         # at this point, i points to the value that begins the next block and the count buffers
-        # are filled with the previous block
+        # are filled with the previous block.
+
+        if points[-1] != [n0 + n, p0 + p]:
+            points.append([n0 + n, p0 + p])
+
         # calculate area
 
         a = (p0 + 0.5 * p) * n
         area += a
-        print(f'i:{i}\tp0:{p0}\tp:{p}\tn:{n}\ta:{a}\t{area}')
+        # print(f'i:{i}\tp0:{p0}\tp:{p}\tn:{n}\ta:{a}\t{area}')
 
         # update count buffers
         p0 += p
+        n0 += n
         p = n = 0
         dir = label[i]
         value = data[i]
-        print(f'\tp0:{p0}\tp:{p}\tn:{n}\tdir:{dir}\tvalue:{value}')
+        # print(f'\tp0:{p0}\tp:{p}\tn:{n}\tdir:{dir}\tvalue:{value}')
+
+    # end of loop over data points
+
+    if points[-1] != [n0 + n, p0 + p]:
+        points.append([n0 + n, p0 + p])
 
     if nn:
         # if number of negatives > 0
         area /= pn * nn
 
-    print(f'\nfinal area:{area:.4f}')
+    for pt in points:
+        pt[0] /= nn
+        pt[1] /= pn
 
-    return
+    return points, area
 
 
-    # def roc(data, label, tranche):
-    #     """---------------------------------------------------------------------------------------------
-    #
-    #     :param data:
-    #     :param label:
-    #     :return:
-    #     ---------------------------------------------------------------------------------------------"""
-    #     pos_n = label.count(True)
-    #     neg_n = label.count(False)
-    #
-    #     current = data[0]
-    #     dir = label[0]
-    #     i = 0
-    #     t = tranche.pop(0)
-    #     p0 = n0 = p1 = n1 = 0
-    #     calc = False
-    #     while i < len(data):
-    #         if i == t:
-    #             # area of current chunk
-    #             a = area(p0, p1, pos_n, n0, n1, neg_n)
-    #             if label[i]:
-    #                 p1 = p1 + 1
-    #             else:
-    #                 n1 = n1 + 1
-    #             p0 = p1
-    #             n0 = n1
-    #             # starting to process tranche
-    #             end = tranche.pop(0)
-    #             while i < end:
-    #                 p1 += label[i]
-    #                 n1 += not label[i]
-    #                 i += 1
-    #             calc = True
-    #             t = tranche.pop(0)
-    #         else:
-    #             if label[i] == dir:
-    #                 # continuing in current direction, don't do anything
-    #                 p1 += label[i]
-    #                 n1 += not label[i]
-    #             else:
-    #                 # need to calculate
-    #                 calc = True
-    #
-    #         if calc:
-    #             # calculate an area
-    #             a = area(p0, p1, pos_n, n0, n1, neg_n)
-    #
-    #         i += 1
-    #
-    #     return
-
-    # --------------------------------------------------------------------------------------------------
-    # Testing
-    # --------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# Testing
+# --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
 
-
-    data = [9, 8, 7, 7, 6, 6, 5, 4, 4, 2, 2]
+    data = [9, 8, 6, 6, 6, 6, 5, 4, 4, 2, 2]
     label = [True, True, True, False, True, True, False, False, True, False, False]
     # data = [1, 1, 2, 2, 3, 3.5, 4, 4, 5, 5]
     # label = [False, False, False, False, False, True, True, True, True, True, ]
@@ -240,6 +115,8 @@ if __name__ == '__main__':
         print(f'{i}  {data[i]}  {label[i]}')
 
     # tranche = find_tranche(data)
-    ROC(data, label)
+    points, auc = ROC(data, label)
+    print(f'\nfinal area:{auc:.4f}')
+    print(points)
 
     exit(0)
