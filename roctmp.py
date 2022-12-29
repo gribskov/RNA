@@ -37,6 +37,7 @@ def find_tranche(data):
 
     return tranche
 
+
 def tranche2(data):
     tranche = []
     value = data[0]
@@ -76,6 +77,7 @@ def a2(n, p, p0):
 
     return
 
+
 def area(p0, p1, pn, n0, n1, nn):
     """--------------------------------------------------------------------------------------------
     calculate trapezoidal area
@@ -87,7 +89,7 @@ def area(p0, p1, pn, n0, n1, nn):
     :param nn: int      n negative
     :return: float      area
     --------------------------------------------------------------------------------------------"""
-    if n1 = n0:
+    if n1 == n0:
         return 0.0
 
     a = 0.5 * (p0 + p1) / pn
@@ -96,6 +98,71 @@ def area(p0, p1, pn, n0, n1, nn):
     return a
 
 
+def c0(data, label):
+    # get numbers of positives and negatives
+    pn = nn = 0
+    for tf in label:
+        pn += tf
+        nn += not tf
+
+    dir = label[0]
+    value = data[0]
+    area = 0
+    p0 = p = n = 0
+
+    p += dir
+    n += not dir
+
+    i = 1
+    while i < len(data) - 1:
+
+        # look forward, is value the same
+        while data[i] == value:
+            # read in tranche, stopping i = first different value
+            p += label[i]
+            n += not label[i]
+            dir = None  # set direction == None
+            if i + 1 < len(data):
+                i += 1
+            else:
+                break
+
+        while label[i] == dir and data[i] != value:
+            # will not run after reading a tranche of same value points
+            p += label[i]
+            n += not label[i]
+            value = data[i]
+            if i + 1 < len(data):
+                i += 1
+            else:
+                break
+
+            if data[i] == value:
+                # back out the first point in a tranche
+                i -= 1
+                p -= label[i]
+                n -= not label[i]
+                value = data[i]
+
+        # at this point, i points to the value that begins the next block and the count buffers
+        # are filled with the previous block
+        # calculate area
+
+        a = (p0 + 0.5 * p) * n
+        area += a
+        print(f'i:{i}\tp0:{p0}\tp:{p}\tn:{n}\ta:{a}\t{area}')
+
+        # update count buffers
+        p0 += p
+        p = n = 0
+        dir = label[i]
+        value = data[i]
+        print(f'\tp0:{p0}\tp:{p}\tn:{n}\tdir:{dir}\tvalue:{value}')
+
+    area /= pn * nn
+    print(f'\nfinal area:{area:.4f}')
+
+    return
 
 
 def roc(data, label, tranche):
@@ -119,7 +186,7 @@ def roc(data, label, tranche):
             # area of current chunk
             a = area(p0, p1, pos_n, n0, n1, neg_n)
             if label[i]:
-                p1 = p1 +1
+                p1 = p1 + 1
             else:
                 n1 = n1 + 1
             p0 = p1
@@ -145,7 +212,6 @@ def roc(data, label, tranche):
             # calculate an area
             a = area(p0, p1, pos_n, n0, n1, neg_n)
 
-
         i += 1
 
     return
@@ -153,8 +219,13 @@ def roc(data, label, tranche):
 
 data = [9, 8, 7, 7, 6, 6, 5, 4, 4, 2, 2]
 label = [True, True, True, False, True, True, False, False, True, False, False]
+data = [1, 1, 2,2,3,3.5,4,4,5,5]
+label = [ False, False,False, False,False, True,True,True,True,True,]
 
-print(data)
+for i in range(len(data)):
+    print(f'{i}  {data[i]}  {label[i]}')
+
 tranche = find_tranche(data)
-print(tranche)
-roc(data, label, tranche)
+# print(tranche)
+c0(data, label)
+# roc(data, label, tranche)
