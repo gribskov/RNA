@@ -128,6 +128,39 @@ def sortbydata(data, labels, dir='high'):
     return data, labels
 
 
+def dist_label_from_dict(distance, cols):
+    """---------------------------------------------------------------------------------------------
+    get the distance and labels from data that is a list of hashes. cols tells which columns to use
+    for distance and label. For distances from fingerprint distance, the input distance is a list of
+    {'fpt1': '1.fpt', 'fpt2': '2.fpt', 'jaccard': 0.018, 'bray-curtis': 0.277, 'ispos': False}
+
+    :param distance: list   list of dictionaries, each item is one distance
+    :param cols: list       string with the keys of the desired columns, [distance, labels]
+    :return: list, list     distance and labels
+    ---------------------------------------------------------------------------------------------"""
+    dist = []
+    label = []
+    d = cols[0]
+    l = cols[1]
+    for pairdist in distance:
+        dist.append(pairdist[d])
+        thislabel = pairdist[l]
+
+        if isinstance(thislabel, str):
+            # label is a string true starts with t or T, false starts with f or F
+            if thislabel.upper().startswith('F'):
+                thislabel = False
+            else:
+                thislabel = True
+        else:
+            # value can be interpreted directly as true or false
+            thislabel = thislabel == True
+
+        label.append(thislabel)
+
+    return dist, label
+
+
 # --------------------------------------------------------------------------------------------------
 # Testing
 # --------------------------------------------------------------------------------------------------
