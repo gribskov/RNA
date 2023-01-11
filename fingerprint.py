@@ -167,20 +167,24 @@ class Fingerprint(dict):
             try:
                 fp = open(file, 'r')
             except OSError:
-                sys.stderr.write('fingerprint.readYAML - error opening file ({})'.format(file))
+                sys.stderr.write('fingerprint.readYAML - error opening file ({})\n'.format(file))
                 exit(1)
         else:
             # file is not str, assume it is a file pointer
             fp = file
 
         f = yaml.load(fp, Loader=yaml.FullLoader)
-        root = f[0]['fingerprint']
-
-        # fields = ['information', 'total', 'nmotif', 'motif']
-
-        self.information = root[0]['information']
-        self.count = root[1]['total']
-        self.motif = root[3]['motif']
+        if f == None:
+            sys.stderr.write('No fingerprint found in {}\n'.format(file))
+            self.information = {'File':file}
+            self.count = 0
+            self.motif = {}
+        else:
+            # fields = ['information', 'total', 'nmotif', 'motif']
+            root = f[0]['fingerprint']
+            self.information = root[0]['information']
+            self.count = root[1]['total']
+            self.motif = root[3]['motif']
 
         return self.n
 
