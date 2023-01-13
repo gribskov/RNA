@@ -8,7 +8,7 @@ Michael Gribskov     06 May 2022
 ================================================================================================="""
 import sys
 from datetime import datetime
-from roc import ROC, dist_label_from_dict
+from roc import ROC, dist_label_from_dict, sortbydata
 
 
 def read_distance(filename):
@@ -671,6 +671,7 @@ if __name__ == '__main__':
     if opt.roc:
         # auc = ROC2(sys.stdout, distance, 'jaccard', pos, neg)
         dist, label = dist_label_from_dict(distance, ['jaccard', 'ispos'])
+        dist, label = sortbydata(dist, label)
         curve, auc = ROC(dist, label)
         sys.stderr.write(f'{newline}ROC AUC = {auc:.4g}{newline}')
 
