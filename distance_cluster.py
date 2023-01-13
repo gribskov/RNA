@@ -54,11 +54,11 @@ def read_distance(filename):
         else:
             neg += 1
 
-        distance_list.append({'fpt1'       : fpt1,
-                              'fpt2'       : fpt2,
-                              'jaccard'    : float(jaccard),
+        distance_list.append({'fpt1': fpt1,
+                              'fpt2': fpt2,
+                              'jaccard': float(jaccard),
                               'bray-curtis': float(bray_curtis),
-                              'ispos'      : ispos})
+                              'ispos': ispos})
 
     return distance_list, maximum, minimum, pos, neg
 
@@ -637,6 +637,9 @@ def process_command_line():
                             help='save ROC histogram for plotting')
 
     treeoptions = cl.add_argument_group('Tree options')
+    treeoptions.add_argument('-l', '--list', action='store_true',
+                             help='list taxa in each cluster (default=%(default)s)',
+                             default=False)
     treeoptions.add_argument('-c', '--condensed', action='store_true',
                              help='include Newick formatted tree (default=%(default)s)',
                              default=False)
@@ -689,8 +692,11 @@ if __name__ == '__main__':
         if tree.dtype == 'jaccard':
             minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
 
-        sys.stdout.write(f'{newline}# Leaf IDs{newline}')
-        tree.write_leaves(sys.stdout)
+        if opt.list:
+            # only write list of tax if requested
+            sys.stdout.write(f'{newline}# Leaf IDs{newline}')
+            tree.write_leaves(sys.stdout)
+
         tree.build()
 
         if opt.condensed:
