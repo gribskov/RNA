@@ -1,5 +1,5 @@
 """#################################################################################################
-Count the number of fingerprints in which each motif is found so that rare or non discriminatory
+Count the number of fingerprints in which each motif is found so that rare or non-discriminatory
 motifs can be excluded from the distance calculation
 
 all fingerprints matching fptsuffix are used
@@ -145,7 +145,7 @@ def process_command_line():
     cl = argparse.ArgumentParser(
         description='Compare and select motifs',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
-        )
+    )
     cl.add_argument('-p', '--prefix',
                     help='Directory with fingerprint files, can be wildcard (default=%(default)s)',
                     default='../data/fpt/')
@@ -155,17 +155,20 @@ def process_command_line():
     cl.add_argument('-m', '--motif',
                     help='Distance output file name (default=%(default)s, auto=calculate from fpt)',
                     default='selected.motiflist')
-    cl.add_argument('-c', '--cutoff',
-                    help='Minimum number of motif occurrences (default=%(default)s)', type=int,
-                    default='8')
+    cl.add_argument('-c', '--cutoff', nargs='*',
+                    help='Min Max number of motif occurrences (default=%(default)s)', type=int,
+                    default=[])
 
     args = cl.parse_args()
+
+    if type(args.cutoff) == 'list':
+        pass
 
     for path in ('prefix',):
         thispath = getattr(args, path)
         if not thispath.endswith('/'):
             thispath += '/'
-            setattr(args,path, thispath)
+            setattr(args, path, thispath)
 
     return args
 
@@ -185,17 +188,17 @@ def curated_group(name):
     return field[0]
 
 
-def select_by_min(icount, cutoff):
+def select_by_minmax(icount, cutoff):
     """---------------------------------------------------------------------------------------------
     select a set of motifs that meet a minimum threshold of occurrences (cutoff) across all motifs
 
-    :param icount: dict     count matrix from Motif.icountgroup
-    :param cutoff: int      counts must >= cutoff
-    :return: dict           motif names, counts
+    :param icount: dict             count matrix from Motif.icountgroup
+    :param cutoff: list of int      counts must >= cutoff[0] and <= cutoff[1]
+    :return: dict                   motif names, counts
     ---------------------------------------------------------------------------------------------"""
     selected = {}
     for motif in icount['all']:
-        if icount['all'][motif] >= cutoff:
+        if icount['all'][motif] >= cutoff[0] and icount['all'][motif] <= cutoff[1]:
             selected[motif] = icount['all'][motif]
 
     return selected
@@ -224,8 +227,17 @@ if __name__ == '__main__':
 
     icount, ncount = motif.icountgroup(curated_group)
 
-    selected = select_by_min(icount, opt.cutoff)
-    sys.stderr.write(f"{newline}{len(selected)} motifs with counts >= {opt.cutoff} written to {opt.motif}{newline}")
+    # min and max cutoff
+    minmax = []
+    if len(opt.cutoff) == 0:
+        minmax = [0, ncount['all']]
+    elif len(opt.cutoff) == 1:
+        minmax = [opt.cutoff[0], ncount['all']]
+    else:
+        minmax = [opt.cutoff[0], opt.cutoff[1]]
+
+    selected = select_by_minmax(icount, minmax)
+    sys.stderr.write(f"{newline}{len(selected)} motifs with counts >= {minmax} written to {opt.motif}{newline}")
     for motif in selected:
         out.write(f'{motif}\t{selected[motif]}{newline}')
 
