@@ -2,6 +2,7 @@ import sys
 import json
 import datetime
 import yaml
+# note install PyYAML
 
 
 class Fingerprint(dict):
