@@ -174,13 +174,17 @@ class Fingerprint(dict):
             fp = file
 
         f = yaml.load(fp, Loader=yaml.FullLoader)
-        root = f[0]['fingerprint']
-
-        # fields = ['information', 'total', 'nmotif', 'motif']
-
-        self.information = root[0]['information']
-        self.count = root[1]['total']
-        self.motif = root[3]['motif']
+        if f == None:
+            sys.stderr.write('No fingerprint found in {}\n'.format(file))
+            self.information = {'File':file}
+            self.count = 0
+            self.motif = {}
+        else:
+            # fields = ['information', 'total', 'nmotif', 'motif']
+            root = f[0]['fingerprint']
+            self.information = root[0]['information']
+            self.count = root[1]['total']
+            self.motif = root[3]['motif']
 
         return self.n
 
