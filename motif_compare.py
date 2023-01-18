@@ -161,7 +161,7 @@ def process_command_line():
 
     args = cl.parse_args()
 
-    for path in ('inprefix',):
+    for path in ('prefix',):
         thispath = getattr(args, path)
         if not thispath.endswith('/'):
             thispath += '/'
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     opt = process_command_line()
     sys.stderr.write(f'motif_compare: compare and select motifs for use{newline}')
     sys.stderr.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{newline}{newline}")
-    sys.stderr.write(f"target fingerprints: {opt.inprefix}{opt.insuffix}{newline}")
+    sys.stderr.write(f"target fingerprints: {opt.prefix}{opt.suffix}{newline}")
     sys.stderr.write(f"selected motifs: {opt.motif}{newline}")
     sys.stderr.write(f"cutoff: {opt.cutoff}{newline}")
 
@@ -220,7 +220,7 @@ if __name__ == '__main__':
         exit(1)
 
     motif = Motif()
-    motif.motifread(f"{opt.inprefix}{opt.insuffix}")
+    motif.motifread(f"{opt.prefix}{opt.suffix}")
 
     icount, ncount = motif.icountgroup(curated_group)
 
