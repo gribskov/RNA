@@ -2,6 +2,7 @@ import sys
 import json
 import datetime
 import yaml
+# note install PyYAML
 
 
 class Fingerprint(dict):
@@ -167,7 +168,7 @@ class Fingerprint(dict):
             try:
                 fp = open(file, 'r')
             except OSError:
-                sys.stderr.write('fingerprint.readYAML - error opening file ({})'.format(file))
+                sys.stderr.write('fingerprint.readYAML - error opening file ({})\n'.format(file))
                 exit(1)
         else:
             # file is not str, assume it is a file pointer

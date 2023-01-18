@@ -520,6 +520,25 @@ class MotifDB():
 
         return self.n
 
+    def add_parent(self, child, parent):
+        """-----------------------------------------------------------------------------------------
+        add parent to the parent list of child, and add all the parents of parent to the parent
+        list of child
+        :param parent:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        # if child not in self.parent:
+        #     self.parent[child] = []
+
+        if parent not in self.parent[child]:
+            self.parent[child].append(parent)
+
+        for p in self.parent[parent]:
+            if p not in self.parent[child]:
+                self.parent[child].append(p)
+
+        return len(self.parent)
+
     def sort_by_len(self):
         """-----------------------------------------------------------------------------------------
         Since python dictionaries now retain the entry order it should be possible to make a new
