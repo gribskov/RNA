@@ -1331,11 +1331,13 @@ class SerialRNA(list):
 
         for begin in range(0, half - 1):
             for end in range(begin + 1, newlen):
+                # begin and end are the locations of the new stem (stem 0)
                 extended_rna = [None for _ in range(len(self) + 2)]
                 extended_rna[begin] = 0
                 extended_rna[end] = 0
                 newpos = 0
                 for pos in self:
+                    # copy in the old stems, except where the new stem is placed
                     while extended_rna[newpos] is not None:
                         newpos += 1
                     extended_rna[newpos] = pos + 1
