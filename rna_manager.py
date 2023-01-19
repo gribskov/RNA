@@ -317,7 +317,7 @@ class Pipeline():
         return info
 
     @staticmethod
-    def get_file_list(fastaglob, filter='.fa'):
+    def get_file_list(fileglob, filter='.fa'):
         """-----------------------------------------------------------------------------------------
         uses a wildcard filename to produe a list of files
 
@@ -326,7 +326,10 @@ class Pipeline():
         :return filelist: list - file names i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
         -----------------------------------------------------------------------------------------"""
         # Initialize a list of file names
-        filelist = glob.glob(fastaglob)
+        if not fileglob.endswith('*'):
+            fileglob += '*'
+        target = fileglob + filter
+        filelist = glob.glob(target)
 
         if filter:
             for file in filelist:
@@ -512,7 +515,7 @@ workflow.delay = 5
 
 # add commands
 # TODO change this to be read from external file (probably YAML)
-workflow.stage.append({'stage':   'xios',
+workflow.stage.append({'stage': 'xios',
                        'command': f'python3 {workflow.python}/xios_from_rnastructure.py',
                        'options': ['-q ',
                                    f'-c {workflow.ct}',
@@ -520,21 +523,22 @@ workflow.stage.append({'stage':   'xios',
                                    f'-f $FILE',
                                    f'-y {workflow.python}',
                                    f'-r {workflow.RNAstructure}',
+                                   f'-d4,6 -w9,11',
                                    ],
-                       'source':  [workflow.fasta,'.fa'],
-                       'dirs':    [workflow.ct, workflow.xios]
+                       'source': [workflow.fasta, '.fa'],
+                       'dirs': [workflow.ct, workflow.xios]
                        })
-workflow.stage.append({'stage':   'fpt',
+workflow.stage.append({'stage': 'fpt',
                        'command': f'python3 {workflow.python}/fingerprint_random.py',
                        'options': [f'-r $FILE',
                                    f'-f auto',
                                    f'--motifdb {workflow.python + "/data/2to7stem.mdb.pkl"}',
                                    f'--outputdir {workflow.fpt}',
-                                   f'-c 2',
+                                   f'-c 5 -l 100000',
                                    f'-q',
                                    f'-n'],
-                       'source':  [workflow.xios,'.xios'],
-                       'dirs':    [workflow.fpt]
+                       'source': [workflow.xios, '.xios'],
+                       'dirs': [workflow.fpt]
                        })
 
 workflow.manager()
