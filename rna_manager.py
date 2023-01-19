@@ -34,15 +34,17 @@ class Pipeline():
             self.base += '/'
 
         self.args = self.arg_get()
+        args = self.args
+        base = self.base
 
-        self.RNAastructure = '../RNAstructure'
-        self.python = '../RNA'
+        # self.RNAastructure = args.RNAstructure
+        # self.python = args.python
 
-        self.log = self.base + 'log/'
-        self.fasta = self.base + 'fasta/'
-        self.ct = self.base + 'ct/'
-        self.xios = self.base + 'xios/'
-        self.fpt = self.base + 'fpt/'
+        self.log = args.log
+        self.fasta = args.fasta
+        self.ct = args.ctdir
+        self.xios = args.xiosdir
+        self.fpt = args.fingerprint
 
         self.managerlog = None
         self.errorlog = None
