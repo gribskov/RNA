@@ -16,6 +16,7 @@ from github.com/biovino/biol494/rna_manager.py commit 7615726bdcc439741db9ebca88
 import subprocess as sub
 import time
 import os
+import glob
 import sys
 import argparse
 
@@ -33,19 +34,16 @@ class Pipeline():
         if not self.base.endswith('/'):
             self.base += '/'
 
-        self.args = self.arg_get()
-        args = self.args
-        base = self.base
+        # these defaults are overridden by command line arguments, if present. see arg_get()
+        #
+        self.log = './log/'
+        self.fasta = './fasta/*.fa'
+        self.ct = './ctfiles/'
+        self.xios = './xiosfiles/'
+        self.fpt = './fpt/'
+        self.jobs = 20
 
-        # self.RNAastructure = args.RNAstructure
-        # self.python = args.python
-
-        self.log = args.log
-        self.fasta = args.fasta
-        self.ct = args.ctdir
-        self.xios = args.xiosdir
-        self.fpt = args.fingerprint
-
+        # instance variables
         self.managerlog = None
         self.errorlog = None
 
@@ -54,7 +52,6 @@ class Pipeline():
         self.current = ''
         self.complete = {}
 
-        self.jobs = self.args.jobs
         self.jobid = 0
         self.running = 0
         self.total = 0
@@ -64,6 +61,9 @@ class Pipeline():
         self.failed = 0
         self.delay = 5
         self.joblist = []
+
+        self.args = self.arg_get()
+        args = self.args
 
     @staticmethod
     def arg_formatter(prog):
@@ -115,10 +115,10 @@ class Pipeline():
                                  metavar='DIR_NAME',
                                  help='log directory (%(default)s)',
                                  default=f'{base}log/')
-        commandline.add_argument('-i', '--fasta',
+        commandline.add_argument('-i', '--fasta', '--input',
                                  metavar='DIR_NAME',
-                                 help='subdirectory with initial FastA files (%(default)s)',
-                                 default=f'{base}fasta/')
+                                 help='path to input fasta files FastA files (%(default)s)',
+                                 default=f'{base}fasta/*.fa')
         commandline.add_argument('-c', '--ctdir',
                                  metavar='DIR_NAME',
                                  help='subdirectory for CT files (%(default)s)',
@@ -317,25 +317,23 @@ class Pipeline():
         return info
 
     @staticmethod
-    def get_file_list(directory, filter='.fa'):
+    def get_file_list(fastaglob, filter='.fa'):
         """-----------------------------------------------------------------------------------------
-        Goes through the input directory and returns a list of each file in the directory. Only
-        files that contain the string filter are selected
+        uses a wildcard filename to produe a list of files
 
         :param directory: string - full path of desired files i.e. /scratch/scholar/user/data/
         :param filter: string - file must contain this string
         :return filelist: list - file names i.e. [fasta1.fa, fasta2.fa, fasta3.fa]
         -----------------------------------------------------------------------------------------"""
         # Initialize a list of file names
-        filelist = list()
+        filelist = glob.glob(fastaglob)
 
-        for file in os.listdir(directory):
-            # Read each file name in the directory path
-            if filter in file:
-                # append file name to list if it matches filter
-                filelist.append(directory + file)
-
-        # filelist.sort()   # probably better to not sort
+        if filter:
+            for file in filelist:
+                # shouldn't really need to filter, but kept it anyway
+                if filter not in file:
+                    # append file name to list if it matches filter
+                    filelist.remove(file)
 
         return filelist
 
@@ -372,7 +370,7 @@ class Pipeline():
             sourcedir, sourcetype = stage['source']
             # stagedir = getattr(self, self.source)
             # filelist = Pipeline.get_file_list(self.current)
-            print(f'stage={stage["stage"]}\tsource={sourcedir}*{sourcetype}')
+            print(f'\nstage={stage["stage"]}\tsource={sourcedir}*{sourcetype}')
             filelist = Pipeline.get_file_list(sourcedir, sourcetype)
 
             # total number of jobs for this stage
