@@ -532,7 +532,8 @@ workflow.stage.append({'stage':   'fpt',
                                    f'--outputdir {workflow.fpt}',
                                    f'-c 2',
                                    f'-q',
-                                   f'-n'],
+                                   f'-n',
+                                   f'-s 7'],
                        'source':  [workflow.xios,'.xios'],
                        'dirs':    [workflow.fpt]
                        })
