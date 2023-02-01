@@ -92,7 +92,7 @@ while True:
             if dfshex not in motif:
                 # save unique minimum DFS codes
                 motif[dfshex] = {'str': fstr, 'min': dfs}
-                db.add_with_len(dfshex)
+                db.add_with_len(dfshex, len(fstr)/2)
                 # print('\tmotif {}\t{}'.format(fstr, motif[dfshex]))
 
 # end of loop over the stack of RNAs to be enumerated
@@ -129,7 +129,7 @@ for g in motif:
 
         db.add_parent(g, stridx[parentstr])
 
-o = open('data/7stem.motifdb', 'w')
+o = open('stem.motifdb', 'w')
 o.write(db.toJSON())
 o.close()
 
