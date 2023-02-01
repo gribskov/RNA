@@ -2,6 +2,8 @@ import sys
 import json
 import datetime
 import yaml
+
+
 # note install PyYAML
 
 
@@ -131,7 +133,7 @@ class Fingerprint(dict):
                  }]
 
         return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
-        #return yaml.dump(root, indent=2, default_flow_style=False)
+        # return yaml.dump(root, indent=2, default_flow_style=False)
 
     def writeYAML(self, file):
         """-----------------------------------------------------------------------------------------
@@ -177,7 +179,7 @@ class Fingerprint(dict):
         f = yaml.load(fp, Loader=yaml.FullLoader)
         if f == None:
             sys.stderr.write('No fingerprint found in {}\n'.format(file))
-            self.information = {'File':file}
+            self.information = {'File': file}
             self.count = 0
             self.motif = {}
         else:
@@ -239,7 +241,8 @@ class FingerprintSet(list):
         from list, self is a list.
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
-
+        self.motif2i = {}
+        self.i2motif = []
 
     def fill(self):
         """-----------------------------------------------------------------------------------------
@@ -271,6 +274,33 @@ class FingerprintSet(list):
                     fingerprint.motif[motif] = 0
 
         return len(motiflist)
+
+    def jaccard_binary(self):
+        """-----------------------------------------------------------------------------------------
+        calculate jaccard similarity using the binary motif matrix
+        TODO is this faster in numpy?
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        mm = self.motif_matrix
+        j_sim = [[0 for _ in range(len(self))] for _ in range(len(self))]
+
+        for i in range(0,len(self)):
+            for j in range(i+1, len(self)):
+                intersect = 0
+                union = 0
+                vi = mm[i]
+                vj = mm[j]
+                for k in range(0,len(self.i2motif)):
+                    intersect += vi[k] and vj[k]
+                    union += vi[k] or vj[k]
+
+                try:
+                    j_sim[i][j] = intersect / union
+                except ZeroDivisionError:
+                    j = 0
+
+        return
+
 
     def jaccard_sim(self, idx=[]):
         """-----------------------------------------------------------------------------------------
@@ -310,7 +340,8 @@ class FingerprintSet(list):
                 try:
                     jaccard.append([idx[i], idx[j], len(intersect) / len(union)])
                 except ZeroDivisionError:
-                    sys.stderr.write(f'FingerprintSet:jaccard - no motifs in fingerprints in {idx[i]} and {idx[j]}\n')
+                    sys.stderr.write(
+                        f'FingerprintSet:jaccard - no motifs in fingerprints in {idx[i]} and {idx[j]}\n')
 
         return jaccard
 
@@ -328,7 +359,8 @@ class FingerprintSet(list):
         if len(idx) == 0:
             idx = [i for i in range(nfp)]
         elif max(idx) > len(self) - 1:
-            sys.stderr.write(f'FingerprintSet:bray_curtis_dis - selected indices exceed number of motifs\n')
+            sys.stderr.write(
+                f'FingerprintSet:bray_curtis_dis - selected indices exceed number of motifs\n')
             exit(2)
 
         bc = []
@@ -352,8 +384,9 @@ class FingerprintSet(list):
                 try:
                     bc.append([idx[i], idx[j], 2 * intersect / union])
                 except ZeroDivisionError:
-                    sys.stderr.write(f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
-                                     f' {idx[j]}\n')
+                    sys.stderr.write(
+                        f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
+                        f' {idx[j]}\n')
 
         return bc
 
@@ -379,6 +412,59 @@ class FingerprintSet(list):
             fpt.motif = ok_motifs
 
         return
+
+    def select_binary(self, selected=None):
+        """-----------------------------------------------------------------------------------------
+        Filter each fingeprint in the fingerprint set retaining only those in selected. If selected
+        is empty, do nothing and return
+
+        :param selected: list       motif names
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        # set up translation between motif id and numeric index
+        if not selected:
+            # all motifs
+            motif_n = self.index_motifs()
+        else:
+            # selected motifs
+            self.i2motif = selected
+            for i in range(len(selected)):
+                self.motif2i[selected[i]] = i
+            motif_n = len(selected)
+
+        motif2i = self.motif2i
+        i2motif = self.i2motif
+        motif_matrix = []
+        for fpt in self:
+            motif_vector = [0 for _ in range(motif_n)]
+            motif_matrix.append(motif_vector)
+            for motif in fpt.motif:
+                if motif in motif2i:
+                    motif_vector[motif2i[motif]] = 1
+            print(f'sum {sum(motif_vector)}')
+
+        self.motif_matrix = motif_matrix
+        return True
+
+    def index_motifs(self):
+        """-----------------------------------------------------------------------------------------
+        make an index of all the motifs found in the fingerprintset.
+        motif2i = dict keys=motif IDs, values = numeric index
+        i2motif = list, index is numeric index of motif, value is ID string
+
+        :return: int number of unique motifs
+        -----------------------------------------------------------------------------------------"""
+        motif2i = self.motif2i
+        i2motif = self.i2motif
+
+        for fpt in self:
+            for motif in fpt.motif:
+                if motif not in motif2i:
+                    motif2i[motif] = len(i2motif)
+                    i2motif.append(motif)
+
+        return len(i2motif)
+
 
 # ##################################################################################################
 # Testing
