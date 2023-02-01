@@ -1,7 +1,7 @@
 """=================================================================================================
 Calculate the distance between fingerprints.
 Assume fingerprints are all in the same directory
-Calculate the jaccard similarity and Cray-Curtis distance between all pairs
+Calculate the jaccard similarity and Bray-Curtis distance between all pairs
 
 Michael Gribskov     04 February 2022
 ================================================================================================="""
@@ -106,12 +106,15 @@ if __name__ == '__main__':
 
     # select only motifs in opt.motif, or use all if not provided
     motifs_selected = get_selected(opt.motif)
-    fpt.select(motifs_selected)
+    # fpt.select(motifs_selected)
+    # fpt.select_binary(motifs_selected)
+    fpt.select_binary()
 
     # distance calculation
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
 
+    fpt.jaccard_binary()
     jaccard = fpt.jaccard_sim([])
     bc = fpt.bray_curtis_dis([])
 
