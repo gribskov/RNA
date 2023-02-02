@@ -477,8 +477,9 @@ class FingerprintSet(list):
 
         else:
             # selected motifs file couldn't be opened (or is absent)
-            sys.stderr.write(f'\nmotif file {filename} is not accessible\n')
-            sys.stderr.write(f'All motifs will be used\n')
+            if filename:
+                sys.stderr.write(f'\nmotif file {filename} is not accessible\n')
+                sys.stderr.write(f'All motifs will be used\n')
             motif_n = self.index_all_motifs()
 
         # if a list of selected motifs is provided, shorten the selection list to just the ones
