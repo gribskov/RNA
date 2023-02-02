@@ -462,7 +462,7 @@ class FingerprintSet(list):
         :return: int                number of motifs
         -----------------------------------------------------------------------------------------"""
         # check to see if a file of selected motifs is provided
-        if not os.access(filename, os.R_OK):
+        if os.access(filename, os.R_OK):
             # the file can be opened, so read it
             motifs = open(filename, 'r')
             for line in motifs:
