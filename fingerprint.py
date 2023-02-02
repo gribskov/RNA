@@ -401,14 +401,13 @@ class FingerprintSet(list):
 
         return bc
 
-    def bray_curtis_binary(self, idx=[]):
+    def bray_curtis_binary(self):
         """-----------------------------------------------------------------------------------------
-        Calculate pairwise Bray-Curtis dissimilarity between the fingerprints indicated by idx.
-        [0,1], e.g., means just the first two fingerprints in the set.
+        Calculate pairwise Bray-Curtis dissimilarity between the fingerprints based on the binary
+        motif matrix. This is not precisely Bray-Curtis which would use the counts of the motifs
 
-        range: [0,1]
+            BC = 1 - 2 * common_motifs / (n_motifs_i + n_motifs_j)
 
-        :param idx: list, indices of members of FingerprintSet to compare,
         :return: list of float, dissimilarity values
         -----------------------------------------------------------------------------------------"""
         nfp = len(self)
@@ -417,32 +416,41 @@ class FingerprintSet(list):
             # index_all_motifs()
             self.index_all_motifs()
 
-        bc = []
+        mm = self.motif_matrix
+        braycurtis = []
         for i in range(nfp):
-            m_i = self[idx[i]].motif
-
             for j in range(i + 1, nfp):
-                m_j = self[idx[j]].motif
+                intersect = []
+                union = []
+                for i in range(0, nfp):
+                    vi = mm[i]
+                    i_n = sum(vi)
+                    if i_n == 0:
+                        sys.stderr.write(f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
+                        sys.stderr.write(f'({self.i2motif[i]})\n')
+                        for j in range(i + 1, nfp):
+                            braycurtis.append([i, j, 1.0])
 
-                intersect = 0
-                union = 0
-                for motif in m_i:
-                    # print(f'bc {i} x {j}')
-                    if motif in m_j:
-                        intersect += min(m_i[motif], m_j[motif])
-                    union += m_i[motif]
+                        # go on to next j
+                        break
 
-                for motif in m_j:
-                    union += m_j[motif]
+                    for j in range(i + 1, len(self)):
+                        vj = mm[j]
+                        j_n = sum(vj)
+                        intersect = 0
+                        union = 0
+                        for k in range(0, len(self.i2motif)):
+                            intersect += vi[k] and vj[k]
+                            union += vi[k] or vj[k]
 
-                try:
-                    bc.append([idx[i], idx[j], 2 * intersect / union])
-                except ZeroDivisionError:
-                    sys.stderr.write(
-                        f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
-                        f' {idx[j]}\n')
+                        try:
+                            bc = 1.0 - 2.0 * intersect / (i_n + j_n)
+                        except ZeroDivisionError:
+                            bc = 1
 
-        return bc
+                        braycurtis.append([i, j, bc])
+
+        return braycurtis
 
     def select(self, filename=None, selected=None):
         """-----------------------------------------------------------------------------------------
