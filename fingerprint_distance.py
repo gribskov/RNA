@@ -55,43 +55,16 @@ def process_command_line():
     return args
 
 
-def get_selected(fname):
-    """---------------------------------------------------------------------------------------------
-    Read a list of selected motifs from the command line (opt.motif). if fname cannot be opened for
-    reading, assume the list should be all motifs. if the motif file cannot be read an empty list is
-    returned. this will interpreted downstream to mean use all motifs
-
-    :param fname: string    file of selected motif names
-    :return: list           motif names
-    ---------------------------------------------------------------------------------------------"""
-    if not os.access(fname, os.R_OK):
-        sys.stderr.write(f'{newline}motif file {fname} is not accesible{newline}')
-        sys.stderr.write(f'All motifs will be used{newline}')
-        return []
-
-    # the file was openable so read it
-    motifs = open(opt.motif, 'r')
-    mlist = []
-    for line in motifs:
-        mname, count = line.rstrip().split()
-        mlist.append(mname)
-
-    motifs.close()
-    return mlist
-
-
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    newline = '\n'
-
     opt = process_command_line()
-    sys.stderr.write(f"fingerprint distance: calculate distance between sets of fingerprints{newline}")
-    daytime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S{newline}')
-    sys.stderr.write(f"{newline}fingerprint files: {opt.indir}{opt.fpt}{newline}")
-    sys.stderr.write(f"motif file: {opt.motif}{newline}")
-    sys.stderr.write(f"distance output: {opt.distance}{newline}")
+    sys.stderr.write(f"fingerprint distance: calculate distance between sets of fingerprints\n")
+    daytime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S\n')
+    sys.stderr.write(f"\nfingerprint files: {opt.indir}{opt.fpt}\n")
+    sys.stderr.write(f"motif file: {opt.motif}\n")
+    sys.stderr.write(f"distance output: {opt.distance}\n")
 
     # make a list of all fingerprints in the target directory and read into a FingerprintSet
     fpt_list = glob.glob(f'{opt.indir}{opt.fpt}')
@@ -106,33 +79,21 @@ if __name__ == '__main__':
     print(f'{fpt_n} fingerprints read')
 
     # select only motifs in opt.motif, or use all if not provided
-    motifs_selected = get_selected(opt.motif)
-    # fpt.select(motifs_selected)
-    # fpt.select_binary(motifs_selected)
-    fpt.select_binary()
+    # set binary motif matrix
+    fpt.select(filename=opt.motif)
+    fpt.binary_matrix()
 
     # distance calculation
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
-
-    rep = 100
-    start = time.perf_counter()
-    for _ in range(rep):
-        fpt.jaccard_binary()
-    stop = time.perf_counter()
-    print(f'{start:.3f}\t{stop:.3f}\t{stop-start:.3f}')
-
-    start = time.perf_counter()
-    for _ in range(rep):
-        jaccard = fpt.jaccard_sim([])
-    stop = time.perf_counter()
-    print(f'{start:.3f}\t{stop:.3f}\t{stop-start:.3f}')
+    jaccard = fpt.jaccard_binary()
+    # jaccard = fpt.jaccard_sim([])
     bc = fpt.bray_curtis_dis([])
 
     try:
         out = open(opt.distance, 'w')
     except OSError:
-        sys.stderr.write(f'{newline} output distance file ({opt.distance}) could not be opened{newline}')
+        sys.stderr.write(f'\n output distance file ({opt.distance}) could not be opened\n')
         exit(1)
 
     for d in jaccard:
