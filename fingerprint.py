@@ -441,7 +441,7 @@ class FingerprintSet(list):
             for motif in fpt.motif:
                 if motif in motif2i:
                     motif_vector[motif2i[motif]] = 1
-            print(f'sum {sum(motif_vector)}')
+            # print(f'sum {sum(motif_vector)}')
 
         self.motif_matrix = motif_matrix
         return True
