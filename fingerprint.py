@@ -419,36 +419,34 @@ class FingerprintSet(list):
         mm = self.motif_matrix
         braycurtis = []
         for i in range(nfp):
+            vi = mm[i]
+            i_n = sum(vi)
+            if i_n == 0:
+                sys.stderr.write(f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
+                sys.stderr.write(f'({self.i2motif[i]})\n')
+                for j in range(i + 1, nfp):
+                    braycurtis.append([i, j, 1.0])
+
+                # go on to next i
+                break
+
             for j in range(i + 1, nfp):
                 intersect = []
                 union = []
-                for i in range(0, nfp):
-                    vi = mm[i]
-                    i_n = sum(vi)
-                    if i_n == 0:
-                        sys.stderr.write(f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
-                        sys.stderr.write(f'({self.i2motif[i]})\n')
-                        for j in range(i + 1, nfp):
-                            braycurtis.append([i, j, 1.0])
+                vj = mm[j]
+                j_n = sum(vj)
+                intersect = 0
+                union = 0
+                for k in range(0, len(self.i2motif)):
+                    intersect += vi[k] and vj[k]
+                    union += vi[k] or vj[k]
 
-                        # go on to next j
-                        break
+                try:
+                    bc = 1.0 - 2.0 * intersect / (i_n + j_n)
+                except ZeroDivisionError:
+                    bc = 1
 
-                    for j in range(i + 1, len(self)):
-                        vj = mm[j]
-                        j_n = sum(vj)
-                        intersect = 0
-                        union = 0
-                        for k in range(0, len(self.i2motif)):
-                            intersect += vi[k] and vj[k]
-                            union += vi[k] or vj[k]
-
-                        try:
-                            bc = 1.0 - 2.0 * intersect / (i_n + j_n)
-                        except ZeroDivisionError:
-                            bc = 1
-
-                        braycurtis.append([i, j, bc])
+                braycurtis.append([i, j, bc])
 
         return braycurtis
 
@@ -459,7 +457,7 @@ class FingerprintSet(list):
 
         :param filename: string     optional filename for an external file with selected motifs
         :param selected: list       motif names, e.g. 0o1.1o2.2o3.3o4.
-        :return: int                number of motifs
+        :return: int                number of motifs in original set of fingerprints
         -----------------------------------------------------------------------------------------"""
         # check to see if a file of selected motifs is provided
         if os.access(filename, os.R_OK):
@@ -490,8 +488,8 @@ class FingerprintSet(list):
                 if motif in self.i2motif:
                     new_list.append(motif)
 
-            n_motifs = len(new_list)
             self.i2motif = new_list
+            # do not update motif_n to the new list
 
         # set up translation between motif id and numeric index
         if selected:
@@ -513,8 +511,9 @@ class FingerprintSet(list):
             motif_vector = [0 for _ in range(len(self.i2motif))]
             motif_matrix.append(motif_vector)
             for motif in fpt.motif:
-                if motif in motif2i:
-                    motif_vector[motif2i[motif]] = 1
+                if motif in i2motif:
+                    motif_vector[i2motif.index(motif)] = 1
+
 
         self.motif_matrix = motif_matrix
 

@@ -5,13 +5,12 @@ Calculate the jaccard similarity and Bray-Curtis distance between all pairs
 
 Michael Gribskov     04 February 2022
 ================================================================================================="""
+from datetime import datetime
 import glob
-import os
-from os.path import basename
 import sys
+from os.path import basename
+
 from fingerprint import Fingerprint, FingerprintSet
-import datetime
-import time
 
 
 def process_command_line():
@@ -41,7 +40,7 @@ def process_command_line():
                     default='./')
     cl.add_argument('-m', '--motif',
                     help='Selected motif file (default=%(default)s)',
-                    default='selected.motiflist')
+                    default='')
     args = cl.parse_args()
 
     # if output filename is auto, create a file name from the fingerprint file name
@@ -60,11 +59,21 @@ def process_command_line():
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     opt = process_command_line()
-    sys.stderr.write(f"fingerprint distance: calculate distance between sets of fingerprints\n")
-    daytime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S\n')
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sys.stderr.write(f"fingerprint distance: calculate distance between sets of fingerprints\t {now}\n")
+    sys.stderr.write(f'')
     sys.stderr.write(f"\nfingerprint files: {opt.indir}{opt.fpt}\n")
-    sys.stderr.write(f"motif file: {opt.motif}\n")
     sys.stderr.write(f"distance output: {opt.distance}\n")
+    if opt.motif:
+        sys.stderr.write(f"motif file: {opt.motif}\n")
+    else:
+        sys.stderr.write(f"Use all motifs\n")
+
+    try:
+        out = open(opt.distance, 'w')
+    except OSError:
+        sys.stderr.write(f'\n output distance file ({opt.distance}) could not be opened\n')
+        exit(1)
 
     # make a list of all fingerprints in the target directory and read into a FingerprintSet
     fpt_list = glob.glob(f'{opt.indir}{opt.fpt}')
@@ -76,25 +85,17 @@ if __name__ == '__main__':
         fpt.append(f)
 
     fpt_n = len(fpt)
-    print(f'{fpt_n} fingerprints read')
+    print(f'\n{fpt_n} fingerprints read from {opt.indir}{opt.fpt}')
 
-    # select only motifs in opt.motif, or use all if not provided
+    # select only motifs in opt.motif, or use all if not provided and construct binary matrix
     # set binary motif matrix
-    fpt.select(filename=opt.motif)
+    motif_n = fpt.select(filename=opt.motif)
     fpt.binary_matrix()
+    print(f'{len(fpt.i2motif)} motifs selected from {motif_n}')
 
     # distance calculation
-    maximum = {'jaccard': 0, 'bray-curtis': 0}
-    minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
     jaccard = fpt.jaccard_binary()
-    # jaccard = fpt.jaccard_sim([])
-    bc = fpt.bray_curtis_dis([])
-
-    try:
-        out = open(opt.distance, 'w')
-    except OSError:
-        sys.stderr.write(f'\n output distance file ({opt.distance}) could not be opened\n')
-        exit(1)
+    bc = fpt.bray_curtis_binary()
 
     for d in jaccard:
         i = d[0]
@@ -104,13 +105,11 @@ if __name__ == '__main__':
         out.write(f'{d[2]:.3f}\t')
         out.write(f'{bc[j][2]:.3f}\n')
 
-        maximum['jaccard'] = max(maximum['jaccard'], d[2])
-        minimum['jaccard'] = min(minimum['jaccard'], d[2])
-        maximum['bray-curtis'] = max(maximum['bray-curtis'], bc[j][2])
-        minimum['bray-curtis'] = min(minimum['bray-curtis'], bc[j][2])
-
-    print()
-    for dist in ('jaccard', 'bray-curtis'):
-        print(f'{dist}\tmaximum={maximum[dist]:.3f}\tminimum={minimum[dist]:.3f}')
+    jmax = max(jaccard, key=lambda a: a[2])
+    jmin = min(jaccard, key=lambda a: a[2])
+    print(f'\nJaccard similarity:\tmaximum={jmax[2]:.3f}\tminimum={jmin[2]:.3f}')
+    bmax = max(bc, key=lambda a: a[2])
+    bmin = min(bc, key=lambda a: a[2])
+    print(f'Bray-Curtis distance:\tmaximum={bmax[2]:.3f}\tminimum={bmin[2]:.3f}')
 
     exit(0)
