@@ -1,10 +1,13 @@
 import sys
+import os
 import json
 import datetime
 import yaml
 
-
 # note install PyYAML
+
+# for use in fstrings
+newline = '\n'
 
 
 class Fingerprint(dict):
@@ -239,6 +242,9 @@ class FingerprintSet(list):
         """-----------------------------------------------------------------------------------------
         Fingerprint set is basically just a list with extra methods, since fingerprint inherits
         from list, self is a list.
+
+        in addition to converting between numeric and string indices of motifs, i2motif give a list
+        of the names of all motifs
         -----------------------------------------------------------------------------------------"""
         super().__init__(self)
         self.motif2i = {}
@@ -281,26 +287,31 @@ class FingerprintSet(list):
         TODO is this faster in numpy?
         :return:
         -----------------------------------------------------------------------------------------"""
-        mm = self.motif_matrix
-        j_sim = [[0 for _ in range(len(self))] for _ in range(len(self))]
+        if not self.motif_matrix:
+            # if motif index does not exist, use all motifs, for selected motifs, index is made by
+            # index_all_motifs()
+            self.index_all_motifs()
 
-        for i in range(0,len(self)):
-            for j in range(i+1, len(self)):
+        mm = self.motif_matrix
+        j_sim = []
+        for i in range(0, len(self)):
+            for j in range(i + 1, len(self)):
                 intersect = 0
                 union = 0
                 vi = mm[i]
                 vj = mm[j]
-                for k in range(0,len(self.i2motif)):
+                for k in range(0, len(self.i2motif)):
                     intersect += vi[k] and vj[k]
                     union += vi[k] or vj[k]
 
                 try:
-                    j_sim[i][j] = intersect / union
+                    jaccard = intersect / union
                 except ZeroDivisionError:
-                    j = 0
+                    jaccard = 0
 
-        return
+                j_sim.append([i, j, jaccard])
 
+        return j_sim
 
     def jaccard_sim(self, idx=[]):
         """-----------------------------------------------------------------------------------------
@@ -390,65 +401,117 @@ class FingerprintSet(list):
 
         return bc
 
-    def select(self, selected):
+    def bray_curtis_binary(self, idx=[]):
         """-----------------------------------------------------------------------------------------
-        Filter each fingeprint in the fingerprint set retaining only those in selected. If selected
-        is empty, do nothing and return
+        Calculate pairwise Bray-Curtis dissimilarity between the fingerprints indicated by idx.
+        [0,1], e.g., means just the first two fingerprints in the set.
 
-        :param selected: list       motif names
-        :return:
+        range: [0,1]
+
+        :param idx: list, indices of members of FingerprintSet to compare,
+        :return: list of float, dissimilarity values
         -----------------------------------------------------------------------------------------"""
-        if not selected:
-            return
+        nfp = len(self)
+        if not self.motif_matrix:
+            # if motif index does not exist, use all motifs, for selected motifs, index is made by
+            # index_all_motifs()
+            self.index_all_motifs()
 
-        for fpt in self:
-            ok_motifs = {}
-            for motif in fpt.motif:
-                if motif in selected:
-                    ok_motifs[motif] = fpt.motif[motif]
-                else:
-                    fpt.count -= 1
+        bc = []
+        for i in range(nfp):
+            m_i = self[idx[i]].motif
 
-            fpt.motif = ok_motifs
+            for j in range(i + 1, nfp):
+                m_j = self[idx[j]].motif
 
-        return
+                intersect = 0
+                union = 0
+                for motif in m_i:
+                    # print(f'bc {i} x {j}')
+                    if motif in m_j:
+                        intersect += min(m_i[motif], m_j[motif])
+                    union += m_i[motif]
 
-    def select_binary(self, selected=None):
+                for motif in m_j:
+                    union += m_j[motif]
+
+                try:
+                    bc.append([idx[i], idx[j], 2 * intersect / union])
+                except ZeroDivisionError:
+                    sys.stderr.write(
+                        f'FingerprintSet:bray_curtis_dis - no motifs in fingerprints in {idx[i]} and'
+                        f' {idx[j]}\n')
+
+        return bc
+
+    def select(self, filename=None, selected=None):
         """-----------------------------------------------------------------------------------------
-        Filter each fingeprint in the fingerprint set retaining only those in selected. If selected
-        is empty, do nothing and return
+        Make a list of all motifs to be used, and translation to and from numeric indices
+        (motif2i, i2motif). If a selected list is not provided, use all motifs.
 
-        :param selected: list       motif names
-        :return: True
+        :param filename: string     optional filename for an external file with selected motifs
+        :param selected: list       motif names, e.g. 0o1.1o2.2o3.3o4.
+        :return: int                number of motifs
         -----------------------------------------------------------------------------------------"""
-        # set up translation between motif id and numeric index
-        if not selected:
-            # all motifs
-            motif_n = self.index_motifs()
+        # check to see if a file of selected motifs is provided
+        if not os.access(filename, os.R_OK):
+            # the file can be opened, so read it
+            motifs = open(filename, 'r')
+            for line in motifs:
+                if line.startswith('#'):
+                    # selected motifs file can have comments
+                    continue
+                mname, count = line.rstrip().split()
+                self.i2motif.append(mname)
+
+            motifs.close()
+            motif_n = len(self.i2motif)
+
         else:
-            # selected motifs
-            self.i2motif = selected
-            for i in range(len(selected)):
-                self.motif2i[selected[i]] = i
-            motif_n = len(selected)
+            # selected motifs file couldn't be opened (or is absent)
+            sys.stderr.write(f'\nmotif file {filename} is not accessible\n')
+            sys.stderr.write(f'All motifs will be used\n')
+            motif_n = self.index_all_motifs()
 
+        # if a list of selected motifs is provided, shorten the selection list to just the ones
+        # provided. motifs that are not present in the motif list above are skipped
+        if selected:
+            new_list = []
+            for motif in selected:
+                if motif in self.i2motif:
+                    new_list.append(motif)
+
+            n_motifs = len(new_list)
+            self.i2motif = new_list
+
+        # set up translation between motif id and numeric index
+        if selected:
+            # selected motifs
+            for i in range(motif_n):
+                self.motif2i[self.i2motif[i]] = i
+
+        return motif_n
+
+    def binary_matrix(self):
+        """-----------------------------------------------------------------------------------------
+        For selected motifs (see select() make a binary matrix indicating presence of absence of
+        each motif
+        -----------------------------------------------------------------------------------------"""
         motif2i = self.motif2i
         i2motif = self.i2motif
         motif_matrix = []
         for fpt in self:
-            motif_vector = [0 for _ in range(motif_n)]
+            motif_vector = [0 for _ in range(len(self.i2motif))]
             motif_matrix.append(motif_vector)
             for motif in fpt.motif:
                 if motif in motif2i:
                     motif_vector[motif2i[motif]] = 1
-            # print(f'sum {sum(motif_vector)}')
 
         self.motif_matrix = motif_matrix
-        return True
 
-    def index_motifs(self):
+    def index_all_motifs(self):
         """-----------------------------------------------------------------------------------------
-        make an index of all the motifs found in the fingerprintset.
+        make an index of all the motifs found in the fingerprintSet.
         motif2i = dict keys=motif IDs, values = numeric index
         i2motif = list, index is numeric index of motif, value is ID string
 
@@ -465,36 +528,36 @@ class FingerprintSet(list):
 
         return len(i2motif)
 
+    # ##################################################################################################
+    # Testing
+    # ##################################################################################################
+    if __name__ == '__main__':
+        finger1 = Fingerprint()
+        finger1.add('dummy')
+        finger1.add('dummier')
+        for i in range(5):
+            finger1.add('dummiest')
 
-# ##################################################################################################
-# Testing
-# ##################################################################################################
-if __name__ == '__main__':
-    finger1 = Fingerprint()
-    finger1.add('dummy')
-    finger1.add('dummier')
-    for i in range(5):
-        finger1.add('dummiest')
+        key = 'dummier'
+        print(f'{key} count={finger1.get(key)}')
 
-    key = 'dummier'
-    print(f'{key} count={finger1.get(key)}')
+        print(f'finger: {finger1}, n: {finger1.n}')
+        print(finger1.toYAML())
 
-    print(f'finger: {finger1}, n: {finger1.n}')
-    print(finger1.toYAML())
+        finger2 = Fingerprint()
+        finger2.add('dummier', n=5)
+        finger2.add('x')
+        finger2.add('y')
 
-    finger2 = Fingerprint()
-    finger2.add('dummier', n=5)
-    finger2.add('x')
-    finger2.add('y')
+        finger3 = Fingerprint()
+        finger3.add('dummiest', n=5)
+        finger3.add('x')
+        finger3.add('dummy')
 
-    finger3 = Fingerprint()
-    finger3.add('dummiest', n=5)
-    finger3.add('x')
-    finger3.add('dummy')
-
-    fset = FingerprintSet()
-    fset += [finger1, finger2, finger3]
-    print(f'Jaccard Similaity:{fset.jaccard_sim()}')
-    print(f'Bray-Curtis Dissimilarity:{fset.bray_curtis_dis()}')
-    print(f'intersect:{fset.jaccard_sim(idx=[0, 3])}')
-    exit(0)
+        from fingerprint import FingerprintSet
+        fset = FingerprintSet()
+        fset += [finger1, finger2, finger3]
+        print(f'Jaccard Similarity:{fset.jaccard_sim()}')
+        print(f'Bray-Curtis Dissimilarity:{fset.bray_curtis_dis()}')
+        print(f'intersect:{fset.jaccard_sim(idx=[0, 3])}')
+        exit(0)
