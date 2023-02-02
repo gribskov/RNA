@@ -125,9 +125,9 @@ if __name__ == '__main__':
     start = time.perf_counter()
     for _ in range(rep):
         jaccard = fpt.jaccard_sim([])
-        bc = fpt.bray_curtis_dis([])
     stop = time.perf_counter()
     print(f'{start:.3f}\t{stop:.3f}\t{stop-start:.3f}')
+    bc = fpt.bray_curtis_dis([])
 
     try:
         out = open(opt.distance, 'w')
