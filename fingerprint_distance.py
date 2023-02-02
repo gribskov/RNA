@@ -11,6 +11,7 @@ from os.path import basename
 import sys
 from fingerprint import Fingerprint, FingerprintSet
 import datetime
+import time
 
 
 def process_command_line():
@@ -114,9 +115,19 @@ if __name__ == '__main__':
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
 
-    fpt.jaccard_binary()
-    jaccard = fpt.jaccard_sim([])
-    bc = fpt.bray_curtis_dis([])
+    rep = 100
+    start = time.perf_counter()
+    for _ in range(rep):
+        fpt.jaccard_binary()
+    stop = time.perf_counter()
+    print(f'{start:.3f}\t{stop:.3f}\t{stop-start:.3f}')
+
+    start = time.perf_counter()
+    for _ in range(rep):
+        jaccard = fpt.jaccard_sim([])
+        bc = fpt.bray_curtis_dis([])
+    stop = time.perf_counter()
+    print(f'{start:.3f}\t{stop:.3f}\t{stop-start:.3f}')
 
     try:
         out = open(opt.distance, 'w')
