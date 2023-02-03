@@ -204,7 +204,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         taxa_n = len(self.dmat)
         while taxa_n > 1:
-            row, col = tree.smallest()
+            # row, col = tree.smallest()
+            row, col = tree.largest()
             taxa_n = tree.mergetaxa(row, col)
 
         return
@@ -366,7 +367,7 @@ class Upgma:
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
-        merge the row and column taxa with the smallest value. the row and column are given in dmat
+        merge the row and column taxa with the smallest/largest value. the row and column are given in dmat
         coordinates
 
         :param row: index of row (will be kept)
@@ -464,6 +465,29 @@ def smallest2(dmat, groups, initval=10):
             col = groups[j]
             if dmat[row][col] < smallest:
                 smallest = dmat[row][col]
+                srow = row
+                scol = col
+
+    return srow, scol
+
+def largest(dmat, groups, initval=0):
+    """---------------------------------------------------------------------------------------------
+    find the largest value in the current distance matrix, only look at values in groups, other
+    indices have been merged
+
+    :param dmat: list of list, symmetric distance matrix
+    :param groups: list of int, active indices in dmat
+    :return: int, int, indices of the smallest distance
+    ---------------------------------------------------------------------------------------------"""
+    largest = initval
+    srow = 0
+    scol = 0
+    for i in range(len(groups)):
+        row = groups[i]
+        for j in range(i + 1, len(groups)):
+            col = groups[j]
+            if dmat[row][col] > largest:
+                largest = dmat[row][col]
                 srow = row
                 scol = col
 
