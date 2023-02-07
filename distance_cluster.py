@@ -204,8 +204,7 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         taxa_n = len(self.dmat)
         while taxa_n > 1:
-            # row, col = tree.smallest()
-            row, col = tree.largest()
+            row, col = tree.smallest()
             taxa_n = tree.mergetaxa(row, col)
 
         return
@@ -367,7 +366,7 @@ class Upgma:
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
-        merge the row and column taxa with the smallest/largest value. the row and column are given in dmat
+        merge the row and column taxa with the smallest value. the row and column are given in dmat
         coordinates
 
         :param row: index of row (will be kept)
