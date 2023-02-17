@@ -552,7 +552,7 @@ class FingerprintMatrix:
         -------------------------------------------------------------------------------------"""
         self.motifs = {}
         self.fpt_id = {}  # index of fingerprints
-        fpt = []  # list of fingerprints
+        self.fpt = []  # list of fingerprints
 
     def read_files(self, select_str):
         motif_n = len(self.motifs)
@@ -567,12 +567,11 @@ class FingerprintMatrix:
             for motif in f.motif:
                 if motif in self.motifs:
                     # known motif
-                    self.motifs[motif]['count'] = 1
-                    self.motifs[motif]['index'] = motif_n
+                    self.motifs[motif]['count'] += 1
 
                 else:
                     # new motif
-                    self.motifs[fpt_file] = {'count': 1, 'index': motif_n, 'selected': True}
+                    self.motifs[motif] = {'count': 1, 'index': motif_n, 'selected': True}
                     motif_n += 1
 
                 index = self.motifs[motif]['index']
