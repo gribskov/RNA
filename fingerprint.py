@@ -555,6 +555,11 @@ class FingerprintMatrix:
         self.fpt = []  # list of fingerprints
 
     def read_files(self, select_str):
+        """-------------------------------------------------------------------------------------
+
+        :param select_str:
+        :return:
+        -------------------------------------------------------------------------------------"""
         motif_n = len(self.motifs)
 
         fpt_list = glob.glob(select_str)
@@ -576,6 +581,25 @@ class FingerprintMatrix:
 
                 index = self.motifs[motif]['index']
                 self.fpt[-1].append(index)
+
+        self.index2matrix()
+        return True
+
+    def index2matrix(self):
+        """-------------------------------------------------------------------------------------
+        Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
+
+        :return:
+        -------------------------------------------------------------------------------------"""
+        motif_n = len(self.motifs)
+        # for each fingerprint, create a vector of zeros and change values of present motifs to
+        # ones
+        for f in range(len(self.fpt)):
+            motifs = self.motifs
+            binary = [1 if x in self.fpt[f] else 0 for x in range(motif_n)]
+            print(sum(binary))
+
+            self.fpt[f] = binary
 
         return True
 
