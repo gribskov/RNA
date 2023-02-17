@@ -25,6 +25,7 @@ def read_distance(filename):
     except OSError:
         sys.stderr.write(
             f'distance_cluster - read_distance: cannot open distance file{filename}{newline}')
+        exit(1)
 
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
@@ -204,8 +205,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         taxa_n = len(self.dmat)
         while taxa_n > 1:
-            # row, col = tree.smallest()
-            row, col = tree.largest()
+            row, col = tree.smallest()
+            # row, col = tree.largest()
             taxa_n = tree.mergetaxa(row, col)
 
         return
@@ -713,8 +714,8 @@ if __name__ == '__main__':
         tree = Upgma()
 
         tree.load(distance, cluster[c])
-        if tree.dtype == 'jaccard':
-            minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
+        # if tree.dtype == 'jaccard':
+        #     minimum['jaccard'], maximum['jaccard'] = tree.similarity_to_distance(maximum['jaccard'])
 
         if opt.list:
             # only write list of tax if requested
