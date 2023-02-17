@@ -4,6 +4,7 @@ import os
 import json
 import datetime
 import yaml
+import numpy
 
 # note install PyYAML
 
@@ -596,12 +597,30 @@ class FingerprintMatrix:
         # ones
         for f in range(len(self.fpt)):
             motifs = self.motifs
-            binary = [1 if x in self.fpt[f] else 0 for x in range(motif_n)]
+            binary = numpy.fromiter((1 if x in self.fpt[f] else 0 for x in range(motif_n)), bool)
+            # print(sum(a))
+            # binary = [1 if x in self.fpt[f] else 0 for x in range(motif_n)]
             print(sum(binary))
 
             self.fpt[f] = binary
 
         return True
+
+    def pickle(self, outfilename):
+        """-----------------------------------------------------------------------------------------
+        pickle the object and store in outfilename
+        :param outfilename:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        return
+
+    def unpickle(self, infilename):
+        """-----------------------------------------------------------------------------------------
+        reload the pickled object from infilename
+        :param infilename:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+
 
     # ##################################################################################################
     # Testing
