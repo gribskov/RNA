@@ -1,4 +1,5 @@
 import sys
+import glob
 import os
 import json
 import datetime
@@ -422,7 +423,8 @@ class FingerprintSet(list):
             vi = mm[i]
             i_n = sum(vi)
             if i_n == 0:
-                sys.stderr.write(f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
+                sys.stderr.write(
+                    f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
                 sys.stderr.write(f'({self.i2motif[i]})\n')
                 for j in range(i + 1, nfp):
                     braycurtis.append([i, j, 1.0])
@@ -514,7 +516,6 @@ class FingerprintSet(list):
                 if motif in i2motif:
                     motif_vector[i2motif.index(motif)] = 1
 
-
         self.motif_matrix = motif_matrix
 
     def index_all_motifs(self):
@@ -535,6 +536,49 @@ class FingerprintSet(list):
                     i2motif.append(motif)
 
         return len(i2motif)
+
+
+class FingerprintMatrix:
+    """=========================================================================================
+    Reading and writing large sets of fingerprints is time consuming. this class creates a
+    presence/absence matrix for fingerprints from a group of fingerprint files
+    ========================================================================================="""
+
+    def __init__(self):
+        """-------------------------------------------------------------------------------------
+        motifs has fields id, index, count, selected
+        fpt is a dict of list, id, fpt_vector where fpt_vector is the presence/absence vector
+
+        -------------------------------------------------------------------------------------"""
+        self.motifs = {}
+        self.fpt_id = {}  # index of fingerprints
+        fpt = []  # list of fingerprints
+
+    def read_files(self, select_str):
+        motif_n = len(self.motifs)
+
+        fpt_list = glob.glob(select_str)
+        for fpt_file in fpt_list:
+            f = Fingerprint()
+            f.readYAML(fpt_file)
+            self.fpt_id[fpt_file] = len(self.fpt)
+            self.fpt.append([])
+
+            for motif in f.motif:
+                if motif in self.motifs:
+                    # known motif
+                    self.motifs[motif]['count'] = 1
+                    self.motifs[motif]['index'] = motif_n
+
+                else:
+                    # new motif
+                    self.motifs[fpt_file] = {'count': 1, 'index': motif_n, 'selected': True}
+                    motif_n += 1
+
+                index = self.motifs[motif]['index']
+                self.fpt[-1].append(index)
+
+        return True
 
     # ##################################################################################################
     # Testing
