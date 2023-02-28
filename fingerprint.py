@@ -557,9 +557,11 @@ class FingerprintMatrix:
 
     def read_files(self, select_str):
         """-------------------------------------------------------------------------------------
+        Read selected files and convert to a matrix of true/false indicating presence absence of
+        each motif in the set. rows=fingerprints, columns=motifs
 
-        :param select_str:
-        :return:
+        :param select_str:str       file path for fingerprint files, e.g. data/*.fpt
+        :return: bool               True
         -------------------------------------------------------------------------------------"""
         motif_n = len(self.motifs)
 
@@ -589,6 +591,7 @@ class FingerprintMatrix:
     def index2matrix(self):
         """-------------------------------------------------------------------------------------
         Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
+        indices are in self.motifs
 
         :return:
         -------------------------------------------------------------------------------------"""
