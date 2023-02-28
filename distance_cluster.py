@@ -25,6 +25,7 @@ def read_distance(filename):
     except OSError:
         sys.stderr.write(
             f'distance_cluster - read_distance: cannot open distance file{filename}{newline}')
+        exit(1)
 
     maximum = {'jaccard': 0, 'bray-curtis': 0}
     minimum = {'jaccard': 1000000, 'bray-curtis': 1000000}
@@ -366,7 +367,7 @@ class Upgma:
 
     def mergetaxa(self, row, col):
         """-----------------------------------------------------------------------------------------
-        merge the row and column taxa with the smallest value. the row and column are given in dmat
+        merge the row and column taxa with the smallest/largest value. the row and column are given in dmat
         coordinates
 
         :param row: index of row (will be kept)

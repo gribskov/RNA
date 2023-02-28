@@ -1,8 +1,10 @@
 import sys
+import glob
 import os
 import json
 import datetime
 import yaml
+import numpy
 
 # note install PyYAML
 
@@ -422,7 +424,8 @@ class FingerprintSet(list):
             vi = mm[i]
             i_n = sum(vi)
             if i_n == 0:
-                sys.stderr.write(f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
+                sys.stderr.write(
+                    f'FingerprintSet:bray_curtis_binary - no motifs in fingerprint {i} ')
                 sys.stderr.write(f'({self.i2motif[i]})\n')
                 for j in range(i + 1, nfp):
                     braycurtis.append([i, j, 1.0])
@@ -514,7 +517,6 @@ class FingerprintSet(list):
                 if motif in i2motif:
                     motif_vector[i2motif.index(motif)] = 1
 
-
         self.motif_matrix = motif_matrix
 
     def index_all_motifs(self):
@@ -535,6 +537,121 @@ class FingerprintSet(list):
                     i2motif.append(motif)
 
         return len(i2motif)
+
+
+class FingerprintMatrix:
+    """=========================================================================================
+    Reading and writing large sets of fingerprints is time consuming. this class creates a
+    presence/absence matrix for fingerprints from a group of fingerprint files
+    ========================================================================================="""
+
+    def __init__(self):
+        """-------------------------------------------------------------------------------------
+        motifs has fields id, index, count, selected
+        fpt is a dict of list, id, fpt_vector where fpt_vector is the presence/absence vector
+
+        -------------------------------------------------------------------------------------"""
+        self.motifs = {}
+        self.fpt_id = {}  # index of fingerprints
+        self.fpt = []  # list of fingerprints
+
+    def read_files(self, select_str):
+        """-------------------------------------------------------------------------------------
+        Read selected files and convert to a matrix of true/false indicating presence absence of
+        each motif in the set. rows=fingerprints, columns=motifs
+
+        :param select_str:str       file path for fingerprint files, e.g. data/*.fpt
+        :return: bool               True
+        -------------------------------------------------------------------------------------"""
+        motif_n = len(self.motifs)
+
+        fpt_list = glob.glob(select_str)
+        for fpt_file in fpt_list:
+            f = Fingerprint()
+            f.readYAML(fpt_file)
+            self.fpt_id[fpt_file] = len(self.fpt)
+            self.fpt.append([])
+
+            for motif in f.motif:
+                if motif in self.motifs:
+                    # known motif
+                    self.motifs[motif]['count'] += 1
+
+                else:
+                    # new motif
+                    self.motifs[motif] = {'count': 1, 'index': motif_n, 'selected': True}
+                    motif_n += 1
+
+                index = self.motifs[motif]['index']
+                self.fpt[-1].append(index)
+
+        self.index2matrix()
+        return True
+
+    def index2matrix(self):
+        """-------------------------------------------------------------------------------------
+        Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
+        indices are in self.motifs
+
+        :return:
+        -------------------------------------------------------------------------------------"""
+        motifs = self.motifs
+        # for each fingerprint, create a vector of True/False indicating presence/absence of motif
+        # make a vector of selected indices
+        indices = [motifs[m]['index'] for m in motifs if motifs[m]['selected']]
+
+        for f in range(len(self.fpt)):
+            # make True/False vector for each fingerprint
+            iterable = [True if i in self.fpt[f] else False for i in indices]
+            binary = numpy.fromiter(iterable, bool)
+            print(sum(binary))
+
+            self.fpt[f] = binary
+
+        return True
+
+    def select_min_max(self, minval=0, maxval=None, setval=False, recalculate=False):
+        """-----------------------------------------------------------------------------------------
+        select motifs that have count >= minval and count <= maxval
+        will not change selection status of motifs between minval and maxval
+        rebuild the binary matrix if recalculate is True
+
+        :param minval:int           motifs with count<minval are set to setval
+        :param maxval:int           motifs with count>maxval are set to setval
+        :param setbal:bool          value to set motifs < minval or > maxval to
+        :param recalculate:bool     if True recalculate the motif matrix
+        :return:int                 number of selected motifs
+        -----------------------------------------------------------------------------------------"""
+        motifs = self.motifs
+
+        if maxval == None:
+            maxval = len(self.fpt)
+
+        n_set = 0
+        for m in motifs:
+            if motifs[m]['count'] < minval or motifs[m]['count'] > maxval:
+                motifs[m]['selected'] = setval
+                n_set += 1
+
+        if recalculate:
+            self.index2matrix()
+
+        return len(self.fpt) - n_set
+
+    def pickle(self, outfilename):
+        """-----------------------------------------------------------------------------------------
+        pickle the object and store in outfilename
+        :param outfilename:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        return
+
+    def unpickle(self, infilename):
+        """-----------------------------------------------------------------------------------------
+        reload the pickled object from infilename
+        :param infilename:
+        :return:
+        -----------------------------------------------------------------------------------------"""
 
     # ##################################################################################################
     # Testing
