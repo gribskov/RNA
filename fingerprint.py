@@ -595,19 +595,48 @@ class FingerprintMatrix:
 
         :return:
         -------------------------------------------------------------------------------------"""
-        motif_n = len(self.motifs)
-        # for each fingerprint, create a vector of zeros and change values of present motifs to
-        # ones
+        motifs = self.motifs
+        # for each fingerprint, create a vector of True/False indicating presence/absence of motif
+        # make a vector of selected indices
+        indices = [motifs[m]['index'] for m in motifs if motifs[m]['selected']]
+
         for f in range(len(self.fpt)):
-            motifs = self.motifs
-            binary = numpy.fromiter((1 if x in self.fpt[f] else 0 for x in range(motif_n)), bool)
-            # print(sum(a))
-            # binary = [1 if x in self.fpt[f] else 0 for x in range(motif_n)]
+            # make True/False vector for each fingerprint
+            iterable = [True if i in self.fpt[f] else False for i in indices]
+            binary = numpy.fromiter(iterable, bool)
             print(sum(binary))
 
             self.fpt[f] = binary
 
         return True
+
+    def select_min_max(self, minval=0, maxval=None, setval=False, recalculate=False):
+        """-----------------------------------------------------------------------------------------
+        select motifs that have count >= minval and count <= maxval
+        will not change selection status of motifs between minval and maxval
+        rebuild the binary matrix if recalculate is True
+
+        :param minval:int           motifs with count<minval are set to setval
+        :param maxval:int           motifs with count>maxval are set to setval
+        :param setbal:bool          value to set motifs < minval or > maxval to
+        :param recalculate:bool     if True recalculate the motif matrix
+        :return:int                 number of selected motifs
+        -----------------------------------------------------------------------------------------"""
+        motifs = self.motifs
+
+        if maxval == None:
+            maxval = len(self.fpt)
+
+        n_set = 0
+        for m in motifs:
+            if motifs[m]['count'] < minval or motifs[m]['count'] > maxval:
+                motifs[m]['selected'] = setval
+                n_set += 1
+
+        if recalculate:
+            self.index2matrix()
+
+        return len(self.fpt) - n_set
 
     def pickle(self, outfilename):
         """-----------------------------------------------------------------------------------------
@@ -623,7 +652,6 @@ class FingerprintMatrix:
         :param infilename:
         :return:
         -----------------------------------------------------------------------------------------"""
-
 
     # ##################################################################################################
     # Testing
