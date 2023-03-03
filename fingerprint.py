@@ -592,6 +592,7 @@ class FingerprintMatrix:
         """-------------------------------------------------------------------------------------
         Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
         indices are in self.motifs
+        This method works of self.fpt as a list of indices
 
         :return:
         -------------------------------------------------------------------------------------"""
@@ -603,8 +604,33 @@ class FingerprintMatrix:
         for f in range(len(self.fpt)):
             # make True/False vector for each fingerprint
             iterable = [True if i in self.fpt[f] else False for i in indices]
+            # iterable = [True if self.fpt[f][i] else False for i in indices]
             binary = numpy.fromiter(iterable, bool)
-            print(sum(binary))
+            # print(sum(binary))
+
+            self.fpt[f] = binary
+
+        return True
+
+    def update_matrix(self):
+        """-------------------------------------------------------------------------------------
+        Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
+        indices are in self.motifs
+        This function works on the binary matrix form of self.fpt
+
+        :return:
+        -------------------------------------------------------------------------------------"""
+        motifs = self.motifs
+        # for each fingerprint, create a vector of True/False indicating presence/absence of motif
+        # make a vector of selected indices
+        indices = [motifs[m]['index'] for m in motifs if motifs[m]['selected']]
+
+        for f in range(len(self.fpt)):
+            # make True/False vector for each fingerprint
+            # iterable = [True if i in self.fpt[f] else False for i in indices]
+            iterable = [True if self.fpt[f][i] else False for i in indices]
+            binary = numpy.fromiter(iterable, bool)
+            # print(sum(binary))
 
             self.fpt[f] = binary
 
@@ -634,7 +660,10 @@ class FingerprintMatrix:
                 n_set += 1
 
         if recalculate:
-            self.index2matrix()
+            # TODO index2matrix won't work on the binary matrix,
+            # self.index2matrix()
+            self.update_matrix()
+
 
         return len(self.fpt) - n_set
 
