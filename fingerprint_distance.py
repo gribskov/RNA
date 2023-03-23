@@ -94,7 +94,8 @@ if __name__ == '__main__':
     print(f'{len(fpt.i2motif)} motifs selected from {motif_n}')
 
     # distance calculation
-    jaccard = fpt.jaccard_binary()
+    # jaccard = fpt.jaccard_binary()
+    jaccard = fpt.jaccard_scale()
     bc = fpt.bray_curtis_binary()
 
     for d in jaccard:
