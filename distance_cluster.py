@@ -278,7 +278,8 @@ class Upgma:
         -----------------------------------------------------------------------------------------"""
         dmat = self.dmat
         size = len(dmat)
-        dmax = dmin = dmat[0][0]
+        # dmax = dmin = dmat[0][0]
+        dmin,dmax = big, 0
         for i in range(size):
             for j in range(size):
                 dmat[i][j] = big - dmat[i][j]
@@ -362,6 +363,9 @@ class Upgma:
                 start = pos + 1
 
             pos += 1
+
+        # newick files end in ;
+        file.write(';')
 
         return nline
 
