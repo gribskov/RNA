@@ -315,6 +315,39 @@ class FingerprintSet(list):
 
         return j_sim
 
+    def jaccard_scale(self):
+        """-----------------------------------------------------------------------------------------
+        calculate jaccard similarity using the binary motif matrix
+        TODO is this faster in numpy?
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if not self.motif_matrix:
+            # if motif index does not exist, use all motifs, for selected motifs, index is made by
+            # index_all_motifs()
+            self.index_all_motifs()
+
+        mm = self.motif_matrix
+        j_sim = []
+        for i in range(0, len(self)):
+            for j in range(i + 1, len(self)):
+                intersect = 0
+                union = 0
+                vi = mm[i]
+                vj = mm[j]
+                for k in range(0, len(self.i2motif)):
+                    intersect += vi[k] and vj[k]
+                    # union += vi[k] or vj[k]
+                minfpt = min(sum(vi), sum(vj))
+
+                try:
+                    jaccard = intersect / minfpt
+                except ZeroDivisionError:
+                    jaccard = 0
+
+                j_sim.append([i, j, jaccard])
+
+        return j_sim
+
     def jaccard_sim(self, idx=[]):
         """-----------------------------------------------------------------------------------------
         Calculate pairwise Jaccard similarity between the fingerprints indicated by idx.  [0,1],
