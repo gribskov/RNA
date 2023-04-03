@@ -9,6 +9,7 @@ import sys
 import argparse
 from lxml import etree
 from fingerprint import Fingerprint
+import datetime
 
 
 def process_command_line():
@@ -18,16 +19,14 @@ def process_command_line():
     ---------------------------------------------------------------------------------------------"""
     cl = argparse.ArgumentParser(
         description='Compare sets of XIOS fingerprints',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=60)
     )
     cl.add_argument('-n', '--new',
-                    help='New format fingerprint (default%(default))',
-                    action='append', nargs='*',
-                    default='*.fpt')
-    cl.add_argument('-h', '--hex',
-                    help='Old hexadecimal encoded format fingerprint (default%(default))',
-                    action='append', nargs='*',
-                    default='*.xpt')
+                    help='New format fingerprint (default=%(default)s)',
+                    nargs='*', default='*.fpt')
+    cl.add_argument('-e', '--encode',
+                    help='Old hexadecimal encoded format fingerprint (default=%(default)s)',
+                    nargs='*', default='*.xpt')
     cl.add_argument('-o', '--outputdir',
                     help='Directory for fingerprint output (default=%(default)s)',
                     default='./')
@@ -35,6 +34,7 @@ def process_command_line():
     args = cl.parse_args()
 
     return args
+
 
 def read_new_fpt(target_list):
     """---------------------------------------------------------------------------------------------
@@ -60,21 +60,42 @@ def read_new_fpt(target_list):
     ---------------------------------------------------------------------------------------------"""
     motif_set = {}
     for target in target_list:
-        fptfilelist = fastafiles = glob.glob(target)
-        set = {}
+        fptfilelist = glob.glob(target)
+        # set = {}
 
         n = 0
         for fptfile in fptfilelist:
             n += 1
             id = os.path.basename(fptfile)
+            prefix = name_prefix(id, 4)
 
             # read new fingerprint as YAML
             fpt = Fingerprint()
             fpt.readYAML(fptfile)
-            set[id] = fpt.motif
+            motif_set[prefix] = {'target': target, 'set': set}
 
-        motif_set[target] = set
         return motif_set
+
+
+def name_prefix(name, n):
+    """---------------------------------------------------------------------------------------------
+    return a shortened name with the first n tokens, with n=4
+    rnasep_a4.Pseudoanabaena_sp.PCC6903.w4.d5.fpt becomes
+    rnasep_a4_Pseudoanabaena_sp
+
+    :param name: str    name to shorten
+    :param n: int       number of token to include in prefix
+    :return: str        shortened name
+    ---------------------------------------------------------------------------------------------"""
+    begin = 0
+    tokens = []
+    for i in range(len(name)):
+        if name[i] in '._':
+            tokens.append(name[begin:i])
+            begin = i + 1
+
+    return '_'.join(tokens[:n])
+
 
 def decodedfs(hexstr):
     """---------------------------------------------------------------------------------------------
@@ -105,6 +126,29 @@ def decodedfs(hexstr):
     return dfs
 
 
+def read_fingerprints(opt):
+    """---------------------------------------------------------------------------------------------
+    Read old format fingerprint (type='encode) and new fingerprint format (type='new') that match
+    the file globs in opt.new and opt.encode. fingerprints are stored in separate sets, one set for
+    each file glob on the command line
+
+    :param opt: namespace       command line option namespace from process_command_line()
+    :return: list               contents of list are sets of fingerprints, each set is a list of dicts
+    ---------------------------------------------------------------------------------------------"""
+    fptset = []
+    for type in ('new', 'old'):
+        source = opt.new
+        reader = read_new_fpt
+        # if type == 'encode':
+        #     source = opt.encode
+        #     reader = read_encode_fpt
+        for target in source:
+            # source is a list of file globs identifying different sets of fingerprints
+            this_set = []
+            files = glob.glob(target)
+            this_set.append(read_new_fpt(files))
+
+
 # --------------------------------------------------------------------------------------------------
 # main program
 # --------------------------------------------------------------------------------------------------
@@ -112,20 +156,22 @@ if __name__ == '__main__':
     daytime = datetime.datetime.now()
     runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
     opt = process_command_line()
+    test = name_prefix('d', 4)
+    print(f'fingerprint_compare.py fingerprints: {runstart}')
+    # xptlist = glob.glob(opt.encode)
+    fptlist = read_fingerprints(opt)
+    # for target in opt.new:
+    #     fptlist.append({'type':'new', 'file':glob.glob(target)})
+    # for target in opt.encode:
+    #     fptlist.append({'type':'encode', 'file':glob.glob(target)})
 
-    print(f'new format fingerprints: {}')
+    # read
 
-
-    print(f'fingerprint directory: {newdir}')
-    print(f'target: {olddir}')
-
-    fptfilelist = fastafiles = glob.glob(target)
-    # print(fptfilelist)
-    # print()
+    # fpt = read_new_fpt(fptlist)
 
     n = 0
     comp = {}
-    for newfile in fptfilelist:
+    for newfile in fptlist:
         oldfile = os.path.basename(newfile)
         id = oldfile.replace('.fpt', '')
         comp[id] = {}
