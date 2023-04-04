@@ -10,6 +10,7 @@ import argparse
 from lxml import etree
 from fingerprint import Fingerprint
 import datetime
+import yaml
 
 
 def process_command_line():
@@ -20,7 +21,7 @@ def process_command_line():
     cl = argparse.ArgumentParser(
         description='Compare sets of XIOS fingerprints',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=60)
-    )
+        )
     cl.add_argument('-n', '--new',
                     help='New format fingerprint (default=%(default)s)',
                     nargs='*', default='*.fpt')
@@ -36,12 +37,136 @@ def process_command_line():
     return args
 
 
+def read_fingerprints(opt):
+    """---------------------------------------------------------------------------------------------
+    Read old format fingerprint (type='encode) and new fingerprint format (type='new') that match
+    the file globs in opt.new and opt.encode. fingerprints are stored in separate sets, one set for
+    each file glob on the command line
+
+    :param opt: namespace       command line option namespace from process_command_line()
+    :return: list               contents of list are sets of fingerprints, each set is a list of dicts
+    ---------------------------------------------------------------------------------------------"""
+    fptset = []
+    for fpttype in ('encode', 'new'):
+    # for fpttype in ('new', 'encode'):
+        source = opt.new
+        reader = read_new_fpt
+        if fpttype == 'encode':
+            source = opt.encode
+            reader = read_encode_fpt
+        for target in source:
+            # source is a list of file globs identifying different sets of fingerprints
+            this_set = []
+            files = glob.glob(target)
+            fptset.append(reader(files))
+
+    return fptset
+
+def read_encode_fpt(target_list):
+    """---------------------------------------------------------------------------------------------
+    read a list of fingerprints in the old (<2022) format, also known as .xpt format, .xpt format
+    is XML such as
+
+    <?xml version="1.0"?>
+    <XIOS_fingerprint>
+        <query>
+            <query_id>/home/huang147/reactor/holder20160220/5S_a.Halobacterium_salinarum.xios</query_id>
+            <query_vertex>5</query_vertex>
+            <query_edge>6</query_edge>
+        </query>
+
+        <fingerprint>
+            <type>random</type>
+            <iteration>500000</iteration>
+            <program>fingerprint_random.pl v1.1.4.8</program>
+            <time_elapsed>317.450853</time_elapsed>
+        </fingerprint>
+        <database>
+            <database_id>/home/huang147/Motif_fingerprint/2_to_7_stems_topologies.storable</database_id>
+        </database>
+
+        <motif_list>
+            <motif_n>1</motif_n>
+            <motif>
+                <id>5_276</id>
+                <count>500000</count>
+                <first_observed>1</first_observed>
+                <encoded_dfs>0428410c7081</encoded_dfs>
+                <mapping>1</mapping>
+            </motif>
+            ...
+
+    :param target_list: list    filenames matching --encode fileglob
+    :return: list               contents of list are sets of fingerprints, each set is a list of dicts
+    ---------------------------------------------------------------------------------------------"""
+    fpt_set = {}
+    for target in target_list:
+        id = os.path.basename(target)
+        prefix = name_prefix(id, 4)
+        fpt = Fingerprint()
+        xptfile = open(target, 'r')
+        xpt = etree.parse(xptfile)
+
+        # read the information fields
+        info = etree_to_dict(xpt)
+        fpt.information = info
+
+        # read and transform the motifs
+        for m in xpt.xpath('//motif_list/motif'):
+            code = m.find('encoded_dfs')
+            motif = decodedfs(code.text)
+            count = m.find('count')
+            fpt.motif[motif] = int(count.text)
+
+        fpt_set[prefix] = {'target':target, 'fpt':fpt}
+
+    return fpt_set
+
+def etree_to_dict(xpt):
+    """---------------------------------------------------------------------------------------------
+    read the <query> <fingerprint> and <database> sections of the fingerprint and return as a dict
+    {   'query":{   'query_id':
+                    'query_vertex':
+                    'query_edge':   }
+        'fingerprint':{  'type':
+                        'iteration':
+                        'program':
+                        'time_elapsed:  }
+        'database_id':
+    }
+
+    :param xpt: etree element       etree parsed xml
+    :return: dict                   described above
+    ---------------------------------------------------------------------------------------------"""
+    d = {}
+    # query information
+    q = xpt.xpath('//query')
+    if q:
+        d['query'] = {}
+        for tag in ('query_id','query_vertex', 'query_edge'):
+            info = xpt.xpath('//query/{}'.format(tag))[0].text
+            d['query'][tag] = info
+
+    f = xpt.xpath('//fingerprint')
+    if f:
+        d['fingerprint'] = {}
+        for tag in ('type','iteration', 'program', 'time_elapsed'):
+            info = xpt.xpath('//fingerprint/{}'.format(tag))[0].text
+            d['fingerprint'][tag] = info
+
+    db = xpt.xpath('//database_id')
+    if db:
+        d['database_id'] = db[0].text
+
+    return d
+
+
 def read_new_fpt(target_list):
     """---------------------------------------------------------------------------------------------
-    Read a set of fingerprints. Each glob from the filename is put in a separate set of motif names
-    in the string format
+    Read a set of fingerprints. fingerprints for all files in target list are returned in a dict
+    keyed with their shortened names (see name_prefix())
 
-    in the new format (2022-2023, yaml file0 such as
+    new fingerprint format (2022-2023), yaml file such as
     - fingerprint:
     - information:
           Date: '2022-05-06 09:27:07'
@@ -56,25 +181,19 @@ def read_new_fpt(target_list):
           ...
 
     :param target_list: list    string with paths to sets of files to compare
-    :return: dict               sets of motifs; set is a list of strings such as 0i1.0i2.0i3.0o4
+    :return: dict               all fingerprints in the input target list
     ---------------------------------------------------------------------------------------------"""
-    motif_set = {}
+    fpt_set = {}
     for target in target_list:
-        fptfilelist = glob.glob(target)
-        # set = {}
+        id = os.path.basename(target)
+        prefix = name_prefix(id, 4)
 
-        n = 0
-        for fptfile in fptfilelist:
-            n += 1
-            id = os.path.basename(fptfile)
-            prefix = name_prefix(id, 4)
+        # read new fingerprint as YAML
+        fpt = Fingerprint()
+        fpt.readYAML(target)
+        fpt_set[prefix] = {'target': target, 'fpt': fpt}
 
-            # read new fingerprint as YAML
-            fpt = Fingerprint()
-            fpt.readYAML(fptfile)
-            motif_set[prefix] = {'target': target, 'set': set}
-
-        return motif_set
+    return fpt_set
 
 
 def name_prefix(name, n):
@@ -124,29 +243,6 @@ def decodedfs(hexstr):
         i += 2
 
     return dfs
-
-
-def read_fingerprints(opt):
-    """---------------------------------------------------------------------------------------------
-    Read old format fingerprint (type='encode) and new fingerprint format (type='new') that match
-    the file globs in opt.new and opt.encode. fingerprints are stored in separate sets, one set for
-    each file glob on the command line
-
-    :param opt: namespace       command line option namespace from process_command_line()
-    :return: list               contents of list are sets of fingerprints, each set is a list of dicts
-    ---------------------------------------------------------------------------------------------"""
-    fptset = []
-    for type in ('new', 'old'):
-        source = opt.new
-        reader = read_new_fpt
-        # if type == 'encode':
-        #     source = opt.encode
-        #     reader = read_encode_fpt
-        for target in source:
-            # source is a list of file globs identifying different sets of fingerprints
-            this_set = []
-            files = glob.glob(target)
-            this_set.append(read_new_fpt(files))
 
 
 # --------------------------------------------------------------------------------------------------
