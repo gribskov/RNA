@@ -61,6 +61,7 @@ def read_fingerprints(opt):
         for target in source:
             # source is a list of file globs identifying different sets of fingerprints
             this_set = []
+            # sys.stderr.write(f'glob={target}\n')
             files = glob.glob(target)
             fptset.append(reader(files))
 
