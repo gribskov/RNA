@@ -18,7 +18,7 @@ if __name__ == '__main__':
     selection = 'data/fpt/*.out'
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
-    if binary_matrix:
+    # if binary_matrix:
 
     fmat.select_min_max(10, 45, False, recalculate=True)
 
