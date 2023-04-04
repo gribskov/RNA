@@ -48,7 +48,7 @@ def read_fingerprints(opt):
     ---------------------------------------------------------------------------------------------"""
     fptset = []
     for fpttype in ('encode', 'new'):
-    # for fpttype in ('new', 'encode'):
+        # for fpttype in ('new', 'encode'):
         source = opt.new
         # if not source:
         #     continue
@@ -65,6 +65,7 @@ def read_fingerprints(opt):
             fptset.append(reader(files))
 
     return fptset
+
 
 def read_encode_fpt(target_list):
     """---------------------------------------------------------------------------------------------
@@ -106,6 +107,7 @@ def read_encode_fpt(target_list):
     fpt_set = {}
     for target in target_list:
         id = os.path.basename(target)
+        sys.stderr.write(f'{id} - encoded')
         prefix = name_prefix(id, 4)
         fpt = Fingerprint()
         xptfile = open(target, 'r')
@@ -122,9 +124,10 @@ def read_encode_fpt(target_list):
             count = m.find('count')
             fpt.motif[motif] = int(count.text)
 
-        fpt_set[prefix] = {'target':target, 'fpt':fpt}
+        fpt_set[prefix] = {'target': target, 'fpt': fpt}
 
     return fpt_set
+
 
 def etree_to_dict(xpt):
     """---------------------------------------------------------------------------------------------
@@ -147,14 +150,14 @@ def etree_to_dict(xpt):
     q = xpt.xpath('//query')
     if q:
         d['query'] = {}
-        for tag in ('query_id','query_vertex', 'query_edge'):
+        for tag in ('query_id', 'query_vertex', 'query_edge'):
             info = xpt.xpath('//query/{}'.format(tag))[0].text
             d['query'][tag] = info
 
     f = xpt.xpath('//fingerprint')
     if f:
         d['fingerprint'] = {}
-        for tag in ('type','iteration', 'program', 'time_elapsed'):
+        for tag in ('type', 'iteration', 'program', 'time_elapsed'):
             info = xpt.xpath('//fingerprint/{}'.format(tag))[0].text
             d['fingerprint'][tag] = info
 
@@ -190,6 +193,7 @@ def read_new_fpt(target_list):
     fpt_set = {}
     for target in target_list:
         id = os.path.basename(target)
+        sys.stderr.write(f'{id} - yaml')
         prefix = name_prefix(id, 4)
 
         # read new fingerprint as YAML
@@ -257,19 +261,19 @@ if __name__ == '__main__':
     runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
     opt = process_command_line()
     test = name_prefix('d', 4)
-    print(f'fingerprint_compare.py fingerprints: {runstart}')
+    sys.stderr.write(f'fingerprint_compare.py fingerprints: {runstart}\n')
     fptlist = read_fingerprints(opt)
     i = 0
     for fptset in (opt.new, opt.encode):
+        sys.stderr.write(f'\tProcessing {fptset}...\n')
         for f in fptset:
-            print(f'{fptset}\t{len(fptlist[i])}')
+            sys.stderr.write(f'{fptset}\t{len(fptlist[i])}\n\n')
             i += 1
-    print()
 
     comp = {}
     for f1 in range(len(fptlist)):
         fp1 = fptlist[f1]
-        for f2 in range(f1+1,len(fptlist)):
+        for f2 in range(f1 + 1, len(fptlist)):
             fp2 = fptlist[f2]
             for id in fp1:
                 all = {}
@@ -294,8 +298,6 @@ if __name__ == '__main__':
                 except:
                     nmotif2 = 0
 
-                print(f'{len(all):5d}\t{nmotif1:5d}\t{nmotif2:5d}\t{id}')
-
-
+                sys.stderr.out(f'{len(all):5d}\t{nmotif1:5d}\t{nmotif2:5d}\t{id}\n')
 
     exit(0)
