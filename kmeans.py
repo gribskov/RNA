@@ -1,3 +1,7 @@
+import numpy
+import random
+
+
 class Kmeans():
     """=============================================================================================
     Simple kmeans based on fingerprint
