@@ -27,7 +27,7 @@ def process_command_line():
                     nargs='*', default='*.fpt')
     cl.add_argument('-e', '--encode',
                     help='Old hexadecimal encoded format fingerprint (default=%(default)s)',
-                    nargs='*', default='*.xpt')
+                    nargs='*', default=[])
     cl.add_argument('-o', '--outputdir',
                     help='Directory for fingerprint output (default=%(default)s)',
                     default='./')
@@ -50,10 +50,14 @@ def read_fingerprints(opt):
     for fpttype in ('encode', 'new'):
     # for fpttype in ('new', 'encode'):
         source = opt.new
+        # if not source:
+        #     continue
         reader = read_new_fpt
         if fpttype == 'encode':
             source = opt.encode
             reader = read_encode_fpt
+            # if not source:
+            #     continue
         for target in source:
             # source is a list of file globs identifying different sets of fingerprints
             this_set = []
@@ -254,76 +258,44 @@ if __name__ == '__main__':
     opt = process_command_line()
     test = name_prefix('d', 4)
     print(f'fingerprint_compare.py fingerprints: {runstart}')
-    # xptlist = glob.glob(opt.encode)
     fptlist = read_fingerprints(opt)
-    # for target in opt.new:
-    #     fptlist.append({'type':'new', 'file':glob.glob(target)})
-    # for target in opt.encode:
-    #     fptlist.append({'type':'encode', 'file':glob.glob(target)})
+    i = 0
+    for fptset in (opt.new, opt.encode):
+        for f in fptset:
+            print(f'{fptset}\t{len(fptlist[i])}')
+            i += 1
+    print()
 
-    # read
-
-    # fpt = read_new_fpt(fptlist)
-
-    n = 0
     comp = {}
-    for newfile in fptlist:
-        oldfile = os.path.basename(newfile)
-        id = oldfile.replace('.fpt', '')
-        comp[id] = {}
-        n += 1
-        print(f'{n:4d}\t{id}')
-        # print(comp)
+    for f1 in range(len(fptlist)):
+        fp1 = fptlist[f1]
+        for f2 in range(f1+1,len(fptlist)):
+            fp2 = fptlist[f2]
+            for id in fp1:
+                all = {}
 
-        # read new fingerprint as YAML
-        fpt = Fingerprint()
-        fpt.readYAML(newfile)
-        comp[id]['count_new'] = len(fpt.motif)
+                try:
+                    nmotif1 = len(fp1[id]['fpt'].motif)
+                    for m in fp1[id]['fpt'].motif:
+                        if m in all:
+                            all[m] += 1
+                        else:
+                            all[m] = 1
+                except:
+                    nmotif1 = 0
 
-        # read old fingerprint as xml
-        oldfile = oldfile.replace('.fpt', '.xios.xpt')
-        xptfile = open(olddir + oldfile, 'r')
-        xpt = etree.parse(xptfile)
-        oldxpt_to_decode = xpt.xpath('//encoded_dfs')
+                try:
+                    nmotif2 = len(fp2[id]['fpt'].motif)
+                    for m in fp2[id]['fpt'].motif:
+                        if m in all:
+                            all[m] += 1
+                        else:
+                            all[m] = 1
+                except:
+                    nmotif2 = 0
 
-        oldlist = []
-        for code in oldxpt_to_decode:
-            motif = decodedfs(code.text)
-            oldlist.append(motif)
+                print(f'{len(all):5d}\t{nmotif1:5d}\t{nmotif2:5d}\t{id}')
 
-        comp[id]['count_old'] = len(oldlist)
 
-        # see if old motifs exist in new
-        old_miss = 0
-        old_list = []
-        for code in oldlist:
-            if code not in fpt.motif:
-                old_miss += 1
-                old_list.append(code)
-
-        comp[id]['old_miss'] = old_miss
-        comp[id]['old_list'] = old_list
-
-        # see if new motifs exist in old
-        new_miss = 0
-        new_list = []
-        for code in fpt.motif:
-            if code not in oldlist:
-                new_miss += 1
-                new_list.append(code)
-
-        comp[id]['new_miss'] = new_miss
-        # comp[id]['new_list'] = new_list
-
-    line = 0
-    for fpt in sorted(comp, key=lambda f: ((comp[f]['count_old'] - comp[f]['count_new']), f)):
-        line += 1
-        # print(fpt, comp[fpt])
-        f = comp[fpt]
-        print(
-            f"{line:4d}\t{f['count_old']}\t{f['count_new']}\t{f['old_miss']}\t{f['new_miss']}\t{fpt}")
-        if f['old_list']:
-            for motif in f['old_list']:
-                print(f'\t\t\t\t\t{motif}')
 
     exit(0)
