@@ -61,6 +61,7 @@ def read_fingerprints(opt):
         for target in source:
             # source is a list of file globs identifying different sets of fingerprints
             this_set = []
+            sys.stderr.write(f'glob={target}')
             files = glob.glob(target)
             fptset.append(reader(files))
 
@@ -193,7 +194,7 @@ def read_new_fpt(target_list):
     fpt_set = {}
     for target in target_list:
         id = os.path.basename(target)
-        sys.stderr.write(f'{id} - yaml')
+        sys.stderr.write(f'{id} - yaml\n')
         prefix = name_prefix(id, 4)
 
         # read new fingerprint as YAML
@@ -298,6 +299,6 @@ if __name__ == '__main__':
                 except:
                     nmotif2 = 0
 
-                sys.stderr.out(f'{len(all):5d}\t{nmotif1:5d}\t{nmotif2:5d}\t{id}\n')
+                sys.stdout.write(f'{len(all):5d}\t{nmotif1:5d}\t{nmotif2:5d}\t{id}\n')
 
     exit(0)
