@@ -621,6 +621,42 @@ class FingerprintMatrix:
         self.index2matrix()
         return True
 
+    def write(self, filename):
+        """-------------------------------------------------------------------------------------
+        write the matrix to a tab delimited files with 1/0 indicating present/absent
+        :param filename:
+        :return:
+        -------------------------------------------------------------------------------------"""
+        out = None
+        try:
+            out = open(filename, 'w')
+        except OSError:
+            sys.stderr.write(f'FingerprintMatrix::write - unable to open file for writing ({filename}\n')
+            exit(1)
+
+        # column labels
+        for id in self.fpt_id:
+            out.write(f'\t{id}')
+        out.write('\n')
+
+        # rows are motifs presence/absence = 1/0
+        m = 0
+        for motif in self.motifs:
+            out.write(f'{motif}')
+            for f in self.fpt:
+                # one row of presence/absence across all fingerprints
+                if f[m]:
+                    out.write('\t1')
+                else:
+                    out.write('\t0')
+
+            out.write('\n')
+            m += 1
+
+        return True
+
+
+
     def index2matrix(self):
         """-------------------------------------------------------------------------------------
         Convert fingerprints in the form of lists of indices to binary, 1=presence, 2=absence
