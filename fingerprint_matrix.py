@@ -1,7 +1,9 @@
 """=================================================================================================
 Convert a set of fingerprint files into a binary form for rapid reading and manipulation
 ================================================================================================="""
+import sys
 from math import floor, ceil
+
 from fingerprint import FingerprintMatrix
 from kmeans import Kmeans
 
@@ -15,12 +17,13 @@ if __name__ == '__main__':
     show_cycle = False
     show_init = False
 
-    selection = 'data/fpt/*.out'
+    selection = sys.argv[1]
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
     # if binary_matrix:
+    fmat.write('fmatrix.tsv')
 
-    fmat.select_min_max(10, 45, False, recalculate=True)
+    # fmat.select_min_max(10, 45, False, recalculate=True)
 
     together = [[0 for _ in range(len(fmat.fpt))] for _ in range(len(fmat.fpt))]
 
