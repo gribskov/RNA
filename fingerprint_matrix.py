@@ -22,6 +22,7 @@ if __name__ == '__main__':
     fmat.read_files(selection)
     # if binary_matrix:
     fmat.write('fmatrix.tsv')
+    fmat.pickle('fmatrix.pkl')
 
     # fmat.select_min_max(10, 45, False, recalculate=True)
 
