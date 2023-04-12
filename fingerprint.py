@@ -5,6 +5,7 @@ import json
 import datetime
 import yaml
 import numpy
+import pickle
 
 # note install PyYAML
 
@@ -742,14 +743,21 @@ class FingerprintMatrix:
         :param outfilename:
         :return:
         -----------------------------------------------------------------------------------------"""
-        return
+        picklefile = open(outfilename, 'wb')
+        pickle.dump(self picklefile)
+        return True
 
-    def unpickle(self, infilename):
+    @classmethod
+    def unpickle(cls, infilename):
         """-----------------------------------------------------------------------------------------
         reload the pickled object from infilename
         :param infilename:
         :return:
         -----------------------------------------------------------------------------------------"""
+        picklefile = open(infilename, 'rb' )
+        fmat = pickle.load(picklefile)
+
+        return fmat
 
     # ##################################################################################################
     # Testing
