@@ -1,7 +1,10 @@
 """=================================================================================================
 Convert a set of fingerprint files into a binary form for rapid reading and manipulation
-also does a kmeans clustering based on the motifs present in each fingerprint and identifies the
-most correlateed motifs
+also does a kmeans clustering based on the motifs present in each fingerprint using only motifs
+present in more than motif_min fingerprints and less than motif_max fraction of fingerprints.
+
+K-means is performed with k=cluster_n n_repeat times. A final pass reports the fingerprints that 
+are mot often found in the same cluster
 
 usage:
     python fingerprint_matrix.py <input fileglob>
@@ -16,33 +19,48 @@ from kmeans import Kmeans
 # main program
 ####################################################################################################
 if __name__ == '__main__':
-    n_repeat = 150
-    k = Kmeans(30)
-    neighborhood_cutoff = (0.4, 0.6)
+    n_repeat = 10
+    cluster_n = 20
+    motif_min = 0.05
+    motif_max = 0.6
+    neighborhood_cutoff = (motif_min, motif_max)
+    print( 'fingerprint_matrix' )
+    print( f'\tnumbr of clusters: {cluster_n}')
+    print( f'\tkmeans runs: {n_repeat}')
+    print( f'\tneighborhood cutoff: {neighborhood_cutoff}')
     show_cycle = False
     show_init = False
 
     selection = sys.argv[1]
-    print( f'selected files: {selection}')
+    print( f'\tselected files: {selection}')
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
 
-    fmatfile = 'fmatrix.tsv')
-    fmat.write('fmatfile'
-    print(f'fingerprint matrix written to {fmatfile}')
+    fmatfile = 'fmatrix.tsv'
+    fmat.write('fmatfile')
+    print(f'\tfingerprint matrix written to {fmatfile}')
 
     fmatpkl = 'fmatrix.pl'
     fmat.pickle(fmatpkl)
-    print(f'fingerprint matrix written to {fmatpkl}')
+    print(f'\tfingerprint matrix written to {fmatpkl}')
 
-    # fmat.select_min_max(10, 45, False, recalculate=True)
+    # select motifs based on frequency
+    motif_n = len(fmat.fpt)
+    motif_mincount = int(motif_n * motif_min)
+    motif_maxcount = int(motif_n * motif_max)
+    fmat.select_min_max( motif_mincount, motif_maxcount, False, recalculate=True)
 
-    together = [[0 for _ in range(len(fmat.fpt))] for _ in range(len(fmat.fpt))]
+    together = [[0 for _ in range(len(motif_n))] for _ in range(len(motif_n))]
+
+    # k-means clustering
+
+    print( f'K-means clustering')
+    k = Kmeans(cluster_n)
 
     for repeat in range(n_repeat):
         # cluster n_repeat times
         # TODO save the lowest error clustering
-        ndata = k.assign_data_random(fmat.fpt)
+        ndata = k.assign_data_random(motif_n)
         if show_init:
             print(f'{ndata} points from {selection} for k={k.k}')
             print(f'initial groups')
