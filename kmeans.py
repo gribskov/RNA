@@ -84,7 +84,6 @@ class Kmeans():
         nfeature = len(self.data[0])
         npoint = len(self.data)
         ngroup = len(self.group)
-        maxval = 0
         error = 0.0
         error_old = 0.0
         cycle = 0
@@ -94,8 +93,10 @@ class Kmeans():
 
         while True:
             cycle += 1
+            maxval = 0
 
             # calculate centroid positions
+            # maxval is the sum of the lengths of the data vectors; used as initial value for mindist
             for g in range(ngroup):
                 centroid[g][:] = [0 for g in range(nfeature)]
                 for i in group[g]:
@@ -106,6 +107,7 @@ class Kmeans():
                 if len(group[g]):
                     centroid[g] /= len(group[g])
 
+            maxval *= 2
             error = 0
             for point in range(npoint):
                 # for each point find the distance to each centroid and reassign
@@ -120,18 +122,25 @@ class Kmeans():
                         mindist = dist
                         minid = g
 
-                # reassing point to closest centroid
-                newgroup[minid].append(point)
+                # reassign point to closest centroid
+                try:
+                    newgroup[minid].append(point)
+                except IndexError:
+                    print('oops')
 
                 # add the distance to the current assigned centroid to the error
                 error += mindist
 
                 if minid > ngroup:
-                    maxval = mindist + 1
+                    # should never happen
+                    # maxval = mindist + 1
                     minid = ngroup - 1
 
             # copy new groups into group and reset newgroup
-            group = newgroup[:]
+            try:
+                group = newgroup[:]
+            except IndexError:
+                print('oops')
             for g in range(ngroup):
                 newgroup[g] = []
 
