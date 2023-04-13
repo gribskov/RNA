@@ -19,8 +19,8 @@ from kmeans import Kmeans
 # main program
 ####################################################################################################
 if __name__ == '__main__':
-    n_repeat = 10
-    cluster_n = 20
+    n_repeat = 5
+    cluster_n = 5
     motif_min = 0.05
     motif_max = 0.6
     neighborhood_cutoff = (motif_min, motif_max)
@@ -32,13 +32,13 @@ if __name__ == '__main__':
     show_init = False
 
     selection = sys.argv[1]
-    print( f'\tselected files: {selection}')
+    print( f'\n\tReading selected files: {selection}')
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
 
-    fmatfile = 'fmatrix.tsv'
-    fmat.write('fmatfile')
-    print(f'\tfingerprint matrix written to {fmatfile}')
+    # fmatfile = 'fmatrix.tsv'
+    # fmat.write('fmatfile')
+    # print(f'\n\tfingerprint matrix written to {fmatfile}')
 
     fmatpkl = 'fmatrix.pl'
     fmat.pickle(fmatpkl)
@@ -48,19 +48,22 @@ if __name__ == '__main__':
     motif_n = len(fmat.fpt)
     motif_mincount = int(motif_n * motif_min)
     motif_maxcount = int(motif_n * motif_max)
+    print(f'motifs={motif_n}/{motif_mincount}/{motif_maxcount}')
     fmat.select_min_max( motif_mincount, motif_maxcount, False, recalculate=True)
+    motif_n = len(fmat.fpt)
+    print(f'motifs={motif_n}')
 
-    together = [[0 for _ in range(len(motif_n))] for _ in range(len(motif_n))]
+    together = [[0 for _ in range(motif_n)] for _ in range(motif_n)]
 
     # k-means clustering
 
-    print( f'K-means clustering')
+    print( f'\nK-means clustering')
     k = Kmeans(cluster_n)
 
     for repeat in range(n_repeat):
         # cluster n_repeat times
         # TODO save the lowest error clustering
-        ndata = k.assign_data_random(motif_n)
+        ndata = k.assign_data_random(fmat.fpt)
         if show_init:
             print(f'{ndata} points from {selection} for k={k.k}')
             print(f'initial groups')
