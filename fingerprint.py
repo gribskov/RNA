@@ -600,9 +600,12 @@ class FingerprintMatrix:
         motif_n = len(self.motifs)
 
         fpt_list = glob.glob(select_str)
-        sys.stderr.write(f'{fpt_list}\n')
+        #sys.stderr.write(f'{select_str} =>\n\t{fpt_list}\n')
+        sys.stderr.write('\n')
+        motif_read = 0
         for fpt_file in fpt_list:
-            sys.stderr.write(f'\treading {fpt_file} ...\n')
+            motif_read += 1
+            sys.stderr.write(f'\t{motif_read:-3d}  reading {fpt_file} ...\n')
             f = Fingerprint()
             f.readYAML(fpt_file)
             self.fpt_id[fpt_file] = len(self.fpt)
@@ -746,7 +749,7 @@ class FingerprintMatrix:
         :return:
         -----------------------------------------------------------------------------------------"""
         picklefile = open(outfilename, 'wb')
-        pickle.dump(self picklefile)
+        pickle.dump(self, picklefile)
         return True
 
     @classmethod
