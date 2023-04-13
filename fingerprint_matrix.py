@@ -19,20 +19,20 @@ from kmeans import Kmeans
 # main program
 ####################################################################################################
 if __name__ == '__main__':
-    n_repeat = 5
-    cluster_n = 5
+    n_repeat = 20
+    cluster_n = 15
     motif_min = 0.05
     motif_max = 0.6
-    neighborhood_cutoff = (motif_min, motif_max)
-    print( 'fingerprint_matrix' )
-    print( f'\tnumbr of clusters: {cluster_n}')
-    print( f'\tkmeans runs: {n_repeat}')
-    print( f'\tneighborhood cutoff: {neighborhood_cutoff}')
+    motif_cutoff = (motif_min, motif_max)
+    print('fingerprint_matrix')
+    print(f'\tnumbr of clusters: {cluster_n}')
+    print(f'\tkmeans runs: {n_repeat}')
+    print(f'\tmotif cutoff: {motif_cutoff}')
     show_cycle = False
     show_init = False
 
     selection = sys.argv[1]
-    print( f'\n\tReading selected files: {selection}')
+    print(f'\n\tReading selected files: {selection}')
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
 
@@ -45,19 +45,20 @@ if __name__ == '__main__':
     print(f'\tfingerprint matrix written to {fmatpkl}')
 
     # select motifs based on frequency
-    motif_n = len(fmat.fpt)
-    motif_mincount = int(motif_n * motif_min)
-    motif_maxcount = int(motif_n * motif_max)
+    motif_n = len(fmat.fpt[0])
+    fpt_n = len(fmat.fpt)
+    motif_mincount = int(fpt_n * motif_min)
+    motif_maxcount = int(fpt_n * motif_max)
     print(f'motifs={motif_n}/{motif_mincount}/{motif_maxcount}')
-    fmat.select_min_max( motif_mincount, motif_maxcount, False, recalculate=True)
-    motif_n = len(fmat.fpt)
+    fmat.select_min_max(motif_mincount, motif_maxcount, False, recalculate=True)
+    motif_n = len(fmat.fpt[0])
     print(f'motifs={motif_n}')
 
     together = [[0 for _ in range(motif_n)] for _ in range(motif_n)]
 
     # k-means clustering
 
-    print( f'\nK-means clustering')
+    print(f'\nK-means clustering')
     k = Kmeans(cluster_n)
 
     for repeat in range(n_repeat):
@@ -102,8 +103,9 @@ if __name__ == '__main__':
     # neighborhood clustering: group the points that co-occur the most often using single linkage
     # clustering
     # for minval in range(floor(n_repeat * neighborhood_cutoff), n_repeat):
-    for minval in range(floor(n_repeat * neighborhood_cutoff[0]),
-                        ceil(n_repeat * neighborhood_cutoff[1])):
+    repeat_min = floor(n_repeat * 0.0)
+    repeat_max = ceil(n_repeat * 1.0)
+    for minval in range(repeat_min, repeat_max + 1):
         print(f'\n{"#" * 80}\n minval={minval}\n{"#" * 80}')
         cluster = []
         n = 0
