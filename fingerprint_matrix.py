@@ -23,11 +23,17 @@ if __name__ == '__main__':
     show_init = False
 
     selection = sys.argv[1]
+    print( f'selected files: {selection}')
     fmat = FingerprintMatrix()
     fmat.read_files(selection)
-    # if binary_matrix:
-    fmat.write('fmatrix.tsv')
-    fmat.pickle('fmatrix.pkl')
+
+    fmatfile = 'fmatrix.tsv')
+    fmat.write('fmatfile'
+    print(f'fingerprint matrix written to {fmatfile}')
+
+    fmatpkl = 'fmatrix.pl'
+    fmat.pickle(fmatpkl)
+    print(f'fingerprint matrix written to {fmatpkl}')
 
     # fmat.select_min_max(10, 45, False, recalculate=True)
 
