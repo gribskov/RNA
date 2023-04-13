@@ -599,7 +599,9 @@ class FingerprintMatrix:
         motif_n = len(self.motifs)
 
         fpt_list = glob.glob(select_str)
+        sys.stderr.write(f'{fpt_list}\n')
         for fpt_file in fpt_list:
+            sys.stderr.write(f'\treading {fpt_file} ...\n')
             f = Fingerprint()
             f.readYAML(fpt_file)
             self.fpt_id[fpt_file] = len(self.fpt)
