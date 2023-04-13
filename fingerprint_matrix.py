@@ -40,7 +40,7 @@ if __name__ == '__main__':
     # fmat.write('fmatfile')
     # print(f'\n\tfingerprint matrix written to {fmatfile}')
 
-    fmatpkl = 'fmatrix.pl'
+    fmatpkl = 'fmatrix.pkl'
     fmat.pickle(fmatpkl)
     print(f'\tfingerprint matrix written to {fmatpkl}')
 
