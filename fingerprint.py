@@ -627,12 +627,21 @@ class FingerprintMatrix:
         self.index2matrix()
         return True
 
+    def motifs_selected(self):
+        """-----------------------------------------------------------------------------------------
+        Return matrix of selected motif names corresponding to the current fpt matrix
+
+        :return: list of str    motif names
+        -----------------------------------------------------------------------------------------"""
+        return  [ id for id in self.motifs if self.motifs[id]['selected'] ]
+
+
     def write(self, filename):
-        """-------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         write the matrix to a tab delimited files with 1/0 indicating present/absent
         :param filename:
         :return:
-        -------------------------------------------------------------------------------------"""
+        -----------------------------------------------------------------------------------------"""
         out = None
         try:
             out = open(filename, 'w')
