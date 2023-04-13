@@ -719,12 +719,12 @@ class FingerprintMatrix:
 
         :param minval:int           motifs with count<minval are set to setval
         :param maxval:int           motifs with count>maxval are set to setval
-        :param setbal:bool          value to set motifs < minval or > maxval to
+        :param setval:bool          value to set motifs < minval or > maxval to
         :param recalculate:bool     if True recalculate the motif matrix
         :return:int                 number of selected motifs
         -----------------------------------------------------------------------------------------"""
         motifs = self.motifs
-
+        motif_n = len(self.fpt)
         if maxval == None:
             maxval = len(self.fpt)
 
@@ -740,7 +740,7 @@ class FingerprintMatrix:
             self.update_matrix()
 
 
-        return len(self.fpt) - n_set
+        return len(self.fpt[0])
 
     def pickle(self, outfilename):
         """-----------------------------------------------------------------------------------------
