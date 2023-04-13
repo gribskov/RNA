@@ -1,5 +1,10 @@
 """=================================================================================================
 Convert a set of fingerprint files into a binary form for rapid reading and manipulation
+also does a kmeans clustering based on the motifs present in each fingerprint and identifies the
+most correlateed motifs
+
+usage:
+    python fingerprint_matrix.py <input fileglob>
 ================================================================================================="""
 import sys
 from math import floor, ceil
