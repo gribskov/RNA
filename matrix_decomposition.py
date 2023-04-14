@@ -49,13 +49,16 @@ if __name__ == '__main__':
 
     # file = 'fmatrix.tsv'
     # read from pickled fingerprint matrix with fingerprints = rows and motifs = columns
-    fmat = FingerprintMatrix.unpickle('fmatrix.pkl')
+    picklefile = 'fmatrix.pkl'
+    fmat = FingerprintMatrix.unpickle(picklefile)
+    print(f'{len(fmat.fpt)} fingerprints with {len(fmat.motifs)} motifs unpickled')
     motif_mincount = 10
     motif_maxcount = 140
     fmat.select_min_max(motif_mincount, motif_maxcount, False, recalculate=True)
     f = fmat.fpt
     motif = np.array([[f[row][col] for col in range(len(f[0]))] for row in range(len(f))])
     colnames = fmat.motifs_selected()
+    print(f'{len(colnames)} motifs selected')
 
     # get fingerprint names and trim
     rownamedict = fmat.fpt_id
@@ -79,11 +82,14 @@ if __name__ == '__main__':
             gindex.append(token)
 
         g.append(groups[token])
-
-    pca = decomposition.PCA(n_components=3)
+    print(f'{len(groups)} groups identified')
+    component_n = 3
+    print(f'starting PCA (components={component_n})...')
+    pca = decomposition.PCA(n_components=component_n)
     pca.fit(motif)
     X = pca.transform(motif)
     components = pca.components_
+    print(f'PCA complete')
     for c in pca.components_:
         count = 0
         for i in sorted(range(len(c)), key=lambda i: c[i], reverse=True):
