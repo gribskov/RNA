@@ -142,6 +142,8 @@ class Chain:
             pairpos = int(pairpos)
             link.base = base
 
+            # to get only stems where left < right use
+            # if pairpos > pos:
             if pairpos > 0:
                 if pairpos in link.pair:
                     link.pair[pairpos] += 1
@@ -155,7 +157,44 @@ class Chain:
 
         return True
 
+def trace(link, gap=3):
+    """
+    try to trace the stems
+    :param link:
+    :return:
+    """
+    lbeg = 'lbeg'
+    lend = 'lend'
+    rbeg = 'rbeg'
+    rend = 'rend'
+    stack = [(link,0)]
+    stem = {}
+    while stack:
+        link, pp = stack.pop()
 
+        # skip unpaired
+        if not link.pair:
+            if link.next:
+                stack.append((link.next,0))
+            print(f'{link.pos:3d}\t{link.base}\tunpaired')
+        else:
+            if stem:
+                # there is an existing stem
+                if stem[lend] + gap >= link.pos and stem[rbeg] - gap <= link.pair[pp]:
+                    stem[lend] = link.pos
+                    stem[rbeg] = link.pair[pp]
+                else:
+                    # start new stem
+                    print(stem)
+                    stem[lbeg] = stem[lend] = link.pos
+                    stem[rbeg] = stem[rend] = link.pair[pp]
+            if link.next:
+                stack.append((link.next, 0))
+
+    return
+
+
+    # TODO probably better to actually condense the list
 # --------------------------------------------------------------------------------------------------
 #
 # --------------------------------------------------------------------------------------------------
@@ -175,5 +214,6 @@ if __name__ == '__main__':
     paired = chain.bp.filter(100)
     print(f'{paired} paired positions after filtering')
     chain.bp.dump()
+    trace(chain.bp)
 
     exit(0)
