@@ -431,10 +431,18 @@ if __name__ == '__main__':
     ctfilename = 'data/partition.stochastic.ct'
     struc.ctfile = open(ctfilename, 'r')
     struc.ct_read_all()
-    struc.filter(100)
+    struc.filter(12)
+    pos = 1
+    for s in struc.ct:
+        print(f'{pos:3d}\t{s}')
+        pos += 1
     struc.makestems()
+    pos = 0
     for s in struc.stems:
-        print(s)
+        if len(s)>3 and s[0][0] < s[0][1]:
+            ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1] ) / 4.0
+            print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}')
+            pos += 1
     # chain = Chain(ctfilename)
     #
     # ct_n = 0
