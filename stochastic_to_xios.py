@@ -428,10 +428,10 @@ class Struc:
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     struc = Struc()
-    ctfilename = 'data/partition.stochastic.ct'
+    ctfilename = 'data/stochastic.330.ct'
     struc.ctfile = open(ctfilename, 'r')
     struc.ct_read_all()
-    struc.filter(12)
+    struc.filter(56)
     pos = 1
     for s in struc.ct:
         print(f'{pos:3d}\t{s}')
