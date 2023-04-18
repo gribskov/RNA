@@ -1,0 +1,23 @@
+---
+  definitions:
+    python: python
+    fasta: fasta
+    ct: ct
+    xios: ../RNA
+    RNAstructure: ../RNAstructure
+  stage:
+    xios:
+      rule:
+        in: glob($fasta/*.fa)
+        out: sub(%in(.fa,.ct)
+      command: $python $xios/xios_from_rnastructure.py %option <in> <out>
+
+      option:
+        -c $fasta 
+        -x $ct 
+        -r $RNAstructure
+
+    two:
+      command: $python $xios/xios_dummy.py %option
+      option:
+        -h
