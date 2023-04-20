@@ -1,3 +1,5 @@
+import os.path
+import shutil
 import sys
 import time
 import argparse
@@ -60,17 +62,25 @@ def getoptions():
     if not args.base.endswith('/'):
         args.base += '/'
 
-    return vars(args)       # convert namespace to dict
+    return vars(args)  # convert namespace to dict
 
 
 class Workflow:
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-
+        plan:           python object created from plan xml
+        stage:          the current stage
+        command:        the command constructed from the stage yaml
+        commandlist:    filehandle - list of commands to run in this stage
+        completelist:   filehandle - list of commands completeed in this stage
+        option:         dict of options set on command line
         -----------------------------------------------------------------------------------------"""
         self.plan = {}
+        self.stage = '
         self.command = ''
+        self.commandlist = None
+        self.completelist = None
         self.option = getoptions()
 
     def yaml_read(self):
@@ -123,16 +133,45 @@ class Workflow:
         self.command = new
         return new
 
+    @staticmethod
+    def logtime():
+        """-----------------------------------------------------------------------------------------
+        Create a time string for use in logs year month day hour min sec
+        concatenated
 
-@staticmethod
-def logtime():
-    """-----------------------------------------------------------------------------------------
-    Create a time string for use in logs year month day hour min sec
-    concatenated
+        :return: str - YYYYMoDyHrMnSc
+        -----------------------------------------------------------------------------------------"""
+        return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
 
-    :return: str - YYYYMoDyHrMnSc
-    -----------------------------------------------------------------------------------------"""
-    return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
+    def make_directory(self, dir):
+        """-----------------------------------------------------------------------------------------
+        Create a directory or reuse an existing directory
+
+        :param dir: string      directory name
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        if os.path.disdir(dir):
+            # directory exists
+            if self.option['fastforward']:
+                # for fastforward keep the current file without changing
+                return True
+            else:
+                # remove previous directory tree
+                shutil.rmtree(dir, ignore_errors=False, onerror=None)
+                os.mkdirs(dir)
+
+    def fast_forward(self, stage):
+        """-----------------------------------------------------------------------------------------
+        1. check for a file {stage}.finished, if present this stage is complete. return False
+        2. examine the list of commands {stage}.commands and completed commands {stage}.complete and
+           create a new list of commands that still need to be run, return True
+
+        :return: bool   False if stage is complete, True if there are commands to execute
+        -----------------------------------------------------------------------------------------"""
+        commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
+        completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+
+        return True
 
 
 ####################################################################################################
@@ -150,7 +189,10 @@ if __name__ == '__main__':
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
     sys.stdout.write(f'project: {w.option["base"]}\n')
+    w.make_directory(w.option["base"])
+    w.make_directory(w.option["log"])
 
+    # read the plan and report on the stages
     w.yaml_read()
     sys.stdout.write(f'Stages read from {w.option["workflow"]}:\n')
     for stage in w.plan['stage']:
@@ -158,7 +200,7 @@ if __name__ == '__main__':
 
     for stage in w.plan['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
-        commandfile = stage + '.commands'
+        w.fastforward()
 
     commands = w.command_generate('xios')
     exit(0)
