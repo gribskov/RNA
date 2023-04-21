@@ -19,7 +19,7 @@ def arg_formatter(prog):
 def getoptions():
     """-----------------------------------------------------------------------------------------
     Command line arguments:
-    base: project directory, all stages will be in subdirectories
+    project: project directory, all stages will be in subdirectories
 
     r, restart      remove previous results and perform all stages
     c, continue     continue existing run, skipping commands that are marked as complete
@@ -30,13 +30,17 @@ def getoptions():
 
     :return: command line namespace
     -----------------------------------------------------------------------------------------"""
-    base_default = './'
+    project_default = './'
     commandline = argparse.ArgumentParser(
         description='Run workflow', formatter_class=arg_formatter)
 
-    commandline.add_argument('base', type=str,
-                             help='Base directory for project (%(default)s)',
-                             default=base_default)
+    commandline.add_argument('project', type=str,
+                             help='project directory for project (%(default)s)',
+                             default=project_default)
+
+    commandline.add_argument('-r', '--restart',
+                             help='Erase direcories/files and restart (%(default)s)',
+                             default=False, action='store_true')
 
     commandline.add_argument('-w', '--workflow', type=str,
                              help='YAML workflow plan for project (%(default)s)',
@@ -54,25 +58,41 @@ def getoptions():
     commandline.add_argument('-l', '--log',
                              metavar='DIR_NAME',
                              help='log directory (%(default)s)',
-                             default=f'{base_default}/log/')
+                             default=f'{project_default}/log/')
 
     args = commandline.parse_args()
 
-    # change object values if specified on command line
-    if not args.base.endswith('/'):
-        args.base += '/'
+    # project directory must not end in /
+    if not args.project.endswith('/'):
+        args.project = args.project.rstrip('/')
 
     return vars(args)  # convert namespace to dict
 
 
 class Workflow:
+    """=============================================================================================
+    python manager.py <project>
+
+    project is the base name for the run.
+    For each stage is created. Each stage directory contains:
+        {stage}.command = a list of all the executable commands for the stage
+        {stage}.complete = a list of all commands that have completed
+        {stage}.log = logfile for the stage
+        {stage}.complete = marker file, if present the stage is complete
+
+    Manager runs in two modes, controlled by --restart:
+        restart: delete any existing directories/files and start a new project from scratch
+        fastforward (default) use existing directories and files. Execute only stages and commands
+            that haven't completed
+    ============================================================================================="""
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
         option:         dict of options set on command line
         plan:           python object created from plan xml
         log_main        filehandle - overall logfile
-        stage:          the current stage
+
+        stage:          name of the current stage, from yaml
         command:        filehandle - list of commands to run in this stage
         complete:       filehandle - list of commands completeed in this stage
         log_stage:      filehandle - current stage log
@@ -86,18 +106,18 @@ class Workflow:
         self.complete = None
         self.log_stage = None
 
-    def open_exist(self, filename):
+    def open_exist(self, filename, mode='w'):
         """-----------------------------------------------------------------------------------------
         if filename exists, open for appending, otherwise open for writing
 
         :param filename: string
         :return: filehandle
         -----------------------------------------------------------------------------------------"""
-        mode = 'r'
-        if os.path.exist(filename):
-            mode = 'a'
+        if mode == 'w':
+            if os.path.exists(filename):
+                mode = 'a'
 
-        return = open(filename, mode)
+        return open(filename, mode)
 
     def yaml_read(self):
         """-----------------------------------------------------------------------------------------
@@ -126,6 +146,8 @@ class Workflow:
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
         current = self.plan['stage'][stage]
+
+        # TODO check for stage finished
 
         command = current['command']
         token = command.split()
@@ -159,32 +181,79 @@ class Workflow:
         -----------------------------------------------------------------------------------------"""
         return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
 
-    def stage_setup(self, dir):
+    def main_setup(self):
+        """-----------------------------------------------------------------------------------------
+        set up for the overall run
+        1) restart==True: create project directory, deleting current data
+           restart==False: create directory if not present, otherwise reuse current project
+        2) create main log
+        3) read workflow from yaml plan description
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        dir = self.option["project"]
+        self.option['base'] = os.path.basename(dir)
+        log = f'{dir}/{self.option["base"]}.log'
+        if self.option['restart']:
+            # in restart mode, delete existing directory if present and create the project directory
+            # and main log
+            if os.path.isdir(dir):
+                # project directory exists
+                shutil.rmtree(dir, ignore_errors=False, onerror=None)
+            os.mkdir(dir)
+            self.log_main = open(log, 'w')
+
+        else:
+            # fastforward mode keeps the current directory without changing, if the project
+            # directory and log file exist, proceed, otherwise create new ones
+
+            if not os.path.isdir(dir):
+                # project directory does not exist, this is a new project, create logfile below
+                os.mkdir(dir)
+                self.log_main = open(log, 'w')
+
+            if os.path.isfile(log):
+                # if exists, append to mexisting log
+                self.log_main = open(log, 'a')
+            else:
+                # create log file if it doesn't exist
+                self.log_main = open(log, 'w')
+
+        self.log_main.write(f'{self.logtime()}\tBegin: Project {self.option["project"]}\n')
+
+        # read the workflow plan from the yaml file
+
+        self.yaml_read()
+        self.log_main.write(f'{self.logtime()}\tRead: Workflow {self.option["workflow"]} ')
+        self.log_main.write(f'{len(self.plan["stage"])} stages\n')
+
+        return
+
+    def stage_setup(self, stage):
         """-----------------------------------------------------------------------------------------
         1. check/create stage directory
-        2. open log, command, complete files and store in object
+        2. open log file and store in object
 
         :param dir: string      directory name
         :return:
         -----------------------------------------------------------------------------------------"""
-        stage = self.stage
-        dir = f'{self.option["base"]}/{stage}'
+        self.stage = stage
+        dir = f'{self.option["project"]}/{stage}'
 
         if os.path.isdir(dir):
             # directory exists
-            if not self.option['fastforward']:
+            if self.option['restart']:
                 # for fastforward keep the current directory without changing, otherwise
                 # remove previous directory tree and create a new one
                 shutil.rmtree(dir, ignore_errors=False, onerror=None)
-                os.mkdirs(dir)
+                os.mkdir(dir)
+        else:
+            # create directory if absent
+            os.mkdir(dir)
 
-        # open log, command, and complete files
-        logfile = f'{w.option["base"]}/{stage}/{stage}.log'
-        self.log_stage = self.open_exist(logfile)
-        commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
-        self.command = self.open_exist(commandfile)
-        completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-        self.command = self.open_exist(completefile)
+        # open stage log
+        logfile = f'{w.option["project"]}/{stage}/{stage}.log'
+        self.log_stage = self.open_exist(logfile,'w')
 
         return True
 
@@ -199,7 +268,7 @@ class Workflow:
         :return:
         -----------------------------------------------------------------------------------------"""
         # mark stage finished
-        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
+        finished = f'{w.option["base"]}/{stage}/{stage}.finished'
         marker = open(finished, 'r')
         marker.close()
         self.log_main.write(f'{Workflow.logtime()}\tFinished stage:{self.stage}\n')
@@ -211,18 +280,36 @@ class Workflow:
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
-        1. check for a file {stage}.finished, if present this stage is complete. return False
-        2. examine the list of commands {stage}.commands and completed commands {stage}.complete and
+        When stage_fast_forward() returns False it means that commands must be generated and stored
+        in the command file (done by command_generate)
+
+        1. check if this is a --restart run, if yes return False
+        2. check for a file {stage}.finished, if present this stage is complete. return False
+        3. check if command and complete files are available, if not return False
+        4. examine the list of commands {stage}.commands and completed commands {stage}.complete and
            create a new list of commands that still need to be run, return True
 
         :return: bool   False if stage is complete, True if there are commands to execute
         -----------------------------------------------------------------------------------------"""
+        # TODO check for restart
 
-        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
+        # when a stage is finished a maker file {stage}.finished is created, if this file is present
+        # fast forward skips the stage
+        finished = f'{w.option["project"]}/{stage}/{stage}.finished'
         if os.path.isfile(finished):
+            time = Workflow.logtime()
+            self.log_main.write( f'{time}\tFast_forward: Finish stage:{self.stage} ')
+            self.log_main.write( f'stage finish marker detected\n')
+            self.log_stage.write(
+                f'{time}\tFast_forward: Finish stage:{self.stage}\n')
+            self.stage_finished = True
             return False
+        else:
+            self.stage_finished = False
 
-        # read in the completed job list; when run on multiple processors the complete list may not
+        # TODO check for command and complete files
+
+        # read the completed job list; when run on multiple processors the complete list may not
         # be in the same order as the job list
 
         done = []
@@ -245,8 +332,9 @@ class Workflow:
 
         # save the current command file to a new name, checking to be sure that old versions are
         # not deleted. the name of the current command file comes from the open filehandle
-        current = os.path.basename(self.command)
+        current = self.command.name
         commandfile = f'{w.option["base"]}/{stage}/{current}'
+        commandfile = current
 
         # add a numeric suffix to the current file and change its name
         suffix = 0
@@ -254,6 +342,9 @@ class Workflow:
         while os.path.isfile(commandfile_old):
             suffix += 1
             commandfile_old = commandfile + f'.{suffix}'
+
+        # have to close before renamimg
+        self.command.close()
         os.rename(commandfile, commandfile_old)
 
         # now open the new file and write the command list
@@ -261,7 +352,12 @@ class Workflow:
         for c in todo:
             self.command.write(f'{c}\n')
 
+        # close the files so they can be reopened in read mode to run the commands
+        self.command.close()
+        self.complete.close()
+
         # commands need to be processed so
+
         return True
 
 
@@ -279,23 +375,21 @@ if __name__ == '__main__':
 
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
-    sys.stdout.write(f'project: {w.option["base"]}\n')
-    w.make_directory(w.option["base"])
-    w.make_directory(w.option["log"])
-
-    # read the plan and report on the stages
-    w.yaml_read()
+    sys.stdout.write(f'project: {w.option["project"]}\n')
+    w.main_setup()
     sys.stdout.write(f'Stages read from {w.option["workflow"]}:\n')
     for stage in w.plan['stage']:
         sys.stdout.write(f'\t{stage}\n')
 
     for stage in w.plan['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
-        w.stage_setup_()
-        if w.stage_fast_forward():
-            # execute commands
-            commands = w.command_generate('xios')
-            pass
+        w.stage_setup(stage)
+        if not w.stage_fast_foward():
+            # fast_forward returns false for restart mode, or in fastforward mode if the stage
+            # directory, and stage log, command, and complete files do not exist
+            w.command_generate()
+
+        # command execute, check for stage finished
 
         w.stage_finish()
 
