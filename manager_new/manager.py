@@ -160,6 +160,8 @@ class Workflow:
                 shutil.rmtree(dir, ignore_errors=False, onerror=None)
                 os.mkdirs(dir)
 
+        return False
+
     def fast_forward(self, stage):
         """-----------------------------------------------------------------------------------------
         1. check for a file {stage}.finished, if present this stage is complete. return False
@@ -170,7 +172,53 @@ class Workflow:
         -----------------------------------------------------------------------------------------"""
         commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
 
+        if os.path.isfile(finished):
+            return False
+
+        # read in the completed job list; when run on multiple processors the complete list may not
+        # be in the same order as the job list
+
+        done = []
+        complete = open(completefile, 'r')
+        for line in complete:
+            done.append(line.rstrip())
+        complete.close()
+
+        # compare to the command list and create a new list of commands
+        todo = []
+        command = open(commandfile, 'r')
+        for line in command:
+            line = line.rstrip()
+            if line in done:
+                continue
+            todo.append(line)
+        command.close()
+
+        # if todo_ is empty, this stage is finished, create the finished marker file and return False
+        if os.path.isfile(finished):
+            marker = open(finished, 'r')
+            marker.close()
+            return False
+
+        # save the current command file to a new name, checking to be sure that old versions are
+        # not deleted
+        commandfile_old = commandfile
+        suffix = 0
+        commandfile_old = commandfile + f'.{suffix}'
+        while os.path.isfile(commandfile_old):
+            suffix += 1
+            commandfile_old = commandfile + f'.{suffix}'
+        os.rename(commandfile, commandfile_old)
+
+        # now write the command list
+        command = open(commandfile, 'w')
+        for c in todo:
+            command.write(f'{c}\n')
+        command.close()
+
+        # commands need to be processed so
         return True
 
 
