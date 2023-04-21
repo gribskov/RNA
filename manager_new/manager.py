@@ -143,26 +143,33 @@ class Workflow:
         -----------------------------------------------------------------------------------------"""
         return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
 
-    def make_directory(self, dir):
+    def stage_setup(self, dir):
         """-----------------------------------------------------------------------------------------
-        Create a directory or reuse an existing directory
+        1. check/create stage directory
+        2. open log, command, complete files and store in object
 
         :param dir: string      directory name
         :return:
         -----------------------------------------------------------------------------------------"""
-        if os.path.disdir(dir):
+        stage = self.stage
+        dir = f'{self.option["base"]}/{stage}'
+
+        if os.path.isdir(dir):
             # directory exists
-            if self.option['fastforward']:
-                # for fastforward keep the current file without changing
-                return True
-            else:
-                # remove previous directory tree
+            if not self.option['fastforward']:
+                # for fastforward keep the current directory without changing, otherwise
+                # remove previous directory tree and create a new one
                 shutil.rmtree(dir, ignore_errors=False, onerror=None)
                 os.mkdirs(dir)
 
-        return False
+        # TODO open log, command, and complete
+        logfile = f'{w.option["base"]}/{stage}/{stage}.log'
+        commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
+        completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
 
-    def fast_forward(self, stage):
+        return True
+
+    def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
         1. check for a file {stage}.finished, if present this stage is complete. return False
         2. examine the list of commands {stage}.commands and completed commands {stage}.complete and
@@ -170,10 +177,8 @@ class Workflow:
 
         :return: bool   False if stage is complete, True if there are commands to execute
         -----------------------------------------------------------------------------------------"""
-        commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
-        completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
 
+        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
         if os.path.isfile(finished):
             return False
 
@@ -248,7 +253,10 @@ if __name__ == '__main__':
 
     for stage in w.plan['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
-        w.fastforward()
+        w.stage_setup_dirs()
+        if w.stage_fast_forward():
+            # execute commands
+            pass
 
     commands = w.command_generate('xios')
     exit(0)
