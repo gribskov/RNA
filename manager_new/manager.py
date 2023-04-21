@@ -230,14 +230,13 @@ class Workflow:
             done.append(line.rstrip())
         # complete.close()
 
-        # compare to the command list and create a new list of commands
+        # compare completed commands to the command list and create a new list of commands
         todo = []
         for line in self.command:
             line = line.rstrip()
             if line in done:
                 continue
             todo.append(line)
-        # command.close()
 
         # if todo_ is empty, this stage is finished, create the finished marker file and return False
         if os.path.isfile(finished):
@@ -245,8 +244,11 @@ class Workflow:
             return False
 
         # save the current command file to a new name, checking to be sure that old versions are
-        # not deleted
-        commandfile_old = commandfile
+        # not deleted. the name of the current command file comes from the open filehandle
+        current = os.path.basename(self.command)
+        commandfile = f'{w.option["base"]}/{stage}/{current}'
+
+        # add a numeric suffix to the current file and change its name
         suffix = 0
         commandfile_old = commandfile + f'.{suffix}'
         while os.path.isfile(commandfile_old):
@@ -254,11 +256,10 @@ class Workflow:
             commandfile_old = commandfile + f'.{suffix}'
         os.rename(commandfile, commandfile_old)
 
-        # now write the command list
-        command = open(commandfile, 'w')
+        # now open the new file and write the command list
+        self.command = open(commandfile, 'w')
         for c in todo:
-            command.write(f'{c}\n')
-        command.close()
+            self.command.write(f'{c}\n')
 
         # commands need to be processed so
         return True
@@ -290,10 +291,12 @@ if __name__ == '__main__':
 
     for stage in w.plan['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
-        w.stage_setup_dirs()
+        w.stage_setup_()
         if w.stage_fast_forward():
             # execute commands
+            commands = w.command_generate('xios')
             pass
 
-    commands = w.command_generate('xios')
+        w.stage_finish()
+
     exit(0)
