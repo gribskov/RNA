@@ -69,19 +69,35 @@ class Workflow:
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-        plan:           python object created from plan xml
-        stage:          the current stage
-        command:        the command constructed from the stage yaml
-        commandlist:    filehandle - list of commands to run in this stage
-        completelist:   filehandle - list of commands completeed in this stage
         option:         dict of options set on command line
+        plan:           python object created from plan xml
+        log_main        filehandle - overall logfile
+        stage:          the current stage
+        command:        filehandle - list of commands to run in this stage
+        complete:       filehandle - list of commands completeed in this stage
+        log_stage:      filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
-        self.plan = {}
-        self.stage = '
-        self.command = ''
-        self.commandlist = None
-        self.completelist = None
         self.option = getoptions()
+        self.plan = {}
+        self.log_main = None
+        self.stage = ''
+        # file pointers for commands, complete commands, and the stage log
+        self.command = None
+        self.complete = None
+        self.log_stage = None
+
+    def open_exist(self, filename):
+        """-----------------------------------------------------------------------------------------
+        if filename exists, open for appending, otherwise open for writing
+
+        :param filename: string
+        :return: filehandle
+        -----------------------------------------------------------------------------------------"""
+        mode = 'r'
+        if os.path.exist(filename):
+            mode = 'a'
+
+        return = open(filename, mode)
 
     def yaml_read(self):
         """-----------------------------------------------------------------------------------------
@@ -162,12 +178,36 @@ class Workflow:
                 shutil.rmtree(dir, ignore_errors=False, onerror=None)
                 os.mkdirs(dir)
 
-        # TODO open log, command, and complete
+        # open log, command, and complete files
         logfile = f'{w.option["base"]}/{stage}/{stage}.log'
+        self.log_stage = self.open_exist(logfile)
         commandfile = f'{w.option["base"]}/{stage}/{stage}.commands'
+        self.command = self.open_exist(commandfile)
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+        self.command = self.open_exist(completefile)
 
         return True
+
+    def stage_finish(self):
+        """-----------------------------------------------------------------------------------------
+        clean up at the end of a stage
+        1) mark as finished by creating stage, {base}/{stage}/{stage}.complete
+        2) report stage finished in log_main
+        3) close stage_log, command, and complete files
+
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        # mark stage finished
+        finished = f'{w.option["base"]}/{stage}/{stage}.complete'
+        marker = open(finished, 'r')
+        marker.close()
+        self.log_main.write(f'{Workflow.logtime()}\tFinished stage:{self.stage}\n')
+
+        for f in (self.log_stage, self.command, self.complete):
+            f.close()
+
+        return
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
@@ -186,25 +226,22 @@ class Workflow:
         # be in the same order as the job list
 
         done = []
-        complete = open(completefile, 'r')
-        for line in complete:
+        for line in self.complete:
             done.append(line.rstrip())
-        complete.close()
+        # complete.close()
 
         # compare to the command list and create a new list of commands
         todo = []
-        command = open(commandfile, 'r')
-        for line in command:
+        for line in self.command:
             line = line.rstrip()
             if line in done:
                 continue
             todo.append(line)
-        command.close()
+        # command.close()
 
         # if todo_ is empty, this stage is finished, create the finished marker file and return False
         if os.path.isfile(finished):
-            marker = open(finished, 'r')
-            marker.close()
+            self.stage_finish()
             return False
 
         # save the current command file to a new name, checking to be sure that old versions are
