@@ -253,7 +253,7 @@ class Workflow:
 
         # open stage log
         logfile = f'{w.option["project"]}/{stage}/{stage}.log'
-        self.log_stage = self.open_exist(logfile,'w')
+        self.log_stage = self.open_exist(logfile, 'w')
 
         return True
 
@@ -298,8 +298,8 @@ class Workflow:
         finished = f'{w.option["project"]}/{stage}/{stage}.finished'
         if os.path.isfile(finished):
             time = Workflow.logtime()
-            self.log_main.write( f'{time}\tFast_forward: Finish stage:{self.stage} ')
-            self.log_main.write( f'stage finish marker detected\n')
+            self.log_main.write(f'{time}\tFast_forward: Finish stage:{self.stage} ')
+            self.log_main.write(f'stage finish marker detected\n')
             self.log_stage.write(
                 f'{time}\tFast_forward: Finish stage:{self.stage}\n')
             self.stage_finished = True
@@ -365,7 +365,173 @@ class Workflow:
 # end of class Workflow
 ####################################################################################################
 
+####################################################################################################
+# command executor, runs a set of command lines in a directory,
+# executor is the main part of the original rna_manager
+####################################################################################################
+class executor():
+    """=============================================================================================
+    command executor, runs a set of command lines in a directory,
+    ============================================================================================="""
 
+    def __init__(self, jobs=20):
+        """-----------------------------------------------------------------------------------------
+        commandlist     fh, list of command lines to run
+        completelist    fh, list of completed commands
+        log_stage       fh, log for details
+        log_main        fh, log for general information
+
+        jobs            number of jhob to run concurrently
+        running         number of jobs currently running
+        TODO maybe the main log can be done before/after running manager
+        -----------------------------------------------------------------------------------------"""
+        self.jobs = jobs
+        self.jobid = 0
+        # may not need these with new setup
+        self.running = 0
+        # self.total = 0
+        # self.started = 0
+        # self.finished = 0
+        # self.succeeded = 0
+        # self.failed = 0
+        self.delay = 5
+        self.joblist = []
+
+    def manager(self):
+        """-----------------------------------------------------------------------------------------
+        Runs each stage keeping self.jobs running at a time.  Delay between polling is set by
+        self.delay
+        TODO no more handling of stages, just lists of commands
+        TODO probably this whole function can be removed
+        -----------------------------------------------------------------------------------------"""
+        files = []
+        for stage in self.stage:
+            s = stage['stage']
+            self.source = stage['source']
+            files.append(f'{s}:{len(self.complete[s])}')
+        self.logwrite('manager', 'fastforward', f'init', ';'.join(files))
+
+        for stage in self.stage:
+            self.current = stage['stage']
+            sourcedir, sourcetype = stage['source']
+            # stagedir = getattr(self, self.source)
+            # filelist = Pipeline.get_file_list(self.current)
+            print(f'\nstage={stage["stage"]}\tsource={sourcedir}*{sourcetype}')
+            filelist = Pipeline.get_file_list(sourcedir, sourcetype)
+
+            # total number of jobs for this stage
+            total = len(filelist)
+            self.logwrite('manager', 'files', f'{stage["stage"]}',
+                          f'{total} files in {self.source}')
+
+            # check that output directories exist
+            for dir in stage['dirs']:
+                Pipeline.dircheck(dir)
+
+            while self.manager_startjobs(filelist, stage) or self.joblist:
+                self.manager_polljobs(stage)
+
+        return self.finished
+
+    def manager_startjobs(self, filelist, stage):
+        """-----------------------------------------------------------------------------------------
+        process all commands in self.commandlist. All commands should already be complete so no
+        expansion of wildcards or globs is needed
+
+        run up to self.jobs at a time
+
+        usage:
+            while self.manager_startjobs(filelist, stage):
+                self.manager_polljobs(stage)
+
+        :param filelist: list - list of input files to process
+        :param stage: dict - information describing current pipeline stage
+        :return: boolean - True indicates there are more files to process
+        -----------------------------------------------------------------------------------------"""
+        commandlist = self.commandlist
+        for command in commandlist:
+            # TODO working here
+
+            if self.running < self.jobs:
+                file = filelist.pop()
+                if file in self.complete[this_stage]:
+                    print(f'skipping {file}')
+                    continue
+                # print(f'loop filelist:{len(filelist)}')
+
+                self.jobid += 1
+                print(f'starting job{self.jobid} {file}')
+
+                thiscommand = [stage['command']] + stage['options']
+                thiscommand = [clause.replace('$FILE', file) for clause in thiscommand]
+
+                self.logwrite('manager', 'start', stage['stage'],
+                              f'jobid:{self.jobid}; input:{file} ')
+                self.logwrite('manager', 'command', stage['stage'], ' '.join(thiscommand))
+                job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog,
+                                stderr=self.errorlog)
+                self.joblist.append([self.jobid, job, file])
+                self.running += 1
+
+            else:
+                # desired number of jobs are running so continue to polling
+                break
+
+        if filelist:
+            # files remain to be processed
+            return True
+        else:
+            return False
+
+    def manager_polljobs(self, stage):
+        """-----------------------------------------------------------------------------------------
+        Poll the currently running jobs, and remove completed jobs from the joblist
+
+        :param stage: dict - information describing current pipeline stage
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        # poll all jobs in joblist
+        time.sleep(self.delay)
+        to_remove = []
+        for j in self.joblist:
+            id, job, file = j
+            # print(f'\tjob {id} ...', end='')
+            result = job.poll()
+            if result == None:
+                # None indicates job is still running
+                # print(f'job {id} still running')
+                pass
+
+            else:
+                # job finished
+                # print(f'job{id} finished')
+                self.running -= 1
+                self.finished += 1
+                if result == 0:
+                    # success
+                    print(f'job{id} succeeded {file}')
+                    self.logwrite('manager', 'complete', stage['stage'], f'jobid:{id};file:{file}')
+                    self.succeeded += 1
+
+                else:
+                    # error
+                    print(f'job{id} failed {file}')
+                    self.logwrite('manager', 'fail', self.current, f'status:{result};file:{file}')
+                    self.failed += 1
+
+                # include the result in the remove list, it can't be removed here because it
+                # changes the list (self.joblist) that is iterating
+                to_remove.append(j)
+
+        # remove all finished jobs. Couldn't do it above because it shortens the joblist and
+        # some jobs don't get polled
+        for j in to_remove:
+            self.joblist.remove(j)
+
+
+####################################################################################################
+# end of class executor
+####################################################################################################
 ####################################################################################################
 # Main Program
 ####################################################################################################
