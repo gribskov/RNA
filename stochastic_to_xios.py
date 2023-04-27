@@ -4,7 +4,7 @@ structures from a partition function
 
 Michael Gribskov     15 April 2023
 ================================================================================================="""
-
+# import numpy as np
 
 class Struc:
     """---------------------------------------------------------------------------------------------
@@ -205,6 +205,92 @@ class Struc:
         return pair_n
 
 
+def dp(stem):
+    """---------------------------------------------------------------------------------------------
+    use dp to find the best match of the base-pairs in the stem and generate the vienna string
+    :param stem:
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    import numpy as np
+
+    # find the max and min values in the stem
+    left_min, right_max = stem[0]
+    left_max, right_min  = stem[-1]
+    for s in stem:
+        left_min = min(left_min, s[0])
+        left_max = max(left_max, s[0])
+        right_min = min(right_min, s[1])
+        right_max = max(right_max, s[1])
+        
+    left_len = left_max - left_min + 1
+    right_len = right_max - right_min + 1
+
+    # init scoring matrix and fill in paired bases with ones
+    score_matrix = np.zeros((left_len, right_len))
+    for s in stem:
+        score_matrix[s[0]-left_min][right_max-s[1]] = 1
+
+    dir = np.zeros((left_len, right_len))
+    for i in range(1,left_len):
+        dir[i][0] = 1
+    for j in range(1,right_len):
+        dir[0][j] = 2
+    # Fill in the scoring matrix
+    for i in range(1, left_len):
+        for j in range(1, right_len):
+            match = score_matrix[i - 1][j - 1] + score_matrix[i][j]
+            gap1 = score_matrix[i - 1][j]
+            gap2 = score_matrix[i][j - 1]
+            best = max(match, gap1, gap2)
+            if best == match:
+                # diagonal
+                dir[i][j] = 0
+            elif best == gap1:
+                dir[i][j] = 1
+            elif best == gap2:
+                dir[i][j] = 2
+            score_matrix[i][j] = best
+
+    # Traceback to find the alignment
+    vleft = ""
+    vright = ""
+    i = left_max - left_min
+    j = right_max - right_min
+    while True:
+        print(f'i:{i}, j:{j}, {score_matrix[i][j]}, {dir[i][j]}')
+        if dir[i][j] == 0:
+            if score_matrix[i][j]:
+                vleft += '('
+                vright += ')'
+            else:
+                vleft += '.'
+                vright += '.'
+            i -= 1
+            j -= 1
+        elif dir[i][j] == 1:
+            vleft += '.'
+            vright += ''
+            i -= 1
+        elif dir[i][j] == 2:
+            vleft += ''
+            vright += ':'
+            j -= 1
+
+        if i < 0 or j < 0:
+            break
+
+        # if score_matrix[i][j] == 1:
+        #     vleft += '('
+        #     vright += ')'
+
+    # reverse the right vienna string
+    vleft = vleft[::-1]
+    print('\n', score_matrix)
+    print(dir)
+
+    return vleft, vright
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -226,26 +312,27 @@ if __name__ == '__main__':
             print(s)
             ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
             print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
-
+            lstem, rstem = dp(s)
+            print(lstem, rstem)
             # construct vienna string
-            left = right = ''
-            lpos = s[0][0]
-            rpos = s[0][1]
-            for pos, pairpos in s:
-                while lpos < pos:
-                    left += '.'
-                    lpos += 1
-                while rpos > pairpos:
-                    right += '.'
-                    rpos -= 1
-                if pos == lpos:
-                    left += '('
-                    lpos += 1
-                if pairpos == rpos:
-                    right += ')'
-                    rpos -= 1
-
-            print(f'{left}    {right[::-1]}')
+            # left = right = ''
+            # lpos = s[0][0]
+            # rpos = s[0][1]
+            # for pos, pairpos in s:
+            #     while lpos < pos:
+            #         left += '.'
+            #         lpos += 1
+            #     while rpos > pairpos:
+            #         right += '.'
+            #         rpos -= 1
+            #     if pos == lpos:
+            #         left += '('
+            #         lpos += 1
+            #     if pairpos == rpos:
+            #         right += ')'
+            #         rpos -= 1
+            #
+            # print(f'{left}    {right[::-1]}')
 
             pos += 1
 
