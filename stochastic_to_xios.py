@@ -8,52 +8,34 @@ Michael Gribskov     15 April 2023
 
 class Struc:
     """---------------------------------------------------------------------------------------------
-
+    Struc is used to construct a list of paired postions from the stochastic samples read from the
+    ct file. The positions are traversed in order; paired positions are added to stems - the
+    stems that can potentially be extended are the tips. At each position all paired bases are
+    examined and either added to a a growing stem (tip) or they create a new stem (which is a new
+    tip)
    ----------------------------------------------------------------------------------------------"""
 
     def __init__(self):
+        """-----------------------------------------------------------------------------------------
+        ctfile  fh, ctfile from RNAStructure Stochastic
+        ct      list of positions in sequence, each position has the base and a dictionary of paired
+                positions and a count of number of ocurrences pair:{pos:count, pos:count, ...}
+                ct[0] is blank because position numbering begins at 1
+        tips    used in tracing stems, distinct stems that are currently being extended
+        stems   contiguous base-paired regions, subject to gap
+        gap     stems must have fewer than gap contiguous unpaired positions ((((..((....))..))..))
+                is ok
+        -----------------------------------------------------------------------------------------"""
         self.ctfile = None
         self.ct = []
         self.tips = []
         self.stems = []
         self.gap = 3
 
-    def ct_read(self):
-        """-----------------------------------------------------------------------------------------
-        Read and return one structure from ctfile
-
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        ctfile = self.ctfile
-
-        # first line
-        line = ctfile.readline()
-        try:
-            seqlen, self.id = line.rstrip().split()
-            seqlen = int(seqlen)
-        except ValueError:
-            # end of file
-            return False
-
-        while True:
-            line = ctfile.readline()
-            pos, base, x0, x1, pairpos, x2 = line.rstrip().split()
-            pos = int(pos)
-            pairpos = int(pairpos)
-
-            # to get only stems where left < right use
-            # if pairpos > pos:
-            if pairpos > pos:
-                active_n = self.tip_update(pos, pairpos)
-
-            if pos == seqlen:
-                break
-
-        return True
-
     def makestems(self):
         """-----------------------------------------------------------------------------------------
-        trace stems from the merged ct files
+        trace stems from the merged ct information. At each position, see if any of the pairs at the
+        current position can be added to any of the currently extendable stems (tips)
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -66,16 +48,20 @@ class Struc:
                 self.tip_match(pos)
 
             pos += 1
-            # for pairpos in position[pair]:
-            #     active_n = self.tip_update(pos, pairpos)
+
+        return
 
     def tip_update(self, pos, pairpos, gap=3):
         """-----------------------------------------------------------------------------------------
+        Tips are the contguous base-paired regions (stems) that are currently available by
+        extension. Tips cease to be extensible when a unpaired region (gap) of gap or more is
+        encountered.
+
         remove any active tips where adding pair, pairpos would create a bubble of gap or more on
         both sides of the stem
 
-        :param gap:
-        :return:
+        :param gap: int     contiguous unpaired regions must < gap long
+        :return: int        current number of tips
         -----------------------------------------------------------------------------------------"""
         if not self.tips:
             # no active tips create a new stem and return
@@ -84,28 +70,16 @@ class Struc:
 
         match = False
         self.match_find(pos)
-        # for s in self.tips:
-        #     # compare last position to pair, pairpos
-        #     send = s[-1]
-        #     if pos - send[0] > gap or pairpos - send[1] > gap or send[1] - pairpos > gap:
-        #         # gap is too big
-        #         self.tips.remove(s)
-        #     else:
-        #         match = True
-        #         s.append((pos, pairpos))
-        #
-        # if not match:
-        #     # no match to any active tip, create a new stem
-        #     self.stem_new(pos, pairpos)
 
         return len(self.tips)
 
     def stem_new(self, pos, pairpos):
         """-----------------------------------------------------------------------------------------
-
-        :param pos:
-        :param pairpos:
-        :return:
+        Stem is a list of positions and paired position that can be joined subject to the limit on
+        gaps
+        :param pos: int
+        :param pairpos: int
+        :return: list           last paired position in stem
         -----------------------------------------------------------------------------------------"""
         self.stems.append([(pos, pairpos)])
         self.tips.append(self.stems[-1])
@@ -114,40 +88,41 @@ class Struc:
     def tip_match(self, pos):
         """-----------------------------------------------------------------------------------------
         check if the pos, pairpos can be added to any of the active tips
-        if not, create a new stem with the pair,pairpos tuple and make it an
-        active tip
+        if not, create a new stem with the pair,pairpos tuple and make it an active tip
 
-        :param pos:
-        :param pairpos:
-        :return:
+        :param pos: int     position in self.ct
+        :return: int        number of active tips
         -----------------------------------------------------------------------------------------"""
         gap = self.gap
         pairs = self.ct[pos]['pair']
-        # any_match = False
         match = []
+
+        # compare all tips to the pairs at this position and find which pairs can be added to which
+        # tips
         for t in self.tips:
             for pp in pairs:
                 if pos - t[-1][0] <= gap and pp - t[-1][1] <= gap and t[-1][1] - pp <= gap:
                     match.append({'pos': pos, 'pair': pp, 'tip': t})
-                    # any_match = True
 
+        # make a list of tips that will be removed because they are no longer extensible
         remove = []
         for t in self.tips:
             found = False
             for m in match:
                 if m['tip'] == t:
-                    # TODO this has to check the position and not terminate until gap bases away
                     t.append((m['pos'], m['pair']))
                     found = True
 
             if not found and pos - t[-1][0] > gap:
-                # if a tip is not matched AND is pos is more than gap it can be closed
+                # if a tip is not matched AND is pos is more than gap away from the last paired
+                # position it can be closed
                 remove.append(t)
 
+        # remove un-extensible tips, the stems are still in the list of stems
         for t in remove:
             self.tips.remove(t)
 
-        # check the pairs, any pair not found needs a new stem
+        # check the pairs at this position, any pair not matched to a tip needs a new stem
         for pp in pairs:
             found = False
             for m in match:
@@ -158,7 +133,7 @@ class Struc:
                 self.stems.append([(pos, pp)])
                 self.tips.append(self.stems[-1])
 
-        return
+        return len(self.tips)
 
     def ct_read_all(self):
         """-----------------------------------------------------------------------------------------
@@ -251,20 +226,5 @@ if __name__ == '__main__':
             ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
             print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}')
             pos += 1
-    # chain = Chain(ctfilename)
-    #
-    # ct_n = 0
-    # while True:
-    #     ct_n += 1
-    #     success = chain.ct_read()
-    #
-    #     if not success:
-    #         break
-    #
-    # # chain.bp.dump()
-    # paired = chain.bp.filter(100)
-    # print(f'{paired} paired positions after filtering')
-    # chain.bp.dump()
-    # trace(chain.bp)
 
     exit(0)
