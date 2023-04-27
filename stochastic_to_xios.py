@@ -8,9 +8,7 @@ Michael Gribskov     15 April 2023
 
 class Link:
     """=============================================================================================
-
-    Synopsis
-        (None yet)
+    A link are is two paired bases, basically a linked list of pairs
 
     Michael Gribskov
     ============================================================================================="""
@@ -94,8 +92,6 @@ class Link:
 class Chain:
     """=============================================================================================
 
-    Synopsis
-        (None yet)
 
     Michael Gribskov
     ============================================================================================="""
@@ -114,7 +110,30 @@ class Chain:
 
     def ct_read(self):
         """-----------------------------------------------------------------------------------------
-        Read and return one structure from ctfile
+        Read and return the next ct structure in the file, example of format below.
+
+          360  rnasep_a2.Neisseria_meningitidis.fa
+        1 C       0    2    0    1
+        2 G       1    3    0    2
+        3 G       2    4  354    3
+        4 G       3    5  353    4
+        5 A       4    6  352    5
+        6 C       5    7  351    6
+        from https://rna.urmc.rochester.edu/Text/File_Formats.html#CT
+        line 0:
+            Start of first line: number of bases in the sequence
+            End of first line: title of the structure
+        Each of the following lines, one/base
+            Base number: index n
+            Base (A, C, G, T, U, X)
+            Index n-1
+            Index n+1
+            Number of the base to which n is paired. No pairing is indicated by 0 (zero).
+            Natural numbering. RNAstructure ignores the actual value given in natural numbering, so it is easiest to
+            repeat n here.
+
+        :param ct: file     ct file open for reading
+        :return: dict       ct information
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -159,11 +178,11 @@ class Chain:
 
 
 def trace(link, gap=3):
-    """
+    """-----------------------------------------------------------------------------------------------------------------
     try to trace the stems
     :param link:
     :return:
-    """
+    -----------------------------------------------------------------------------------------------------------------"""
     lbeg = 'lbeg'
     lend = 'lend'
     rbeg = 'rbeg'
@@ -198,9 +217,9 @@ def trace(link, gap=3):
 
 
 class Struc:
-    """
+    """-----------------------------------------------------------------------------------------------------------------
 
-    """
+   ----------------------------------------------------------------------------------------------------------------- """
 
     def __init__(self):
         self.ctfile = None
@@ -243,11 +262,11 @@ class Struc:
         return True
 
     def makestems(self):
-        """
+        """-------------------------------------------------------------------------------------------------------------
         trace stems from the merged ct files
 
         :return:
-        """
+        -------------------------------------------------------------------------------------------------------------"""
         pair = 'pair'
         pos = 0
         # remember, ct position zero is blank
@@ -261,13 +280,13 @@ class Struc:
             #     active_n = self.tip_update(pos, pairpos)
 
     def tip_update(self, pos, pairpos, gap=3):
-        """
+        """-------------------------------------------------------------------------------------------------------------
         remove any active tips where adding pair, pairpos would create a bubble of gap or more on
         both sides of the stem
 
         :param gap:
         :return:
-        """
+        -------------------------------------------------------------------------------------------------------------"""
         if not self.tips:
             # no active tips create a new stem and return
             self.stem_new(pos, pairpos)
@@ -292,18 +311,18 @@ class Struc:
         return len(self.tips)
 
     def stem_new(self, pos, pairpos):
-        """
+        """-------------------------------------------------------------------------------------------------------------
 
         :param pos:
         :param pairpos:
         :return:
-        """
+        -------------------------------------------------------------------------------------------------------------"""
         self.stems.append([(pos, pairpos)])
         self.tips.append(self.stems[-1])
         return self.stems[-1]
 
     def tip_match(self, pos):
-        """
+        """-------------------------------------------------------------------------------------------------------------
         check if the pos, pairpos can be added to any of the active tips
         if not, create a new stem with the pair,pairpos tuple and make it an
         active tip
@@ -311,7 +330,7 @@ class Struc:
         :param pos:
         :param pairpos:
         :return:
-        """
+        -------------------------------------------------------------------------------------------------------------"""
         gap = self.gap
         pairs = self.ct[pos]['pair']
         # any_match = False
@@ -349,16 +368,14 @@ class Struc:
                 self.stems.append([(pos, pp)])
                 self.tips.append(self.stems[-1])
 
-
-
         return
 
     def ct_read_all(self):
-        """-----------------------------------------------------------------------------------------
+        """-------------------------------------------------------------------------------------------------------------
         Read and return all structures from ctfile
 
         :return:
-        -----------------------------------------------------------------------------------------"""
+        -------------------------------------------------------------------------------------------------------------"""
         ctfile = self.ctfile
 
         # first line
@@ -401,12 +418,12 @@ class Struc:
         return True
 
     def filter(self, n):
-        """-----------------------------------------------------------------------------------------
+        """-------------------------------------------------------------------------------------------------------------
         remove pairs whose count < n
 
         :param n: int   minimum count for base pairs
         :return: int    number of positions with pairs
-        -----------------------------------------------------------------------------------------"""
+        -------------------------------------------------------------------------------------------------------------"""
         pair_n = 0
         for pos in range(len(self.ct)):
             remove = []
@@ -423,12 +440,13 @@ class Struc:
         return pair_n
 
 
-# --------------------------------------------------------------------------------------------------
-#
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
+# main
+# ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     struc = Struc()
-    ctfilename = 'data/stochastic.330.ct'
+    ctfilename = 'data/partition.stochastic.ct'
+    # ctfilename = 'data/stochastic.330.ct'
     struc.ctfile = open(ctfilename, 'r')
     struc.ct_read_all()
     struc.filter(56)
@@ -439,8 +457,8 @@ if __name__ == '__main__':
     struc.makestems()
     pos = 0
     for s in struc.stems:
-        if len(s)>3 and s[0][0] < s[0][1]:
-            ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1] ) / 4.0
+        if len(s) > 3 and s[0][0] < s[0][1]:
+            ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
             print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}')
             pos += 1
     # chain = Chain(ctfilename)
