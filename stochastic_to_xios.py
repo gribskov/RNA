@@ -223,8 +223,30 @@ if __name__ == '__main__':
     pos = 0
     for s in struc.stems:
         if len(s) > 3 and s[0][0] < s[0][1]:
+            print(s)
             ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
-            print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}')
+            print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
+
+            # construct vienna string
+            left = right = ''
+            lpos = s[0][0]
+            rpos = s[0][1]
+            for pos, pairpos in s:
+                while lpos < pos:
+                    left += '.'
+                    lpos += 1
+                while rpos > pairpos:
+                    right += '.'
+                    rpos -= 1
+                if pos == lpos:
+                    left += '('
+                    lpos += 1
+                if pairpos == rpos:
+                    right += ')'
+                    rpos -= 1
+
+            print(f'{left}    {right[::-1]}')
+
             pos += 1
 
     exit(0)
