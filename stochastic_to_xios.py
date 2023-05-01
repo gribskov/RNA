@@ -101,7 +101,11 @@ class Struc:
         # tips
         for t in self.tips:
             for pp in pairs:
-                if pos - t[-1][0] <= gap and pp - t[-1][1] <= gap and t[-1][1] - pp <= gap:
+                ldif = pos - t[-1][0]
+                rdif = t[-1][1] - pp
+
+                # if pos - t[-1][0] <= gap and pp - t[-1][1] <= gap and t[-1][1] - pp <= gap:
+                if ldif <= gap and rdif <= gap and ldif > 0 and rdif > 0:
                     match.append({'pos': pos, 'pair': pp, 'tip': t})
 
         # make a list of tips that will be removed because they are no longer extensible
