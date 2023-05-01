@@ -4,6 +4,8 @@ structures from a partition function
 
 Michael Gribskov     15 April 2023
 ================================================================================================="""
+
+
 # import numpy as np
 
 class Struc:
@@ -48,6 +50,16 @@ class Struc:
                 self.tip_match2(pos)
 
             pos += 1
+
+        # print out traces for checking
+        n = 0
+        for t in self.tips:
+            n += 1
+            print(f'{n}', end='    ')
+            while t:
+                print(f'{t.pos}:{t.ppos}', end='  ')
+                t = t.parent
+            print()
 
         return
 
@@ -101,6 +113,8 @@ class Struc:
         # tips
         for t in self.tips:
             for pp in sorted(pairs):
+                if pp < pos:
+                    continue
                 ldif = pos - t[-1][0]
                 rdif = t[-1][1] - pp
                 # if ldif <= gap and rdif <= gap and rdif > -2:
@@ -135,7 +149,7 @@ class Struc:
             if not found:
                 # create new stem
                 # last checks to make sure two very near pairs are not both made new tips
-                if abs(pp-last) > gap:
+                if abs(pp - last) > gap:
                     self.stems.append([(pos, pp)])
                     self.tips.append(self.stems[-1])
                 last = pp
@@ -152,50 +166,53 @@ class Struc:
         -----------------------------------------------------------------------------------------"""
         gap = self.gap
         pairs = self.ct[pos]['pair']
-        match = []
 
         # compare all tips to the pairs at this position and find which pairs can be added to which
         # tips
-        match = {}
-        found = True
-        while found:
-            found = False
-            for pp in sorted(pairs):
-                for t in self.tips:
-                    ldif = pos - t[-1][0]
-                    rdif = abs(t[-1][1] - pp)
-                    # TODO have tried various schemes here with good but not perfect results
-                    if ldif <= gap and (rdif <= gap and abs(ldif) + rdif  <= 2*gap):
-                    # if ldif <= gap and abs(rdif) <= gap:
-                        if (pos,pp) not in t:
-                            t.append((pos,pp))
-                            match[pp] = True
-                            found = True
 
-        # make a list of tips that will be removed because they are no longer extensible
-        remove = []
-        for t in self.tips:
-            if pos - t[-1][0] > gap:
-                # if a tip pos is more than gap away from the last paired
-                # position on the left side, it can be closed
-                remove.append(t)
+        for pp in sorted(pairs):
+            # examine all the paired positions for pos
+            if pp < pos:
+                continue
+            matched = False
+            thisbp = Bp(pos=pos,ppos=pp)
+            current_tips = self.tips[:]
+            for t in current_tips:
+                ldif = thisbp.pos - t.pos
+                rdif = t.ppos - thisbp.ppos
 
-        # remove un-extensible tips, the stems are still in the list of stems
-        for t in remove:
-            self.tips.remove(t)
+                while ldif <= gap and rdif <= 0:
+                    # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
+                    # backwards along the stem to find a position where thisbp.ppos is bigger
 
-        # check the pairs at this position, any pair not matched to a tip needs a new stem
-        last = -gap
-        for pp in pairs:
-            if pp not in match:
+                    t = t.parent
+                    if not t:
+                        # no more parents - could not match to this stem
+                        break
+
+                    ldif = thisbp.pos - t.pos
+                    rdif = t.ppos - thisbp.ppos
+
+                if not t:
+                    # don't add, the beginning of stem was reached
+                    continue
+
+                if ldif <= gap and rdif <= gap:
+                    # add to current position in stem, t
+                    # add bp to tips, removing t if present
+                    matched = True
+                    self.tips.append(thisbp)
+                    thisbp.parent = t
+                    if t in self.tips:
+                        self.tips.remove(t)
+
+            # if the basepair can't be matched to any tip create a new stem and tip
+            if not matched:
                 # create new stem
-                # last checks to make sure two very near pairs are not both made new tips
-                # if abs(pp-last) > gap:
-                self.stems.append([(pos, pp)])
-                self.tips.append(self.stems[-1])
-                last = pp
+                self.stems.append(thisbp)
+                self.tips.append(thisbp)
 
-        return len(self.tips)
+        return len(self.stems)
 
     def ct_read_all(self):
         """-----------------------------------------------------------------------------------------
@@ -277,28 +294,28 @@ def dp(stem):
 
     # find the max and min values in the stem
     left_min, right_max = stem[0]
-    left_max, right_min  = stem[-1]
+    left_max, right_min = stem[-1]
     for s in stem:
         left_min = min(left_min, s[0])
         left_max = max(left_max, s[0])
         right_min = min(right_min, s[1])
         right_max = max(right_max, s[1])
-        
+
     left_len = left_max - left_min + 1
     right_len = right_max - right_min + 1
 
     # init scoring matrix and fill in paired bases with ones
     score_matrix = np.zeros((left_len, right_len))
     for s in stem:
-        score_matrix[s[0]-left_min][right_max-s[1]] = 1
+        score_matrix[s[0] - left_min][right_max - s[1]] = 1
 
     dir = np.zeros((left_len, right_len))
-    for i in range(1,left_len):
+    for i in range(1, left_len):
         if score_matrix[i][0]:
             dir[i][0] = 0
         else:
             dir[i][0] = 1
-    for j in range(1,right_len):
+    for j in range(1, right_len):
         if score_matrix[0][j]:
             dir[0][j] = 0
         else:
@@ -366,6 +383,21 @@ def dp(stem):
     return vleft, vright
 
 
+class Bp():
+    """=============================================================================================
+    once base pair in a stem. connected in a linked list where pos < previous_pos and pair_pos >
+    previous pair_pos. linked Bp can be branched
+    ============================================================================================="""
+
+    def __init__(self, pos=None, ppos=None, ):
+        """-----------------------------------------------------------------------------------------
+
+        -----------------------------------------------------------------------------------------"""
+        self.pos = pos
+        self.ppos = ppos
+        self.parent = None
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -382,14 +414,14 @@ if __name__ == '__main__':
         pos += 1
     struc.makestems()
     pos = 0
-    for s in struc.stems:
-        if len(s) >= 3 and s[0][0] < s[0][1]:
-            # print(s)
-            ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
-            print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
-            lstem, rstem = dp(s)
-            print(f'{lstem}     {rstem}')
-
-            pos += 1
+    # for s in struc.stems:
+    #     if s[0][0] < s[0][1]:
+    #         # print(s)
+    #         ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
+    #         print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
+    #         lstem, rstem = dp(s)
+    #         print(f'{lstem}     {rstem}')
+    #
+    #         pos += 1
 
     exit(0)
