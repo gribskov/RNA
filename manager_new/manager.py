@@ -1,4 +1,5 @@
 import os.path
+import subprocess as sub
 import shutil
 import sys
 import time
@@ -171,15 +172,6 @@ class Workflow:
         self.command = new
         return new
 
-    @staticmethod
-    def logtime():
-        """-----------------------------------------------------------------------------------------
-        Create a time string for use in logs year month day hour min sec
-        concatenated
-
-        :return: str - YYYYMoDyHrMnSc
-        -----------------------------------------------------------------------------------------"""
-        return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
 
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
@@ -234,6 +226,7 @@ class Workflow:
         1. check/create stage directory
         2. open log file and store in object
 
+        TODO check directories exist
         :param dir: string      directory name
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -399,41 +392,29 @@ class executor():
 
     def manager(self):
         """-----------------------------------------------------------------------------------------
-        Runs each stage keeping self.jobs running at a time.  Delay between polling is set by
-        self.delay
-        TODO no more handling of stages, just lists of commands
-        TODO probably this whole function can be removed
+        main loop for executing commands in parallel.
+        1. read in commands from list of commands
+        2. report to log
+        3. loop over manager_startjobs and manager_polljobs to run all jobs in commandlist
+        TODO open file for raw error messages from subprocess
+        TODO how do i know what directory.log to, probably use log directory
         -----------------------------------------------------------------------------------------"""
-        files = []
-        for stage in self.stage:
-            s = stage['stage']
-            self.source = stage['source']
-            files.append(f'{s}:{len(self.complete[s])}')
-        self.logwrite('manager', 'fastforward', f'init', ';'.join(files))
+        # read in commands
+        self.commands = []
+        for line in self.commandlist:
+            self.commands.append(line.rstrip())
+        self.commandlist.close()
 
-        for stage in self.stage:
-            self.current = stage['stage']
-            sourcedir, sourcetype = stage['source']
-            # stagedir = getattr(self, self.source)
-            # filelist = Pipeline.get_file_list(self.current)
-            print(f'\nstage={stage["stage"]}\tsource={sourcedir}*{sourcetype}')
-            filelist = Pipeline.get_file_list(sourcedir, sourcetype)
+        total = len(self.commands)
+        self.logwrite('manager', 'files', f'{stage["stage"]}',
+                      f'{total} files in {self.source}')
 
-            # total number of jobs for this stage
-            total = len(filelist)
-            self.logwrite('manager', 'files', f'{stage["stage"]}',
-                          f'{total} files in {self.source}')
-
-            # check that output directories exist
-            for dir in stage['dirs']:
-                Pipeline.dircheck(dir)
-
-            while self.manager_startjobs(filelist, stage) or self.joblist:
-                self.manager_polljobs(stage)
+        while self.manager_startjobs() or self.joblist:
+            self.manager_polljobs()
 
         return self.finished
 
-    def manager_startjobs(self, filelist, stage):
+    def manager_startjobs(self):
         """-----------------------------------------------------------------------------------------
         process all commands in self.commandlist. All commands should already be complete so no
         expansion of wildcards or globs is needed
@@ -448,42 +429,35 @@ class executor():
         :param stage: dict - information describing current pipeline stage
         :return: boolean - True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
-        commandlist = self.commandlist
-        for command in commandlist:
-            # TODO working here
+        while self.commands:
 
             if self.running < self.jobs:
-                file = filelist.pop()
-                if file in self.complete[this_stage]:
-                    print(f'skipping {file}')
-                    continue
-                # print(f'loop filelist:{len(filelist)}')
-
+                # completed commands have already been removed by fast forward, so you don't
+                # have to check
+                thiscommand = self.commands.pop()
                 self.jobid += 1
-                print(f'starting job{self.jobid} {file}')
 
-                thiscommand = [stage['command']] + stage['options']
-                thiscommand = [clause.replace('$FILE', file) for clause in thiscommand]
+                print(f'starting job{self.jobid}')]
+                self.logstage.write('manager', 'start', stage['stage'],
+                f'jobid:{self.jobid}; input:{file} ')
+                self.logstage.write('manager', 'command', stage['stage'], ' '.join(thiscommand))
 
-                self.logwrite('manager', 'start', stage['stage'],
-                              f'jobid:{self.jobid}; input:{file} ')
-                self.logwrite('manager', 'command', stage['stage'], ' '.join(thiscommand))
                 job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog,
-                                stderr=self.errorlog)
+                stderr = self.errorlog)
                 self.joblist.append([self.jobid, job, file])
                 self.running += 1
 
-            else:
+                else:
                 # desired number of jobs are running so continue to polling
                 break
 
-        if filelist:
+        if self.commands:
             # files remain to be processed
             return True
         else:
             return False
 
-    def manager_polljobs(self, stage):
+    def manager_polljobs(self):
         """-----------------------------------------------------------------------------------------
         Poll the currently running jobs, and remove completed jobs from the joblist
 
@@ -527,6 +501,56 @@ class executor():
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
+
+
+####################################################################################################
+# end of class executor
+####################################################################################################
+
+class Log():
+    """=============================================================================================
+    Make standardized entries in log files. Only a class so it can be shared by executor and
+    workflow
+    ============================================================================================="""
+
+    def __init__(self):
+        """-----------------------------------------------------------------------------------------
+        log is a dict that relates the symbolic name of the log to a filehandle
+
+        -----------------------------------------------------------------------------------------"""
+        log = {}
+
+    def logtime(self):
+        """-----------------------------------------------------------------------------------------
+        Create a time string for use in logs year month day hour min sec
+        concatenated
+
+        :return: str - YYYYMoDyHrMnSc
+        -----------------------------------------------------------------------------------------"""
+        return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
+
+    def logwrite(self, log, message):
+        """-----------------------------------------------------------------------------------------
+        add a timestamped message to the named log
+
+        :param log: string - name of log (e.g., manager, error)
+        :param tag: string - tag describing action
+        :param stage: string - pipeline stage
+        :param message: string - message
+        :return: string - message written to log
+        -----------------------------------------------------------------------------------------"""
+        try:
+            fp = self.log[log]
+        except IndexError:
+            sys.stderr.write(f'Log:logwrite - unknown_logfile {log}')
+            return
+
+        # log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
+        log_message = f'{self.logtime()}\t{message}\n'
+        fp.write(log_message)
+        fp.flush()
+
+        return log_message
 
 
 ####################################################################################################

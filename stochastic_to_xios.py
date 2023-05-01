@@ -4,7 +4,7 @@ structures from a partition function
 
 Michael Gribskov     15 April 2023
 ================================================================================================="""
-
+# import numpy as np
 
 class Struc:
     """---------------------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ class Struc:
         for position in self.ct:
 
             if position[pair]:
-                self.tip_match(pos)
+                self.tip_match2(pos)
 
             pos += 1
 
@@ -100,12 +100,11 @@ class Struc:
         # compare all tips to the pairs at this position and find which pairs can be added to which
         # tips
         for t in self.tips:
-            for pp in pairs:
+            for pp in sorted(pairs):
                 ldif = pos - t[-1][0]
                 rdif = t[-1][1] - pp
-
-                # if pos - t[-1][0] <= gap and pp - t[-1][1] <= gap and t[-1][1] - pp <= gap:
-                if ldif <= gap and rdif <= gap and ldif > 0 and rdif > 0:
+                # if ldif <= gap and rdif <= gap and rdif > -2:
+                if ldif <= gap and abs(rdif) <= gap:
                     match.append({'pos': pos, 'pair': pp, 'tip': t})
 
         # make a list of tips that will be removed because they are no longer extensible
@@ -118,7 +117,7 @@ class Struc:
                     found = True
 
             if not found and pos - t[-1][0] > gap:
-                # if a tip is not matched AND is pos is more than gap away from the last paired
+                # if a tip is not matched AND pos is more than gap away from the last paired
                 # position it can be closed
                 remove.append(t)
 
@@ -127,15 +126,74 @@ class Struc:
             self.tips.remove(t)
 
         # check the pairs at this position, any pair not matched to a tip needs a new stem
-        for pp in pairs:
+        last = -gap
+        for pp in sorted(pairs, reverse=True):
             found = False
             for m in match:
                 if m['pair'] == pp:
                     found = True
             if not found:
                 # create new stem
+                # last checks to make sure two very near pairs are not both made new tips
+                if abs(pp-last) > gap:
+                    self.stems.append([(pos, pp)])
+                    self.tips.append(self.stems[-1])
+                last = pp
+
+        return len(self.tips)
+
+    def tip_match2(self, pos):
+        """-----------------------------------------------------------------------------------------
+        check if the pos, pairpos can be added to any of the active tips
+        if not, create a new stem with the pair,pairpos tuple and make it an active tip
+
+        :param pos: int     position in self.ct
+        :return: int        number of active tips
+        -----------------------------------------------------------------------------------------"""
+        gap = self.gap
+        pairs = self.ct[pos]['pair']
+        match = []
+
+        # compare all tips to the pairs at this position and find which pairs can be added to which
+        # tips
+        match = {}
+        found = True
+        while found:
+            found = False
+            for pp in sorted(pairs):
+                for t in self.tips:
+                    ldif = pos - t[-1][0]
+                    rdif = abs(t[-1][1] - pp)
+                    # TODO have tried various schemes here with good but not perfect results
+                    if ldif <= gap and (rdif <= gap and abs(ldif) + rdif  <= 2*gap):
+                    # if ldif <= gap and abs(rdif) <= gap:
+                        if (pos,pp) not in t:
+                            t.append((pos,pp))
+                            match[pp] = True
+                            found = True
+
+        # make a list of tips that will be removed because they are no longer extensible
+        remove = []
+        for t in self.tips:
+            if pos - t[-1][0] > gap:
+                # if a tip pos is more than gap away from the last paired
+                # position on the left side, it can be closed
+                remove.append(t)
+
+        # remove un-extensible tips, the stems are still in the list of stems
+        for t in remove:
+            self.tips.remove(t)
+
+        # check the pairs at this position, any pair not matched to a tip needs a new stem
+        last = -gap
+        for pp in pairs:
+            if pp not in match:
+                # create new stem
+                # last checks to make sure two very near pairs are not both made new tips
+                # if abs(pp-last) > gap:
                 self.stems.append([(pos, pp)])
                 self.tips.append(self.stems[-1])
+                last = pp
 
         return len(self.tips)
 
@@ -209,6 +267,105 @@ class Struc:
         return pair_n
 
 
+def dp(stem):
+    """---------------------------------------------------------------------------------------------
+    use dp to find the best match of the base-pairs in the stem and generate the vienna string
+    :param stem:
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    import numpy as np
+
+    # find the max and min values in the stem
+    left_min, right_max = stem[0]
+    left_max, right_min  = stem[-1]
+    for s in stem:
+        left_min = min(left_min, s[0])
+        left_max = max(left_max, s[0])
+        right_min = min(right_min, s[1])
+        right_max = max(right_max, s[1])
+        
+    left_len = left_max - left_min + 1
+    right_len = right_max - right_min + 1
+
+    # init scoring matrix and fill in paired bases with ones
+    score_matrix = np.zeros((left_len, right_len))
+    for s in stem:
+        score_matrix[s[0]-left_min][right_max-s[1]] = 1
+
+    dir = np.zeros((left_len, right_len))
+    for i in range(1,left_len):
+        if score_matrix[i][0]:
+            dir[i][0] = 0
+        else:
+            dir[i][0] = 1
+    for j in range(1,right_len):
+        if score_matrix[0][j]:
+            dir[0][j] = 0
+        else:
+            dir[0][j] = 2
+
+    # Fill in the scoring matrix
+    for i in range(1, left_len):
+        for j in range(1, right_len):
+            match = score_matrix[i - 1][j - 1] + score_matrix[i][j]
+            gap1 = score_matrix[i - 1][j]
+            gap2 = score_matrix[i][j - 1]
+            best = max(match, gap1, gap2)
+            if best == match:
+                # diagonal
+                if score_matrix[i][j]:
+                    dir[i][j] = 0
+                else:
+                    dir[i][j] = 4
+            elif best == gap1:
+                dir[i][j] = 1
+            elif best == gap2:
+                dir[i][j] = 2
+            score_matrix[i][j] = best
+
+    # Traceback to find the alignment
+    vleft = ""
+    vright = ""
+    i = left_max - left_min
+    j = right_max - right_min
+    while True:
+        # print(f'i:{i}, j:{j}, {score_matrix[i][j]}, {dir[i][j]}')
+        if dir[i][j] == 0:
+            if score_matrix[i][j]:
+                vleft += '('
+                vright += ')'
+            i -= 1
+            j -= 1
+        if dir[i][j] == 4:
+            vleft += '.'
+            vright += '.'
+            i -= 1
+            j -= 1
+        elif dir[i][j] == 1:
+            vleft += '.'
+            vright += ''
+            i -= 1
+        elif dir[i][j] == 2:
+            vleft += ''
+            vright += '.'
+            j -= 1
+
+        if i < 0 or j < 0:
+            break
+
+        # if score_matrix[i][j] == 1:
+        #     vleft += '('
+        #     vright += ')'
+
+    # reverse the right vienna string
+    vleft = vleft.strip('.')[::-1]
+    vright = vright.strip('.')
+    # print('\n', score_matrix)
+    # print(dir)
+
+    return vleft, vright
+
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -219,37 +376,19 @@ if __name__ == '__main__':
     struc.ctfile = open(ctfilename, 'r')
     struc.ct_read_all()
     struc.filter(56)
-    pos = 1
+    pos = 0
     for s in struc.ct:
         print(f'{pos:3d}\t{s}')
         pos += 1
     struc.makestems()
     pos = 0
     for s in struc.stems:
-        if len(s) > 3 and s[0][0] < s[0][1]:
-            print(s)
+        if len(s) >= 3 and s[0][0] < s[0][1]:
+            # print(s)
             ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
             print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
-
-            # construct vienna string
-            left = right = ''
-            lpos = s[0][0]
-            rpos = s[0][1]
-            for pos, pairpos in s:
-                while lpos < pos:
-                    left += '.'
-                    lpos += 1
-                while rpos > pairpos:
-                    right += '.'
-                    rpos -= 1
-                if pos == lpos:
-                    left += '('
-                    lpos += 1
-                if pairpos == rpos:
-                    right += ')'
-                    rpos -= 1
-
-            print(f'{left}    {right[::-1]}')
+            lstem, rstem = dp(s)
+            print(f'{lstem}     {rstem}')
 
             pos += 1
 
