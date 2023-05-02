@@ -52,14 +52,20 @@ class Struc:
             pos += 1
 
         # print out traces for checking
+        stack = self.tips[:]
         n = 0
-        for t in self.tips:
-            n += 1
-            print(f'{n}', end='    ')
-            while t:
-                print(f'{t.pos}:{t.ppos}', end='  ')
-                t = t.parent
-            print()
+        while stack:
+            t = stack.pop()
+            if t in self.tips:
+                print(f'start', end='  ')
+            print(f'{t.pos}:{t.ppos}', end='  ')
+            if not t.parent:
+                print(f'end')
+            else:
+                for p in t.parent:
+                    stack.append(p)
+                if len(t.parent) > 1:
+                    print('mult')
 
         return
 
@@ -179,11 +185,16 @@ class Struc:
             for t in self.extensible(thisbp):
                 if isinstance(t,Bp):
                     # extensible tip
-                    self.tips.append(thisbp)
-                    thisbp.parent = t
+                    if not thisbp in self.tips:
+                        # this basepair not seen before, make it a tip
+                        self.tips.append(thisbp)
+
+                    # add parent to basepair (can be multiple) and remove parent from tips
+                    thisbp.parent.append(t)
                     if t in self.tips:
                         self.tips.remove(t)
                 elif t:
+                    # base pair was matched to a tip so you don't have to start a new one
                     break
                 else:
                     # if the basepair can't be matched to any tip create a new stem and tip
@@ -216,7 +227,13 @@ class Struc:
                 # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
                 # backwards along the stem to find a position where thisbp.ppos is bigger
 
-                t = t.parent
+                if t.parent:
+                    t = t.parent[0]
+                    for tt in range(1,len(t.parent)):
+                        current_tips.append(t.parent[tt])
+                else:
+                    t = None
+
                 if not t:
                     # no more parents - could not match to this stem
                     break
@@ -410,8 +427,8 @@ def dp(stem):
 
 class Bp():
     """=============================================================================================
-    once base pair in a stem. connected in a linked list where pos < previous_pos and pair_pos >
-    previous pair_pos. linked Bp can be branched
+    one base pair in a stem. connected in a linked list where pos < previous_pos and pair_pos >
+    previous pair_pos. linked Bp can be branched by having multiple parents
     ============================================================================================="""
 
     def __init__(self, pos=None, ppos=None, ):
@@ -420,7 +437,7 @@ class Bp():
         -----------------------------------------------------------------------------------------"""
         self.pos = pos
         self.ppos = ppos
-        self.parent = None
+        self.parent = []
 
 
 # --------------------------------------------------------------------------------------------------
