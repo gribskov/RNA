@@ -176,43 +176,101 @@ class Struc:
                 continue
             matched = False
             thisbp = Bp(pos=pos,ppos=pp)
-            current_tips = self.tips[:]
-            for t in current_tips:
-                ldif = thisbp.pos - t.pos
-                rdif = t.ppos - thisbp.ppos
+            for t in self.extensible(thisbp):
+            # current_tips = self.tips[:]
+            # for t in current_tips:
+            #     ldif = thisbp.pos - t.pos
+            #     rdif = t.ppos - thisbp.ppos
+            #
+            #     while ldif <= gap and rdif <= 0:
+            #         # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
+            #         # backwards along the stem to find a position where thisbp.ppos is bigger
+            #
+            #         t = t.parent
+            #         if not t:
+            #             # no more parents - could not match to this stem
+            #             break
+            #
+            #         ldif = thisbp.pos - t.pos
+            #         rdif = t.ppos - thisbp.ppos
+            #
+            #     if not t:
+            #         # don't add, the beginning of stem was reached
+            #         continue
+            #
+            #     if ldif <= gap and rdif <= gap:
+            #         # add to current position in stem, t
+            #         # add bp to tips, removing t if present
+            #         matched = True
+            #         self.tips.append(thisbp)
+            #         thisbp.parent = t
+            #         if t in self.tips:
+            #             self.tips.remove(t)
 
-                while ldif <= gap and rdif <= 0:
-                    # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
-                    # backwards along the stem to find a position where thisbp.ppos is bigger
-
-                    t = t.parent
-                    if not t:
-                        # no more parents - could not match to this stem
-                        break
-
-                    ldif = thisbp.pos - t.pos
-                    rdif = t.ppos - thisbp.ppos
-
-                if not t:
-                    # don't add, the beginning of stem was reached
-                    continue
-
-                if ldif <= gap and rdif <= gap:
-                    # add to current position in stem, t
-                    # add bp to tips, removing t if present
-                    matched = True
+            # if the basepair can't be matched to any tip create a new stem and tip
+                if isinstance(t,Bp):
+                    print(type(t), isinstance(t,Bp), isinstance(t,int))
+                    # extensible tip
                     self.tips.append(thisbp)
                     thisbp.parent = t
                     if t in self.tips:
                         self.tips.remove(t)
+                elif t:
+                    break
+                else:
+                    # create new stem
+                    self.stems.append(thisbp)
+                    self.tips.append(thisbp)
 
-            # if the basepair can't be matched to any tip create a new stem and tip
-            if not matched:
-                # create new stem
-                self.stems.append(thisbp)
-                self.tips.append(thisbp)
+        # end of loop over basepairs at this position
 
         return len(self.stems)
+
+    def extensible(self, thisbp):
+        """-----------------------------------------------------------------------------------------
+        generate positions of all possible extensions using the base-pair pos:ppos
+
+        called once for each paired base so pos is always >= some tip, the latter case occurs when
+        a base has two different possible partners that are close to each other
+
+        :param pos: int     left base position
+        :param ppos:        right base position
+        :return: Bp object  extensible tip
+        -----------------------------------------------------------------------------------------"""
+        gap = self.gap
+        current_tips = self.tips[:]
+        matched = False
+        while current_tips:
+            t = current_tips.pop()
+            ldif = thisbp.pos - t.pos
+            rdif = t.ppos - thisbp.ppos
+
+            while ldif <= 0 or rdif <= 0:
+                # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
+                # backwards along the stem to find a position where thisbp.ppos is bigger
+
+                t = t.parent
+                if not t:
+                    # no more parents - could not match to this stem
+                    break
+
+                ldif = thisbp.pos - t.pos
+                rdif = t.ppos - thisbp.ppos
+
+            # if t is false there was no extensible basepair on this stem, go on to next tip
+            if not t:
+                continue
+
+            # otherwise check to see if the possible extension is within gap
+            if ldif <= gap and rdif <= gap:
+                matched = True
+                yield t
+
+        # raise StopIteration
+        if not matched:
+            yield None
+        else:
+            yield True
 
     def ct_read_all(self):
         """-----------------------------------------------------------------------------------------
