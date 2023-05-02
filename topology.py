@@ -10,7 +10,7 @@
     format.  Topology is the ultimate arbiter of the XIOS format
 
     RNAstructure reads structures from CT files produced by the RNAstructure package (or by
-    mfold/unafold).  Multiple structures can be read to creat a single topology if the CT file is
+    mfold/unafold).  Multiple structures can be read to create a single topology if the CT file is
     produced by the Fold program
 
     TODO: check if PairRNA and SerialRNA completely populate a usable Topology object

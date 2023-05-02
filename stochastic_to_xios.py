@@ -177,39 +177,7 @@ class Struc:
             matched = False
             thisbp = Bp(pos=pos,ppos=pp)
             for t in self.extensible(thisbp):
-            # current_tips = self.tips[:]
-            # for t in current_tips:
-            #     ldif = thisbp.pos - t.pos
-            #     rdif = t.ppos - thisbp.ppos
-            #
-            #     while ldif <= gap and rdif <= 0:
-            #         # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
-            #         # backwards along the stem to find a position where thisbp.ppos is bigger
-            #
-            #         t = t.parent
-            #         if not t:
-            #             # no more parents - could not match to this stem
-            #             break
-            #
-            #         ldif = thisbp.pos - t.pos
-            #         rdif = t.ppos - thisbp.ppos
-            #
-            #     if not t:
-            #         # don't add, the beginning of stem was reached
-            #         continue
-            #
-            #     if ldif <= gap and rdif <= gap:
-            #         # add to current position in stem, t
-            #         # add bp to tips, removing t if present
-            #         matched = True
-            #         self.tips.append(thisbp)
-            #         thisbp.parent = t
-            #         if t in self.tips:
-            #             self.tips.remove(t)
-
-            # if the basepair can't be matched to any tip create a new stem and tip
                 if isinstance(t,Bp):
-                    print(type(t), isinstance(t,Bp), isinstance(t,int))
                     # extensible tip
                     self.tips.append(thisbp)
                     thisbp.parent = t
@@ -218,7 +186,7 @@ class Struc:
                 elif t:
                     break
                 else:
-                    # create new stem
+                    # if the basepair can't be matched to any tip create a new stem and tip
                     self.stems.append(thisbp)
                     self.tips.append(thisbp)
 
@@ -233,8 +201,7 @@ class Struc:
         called once for each paired base so pos is always >= some tip, the latter case occurs when
         a base has two different possible partners that are close to each other
 
-        :param pos: int     left base position
-        :param ppos:        right base position
+        :param thisbp: bp   new base position to be added to stems
         :return: Bp object  extensible tip
         -----------------------------------------------------------------------------------------"""
         gap = self.gap
