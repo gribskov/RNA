@@ -52,20 +52,13 @@ class Struc:
             pos += 1
 
         # print out traces for checking
-        stack = self.tips[:]
-        n = 0
-        while stack:
-            t = stack.pop()
+
+        for t in self.trace_stem(self.tips[:]):
             if t in self.tips:
                 print(f'start', end='  ')
             print(f'{t.pos}:{t.ppos}', end='  ')
             if not t.parent:
                 print(f'end')
-            else:
-                for p in t.parent:
-                    stack.append(p)
-                if len(t.parent) > 1:
-                    print('mult')
 
         return
 
@@ -103,65 +96,6 @@ class Struc:
         self.tips.append(self.stems[-1])
         return self.stems[-1]
 
-    def tip_match(self, pos):
-        """-----------------------------------------------------------------------------------------
-        check if the pos, pairpos can be added to any of the active tips
-        if not, create a new stem with the pair,pairpos tuple and make it an active tip
-
-        :param pos: int     position in self.ct
-        :return: int        number of active tips
-        -----------------------------------------------------------------------------------------"""
-        gap = self.gap
-        pairs = self.ct[pos]['pair']
-        match = []
-
-        # compare all tips to the pairs at this position and find which pairs can be added to which
-        # tips
-        for t in self.tips:
-            for pp in sorted(pairs):
-                if pp < pos:
-                    continue
-                ldif = pos - t[-1][0]
-                rdif = t[-1][1] - pp
-                # if ldif <= gap and rdif <= gap and rdif > -2:
-                if ldif <= gap and abs(rdif) <= gap:
-                    match.append({'pos': pos, 'pair': pp, 'tip': t})
-
-        # make a list of tips that will be removed because they are no longer extensible
-        remove = []
-        for t in self.tips:
-            found = False
-            for m in match:
-                if m['tip'] == t:
-                    t.append((m['pos'], m['pair']))
-                    found = True
-
-            if not found and pos - t[-1][0] > gap:
-                # if a tip is not matched AND pos is more than gap away from the last paired
-                # position it can be closed
-                remove.append(t)
-
-        # remove un-extensible tips, the stems are still in the list of stems
-        for t in remove:
-            self.tips.remove(t)
-
-        # check the pairs at this position, any pair not matched to a tip needs a new stem
-        last = -gap
-        for pp in sorted(pairs, reverse=True):
-            found = False
-            for m in match:
-                if m['pair'] == pp:
-                    found = True
-            if not found:
-                # create new stem
-                # last checks to make sure two very near pairs are not both made new tips
-                if abs(pp - last) > gap:
-                    self.stems.append([(pos, pp)])
-                    self.tips.append(self.stems[-1])
-                last = pp
-
-        return len(self.tips)
-
     def tip_match2(self, pos):
         """-----------------------------------------------------------------------------------------
         check if the pos, pairpos can be added to any of the active tips
@@ -181,9 +115,10 @@ class Struc:
             if pp < pos:
                 continue
             matched = False
-            thisbp = Bp(pos=pos,ppos=pp)
+            thisbp = Bp(pos=pos, ppos=pp)
+            self.stems.append(thisbp)
             for t in self.extensible(thisbp):
-                if isinstance(t,Bp):
+                if isinstance(t, Bp):
                     # extensible tip
                     if not thisbp in self.tips:
                         # this basepair not seen before, make it a tip
@@ -198,12 +133,77 @@ class Struc:
                     break
                 else:
                     # if the basepair can't be matched to any tip create a new stem and tip
-                    self.stems.append(thisbp)
+                    # self.stems.append(thisbp)
                     self.tips.append(thisbp)
+
+        # self.merge_duplicate_tips()
 
         # end of loop over basepairs at this position
 
         return len(self.stems)
+
+    def merge_duplicate_tips(self):
+        """-----------------------------------------------------------------------------------------
+        when there are multiple possible extensions duplicate tips can result, check and merge
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        current_tips = self.tips[:]
+        for t0 in range(len(current_tips)):
+            for t1 in range(t0 + 1, len(current_tips)):
+                if current_tips[t0] == current_tips[t1]:
+                    print(f'duplicate found')
+
+        return
+
+    def find_groups(self):
+        """-----------------------------------------------------------------------------------------
+        trace the path from each tip, assigning each basepair to the same group.
+        if a trace encounters a basepair in a group, the entire trace from the beginning belongs to
+        the older group
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        group = [[]]
+        group_n = 0
+        for start in self.tips:
+            old_group = None
+            group[group_n].append(start)
+            for t in self.trace_stem([start]):
+                if t.group is None:
+                    t.group = group_n
+                elif t.group != group_n:
+                    # this starting point belongs to a previously known group
+                    old_group = t.group
+                    group[old_group].append(start)
+                    break
+
+            if old_group:
+                # need to reset all groups
+                for t in self.trace_stem([start]):
+                    t.group = old_group
+            else:
+                group_n += 1
+                group.append([])
+
+        return group
+
+
+    def trace_stem(self, start):
+        """-----------------------------------------------------------------------------------------
+        generator to trace the linked list from a starting point, considers multiple parents
+        :param start:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        stack = start
+        n = 0
+        while stack:
+            t = stack.pop()
+            yield t
+
+            if t.parent:
+                for p in t.parent:
+                    stack.append(p)
+
+        return
 
     def extensible(self, thisbp):
         """-----------------------------------------------------------------------------------------
@@ -229,7 +229,7 @@ class Struc:
 
                 if t.parent:
                     t = t.parent[0]
-                    for tt in range(1,len(t.parent)):
+                    for tt in range(1, len(t.parent)):
                         current_tips.append(t.parent[tt])
                 else:
                     t = None
@@ -438,6 +438,7 @@ class Bp():
         self.pos = pos
         self.ppos = ppos
         self.parent = []
+        self.group = None
 
 
 # --------------------------------------------------------------------------------------------------
@@ -455,6 +456,7 @@ if __name__ == '__main__':
         print(f'{pos:3d}\t{s}')
         pos += 1
     struc.makestems()
+    stem_groups = struc.find_groups()
     pos = 0
     # for s in struc.stems:
     #     if s[0][0] < s[0][1]:
