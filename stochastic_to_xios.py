@@ -439,3 +439,18 @@ if __name__ == '__main__':
                   f'{s.lvienna[::-1]}   {s.rvienna}')
 
     exit(0)
+
+# this is how ct2xios builds the structure
+#     rna = RNAstructure()
+#     rna.CTRead(args.ctfile, ddG=args.ddG)
+#     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+#     rna.comment.append('creation_date {}'.format(now))
+#     rna.comment.append('input_file {}'.format(args.ctfile))
+#     if rna.energy:
+#         rna.comment.append('input_format unifold')
+#     else:
+#         rna.comment.append('input_format probknot')
+#     rna.adjacency_from_stemlist()
+#     rna.edgelist_from_adjacency(include="ijo", whole=False)
+#
+#     rna.XIOSwrite(sys.stdout)
