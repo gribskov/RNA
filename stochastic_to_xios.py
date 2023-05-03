@@ -522,13 +522,14 @@ if __name__ == '__main__':
                 # this stem is complete
                 stem_set.append(s)
 
-        for s in sorted(stem_set,key=lambda x: (min(x.lend-x.lbegin, x.rend-x.rbegin),-x.unp_n),
-                        reverse=True):
-            if s.bp_n >= 3:
-                print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
-                      f'{s.lvienna[::-1]}   {s.rvienna}')
-            # break
-        print()
+        if not stem_set:
+            break
+        stems = sorted(stem_set,key=lambda x: (min(x.lend-x.lbegin, x.rend-x.rbegin),-x.unp_n), reverse=True)
+        s = stems[0]
+        if s.bp_n >= 3:
+            print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
+                  f'{s.lvienna[::-1]}   {s.rvienna}')
+
 
 
 
