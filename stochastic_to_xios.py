@@ -35,6 +35,7 @@ class Struc:
         self.tips = []
         self.stems = []
         self.gap = 3
+        self.id = ''
 
     def makestems(self):
         """-----------------------------------------------------------------------------------------
@@ -44,14 +45,14 @@ class Struc:
         :return:
         -----------------------------------------------------------------------------------------"""
         pair = 'pair'
-        pos = 0
+        basepos = 0
         # remember, ct position zero is blank
         for position in self.ct:
 
             if position[pair]:
-                self.tip_match(pos)
+                self.tip_match(basepos)
 
-            pos += 1
+            basepos += 1
 
         # print out traces for checking
         # for t in self.trace_stem(self.tips[:]):
@@ -71,7 +72,6 @@ class Struc:
         :param pos: int     position in self.ct
         :return: int        number of active tips
         -----------------------------------------------------------------------------------------"""
-        gap = self.gap
         pairs = self.ct[pos]['pair']
 
         # compare all tips to the pairs at this position and find which pairs can be added to which
@@ -81,7 +81,7 @@ class Struc:
             # examine all the paired positions for pos
             if pp < pos:
                 continue
-            matched = False
+            # matched = False
             thisbp = Bp(pos=pos, ppos=pp)
             self.stems.append(thisbp)
             for t in self.extensible(thisbp):
@@ -143,11 +143,10 @@ class Struc:
     def trace_stem(self, start):
         """-----------------------------------------------------------------------------------------
         generator to trace the linked list from a starting point, considers multiple parents
-        :param start:
+        :param start:   bp object, beginning position of trace is innermost pair in a stem
         :return:
         -----------------------------------------------------------------------------------------"""
         stack = start
-        n = 0
         while stack:
             t = stack.pop()
             yield t
@@ -226,7 +225,7 @@ class Struc:
         # +1 is so that natural coordinates 1 .. seqlen can be used exactly as
         # in the ct file
         if not self.ct:
-            self.ct = [{'base': '', 'pair': {}} for i in range(seqlen + 1)]
+            self.ct = [{'base': '', 'pair': {}} for _ in range(seqlen + 1)]
         base = 'base'
         pair = 'pair'
         while True:
@@ -278,7 +277,7 @@ class Struc:
         return pair_n
 
 
-class Bp():
+class Bp:
     """=============================================================================================
     one base pair in a stem. connected in a linked list where pos < previous_pos and pair_pos >
     previous pair_pos. linked Bp can be branched by having multiple parents
@@ -286,7 +285,10 @@ class Bp():
 
     def __init__(self, pos=None, ppos=None, ):
         """-----------------------------------------------------------------------------------------
-
+        pos     base on the left side of stem
+        ppos    base on the right side of stem
+        parent  list of paired positions that can extend this stem
+        group   used to gather all intersecting stem traces into a single stem
         -----------------------------------------------------------------------------------------"""
         self.pos = pos
         self.ppos = ppos
@@ -294,7 +296,7 @@ class Bp():
         self.group = None
 
 
-class Stem():
+class Stem:
     """=============================================================================================
     maybe should be xios stem object but for the time being a new class
     ============================================================================================="""
@@ -338,16 +340,16 @@ class Stem():
 
 
 # --------------------------------------------------------------------------------------------------
-# main
+# main program functions
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     def arg_formatter(prog):
-        """---------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         Set up formatting for help. Used in arg_get.
 
         :param prog:
         :return: argparse formatter class
-        ---------------------------------------------------------------------------------------------"""
+        -----------------------------------------------------------------------------------------"""
         return argparse.HelpFormatter(prog, max_help_position=60, width=120)
 
 
@@ -385,20 +387,20 @@ if __name__ == '__main__':
         return vars(args)  # convert namespace to dict
 
 
-    #
+    # ----------------------------------------------------------------------------------------------
     # actual main program starts here
-    #
+    # ----------------------------------------------------------------------------------------------
     opt = getoptions()
     now = time.localtime()
-    sys.stdout.write(f'stochastic_to_xios {time.asctime(now)}')
-    sys.stdout.write(f'\tminimum stems size: {opt["minstem"]}')
-    sys.stdout.write(f'\tinput ct file: {opt["input_ct"]}')
-    sys.stdout.write(f'\toutput xios file: {opt["output_xios"]}')
+    sys.stdout.write(f'stochastic_to_xios {time.asctime(now)}\n')
+    sys.stdout.write(f'\tminimum stems size: {opt["minstem"]}\n')
+    sys.stdout.write(f'\tinput ct file: {opt["input_ct"]}\n')
+    sys.stdout.write(f'\toutput xios file: {opt["output_xios"]}\n')
 
     struc = Struc()
     ctfilename = 'data/partition.stochastic.ct'
     # ctfilename = 'data/stochastic.330.ct'
-    struc.ctfile = open(ctfilename, 'r')
+    struc.ctfile = open(opt['input_ct'], 'r')
     struc.ct_read_all()
     struc.filter(56)
     pos = 0
