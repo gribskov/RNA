@@ -5,6 +5,9 @@ structures from a partition function
 Michael Gribskov     15 April 2023
 ================================================================================================="""
 import copy
+import sys
+import argparse
+import time
 
 
 class Struc:
@@ -338,6 +341,60 @@ class Stem():
 # main
 # --------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
+    def arg_formatter(prog):
+        """---------------------------------------------------------------------------------------------
+        Set up formatting for help. Used in arg_get.
+
+        :param prog:
+        :return: argparse formatter class
+        ---------------------------------------------------------------------------------------------"""
+        return argparse.HelpFormatter(prog, max_help_position=60, width=120)
+
+
+    def getoptions():
+        """-----------------------------------------------------------------------------------------
+        Command line arguments:
+        project: project directory, all stages will be in subdirectories
+
+        r, restart      remove previous results and perform all stages
+        c, continue     continue existing run, skipping commands that are marked as complete
+
+        options:
+        j, jobs         number of concurrent jobs to run
+        l, log          directory for log files
+
+        :return: command line namespace
+        -----------------------------------------------------------------------------------------"""
+        commandline = argparse.ArgumentParser(
+            description='Calculate XIOS from RNAStructure::Stochastic', formatter_class=arg_formatter)
+
+        commandline.add_argument('input_ct', type=str,
+                                 help='CT file produced by Stochastic.exe (%(default)s)',
+                                 default='rna.ct')
+
+        commandline.add_argument('output_xios', type=str,
+                                 help='XIOS file (%(default)s)',
+                                 default='rna.xios')
+
+        commandline.add_argument('-m', '--minstem',
+                                 help='Minimum number of paired bases in a stem (%(default)s)',
+                                 default=3)
+
+        args = commandline.parse_args()
+
+        return vars(args)  # convert namespace to dict
+
+
+    #
+    # actual main program starts here
+    #
+    opt = getoptions()
+    now = time.localtime()
+    sys.stdout.write(f'stochastic_to_xios {time.asctime(now)}')
+    sys.stdout.write(f'\tminimum stems size: {opt["minstem"]}')
+    sys.stdout.write(f'\tinput ct file: {opt["input_ct"]}')
+    sys.stdout.write(f'\toutput xios file: {opt["output_xios"]}')
+
     struc = Struc()
     ctfilename = 'data/partition.stochastic.ct'
     # ctfilename = 'data/stochastic.330.ct'
