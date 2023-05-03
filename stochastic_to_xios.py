@@ -4,6 +4,7 @@ structures from a partition function
 
 Michael Gribskov     15 April 2023
 ================================================================================================="""
+import copy
 
 
 # import numpy as np
@@ -185,7 +186,6 @@ class Struc:
                 group.append([])
 
         return group
-
 
     def trace_stem(self, start):
         """-----------------------------------------------------------------------------------------
@@ -441,6 +441,48 @@ class Bp():
         self.group = None
 
 
+class Stem():
+    """=============================================================================================
+    maybe should be xios stem object but for the time being a new class
+    ============================================================================================="""
+
+    def __init__(self, lbegin=0, lend=0, rbegin=0, rend=0):
+        """-----------------------------------------------------------------------------------------
+
+        -----------------------------------------------------------------------------------------"""
+        self.lbegin = lbegin
+        self.lend = lend
+        self.lvienna = '('
+        self.rbegin = rbegin
+        self.rend = rend
+        self.rvienna = ')'
+        self.bp_n = 1
+        self.unp_n = 0
+
+    def copy(self):
+        return copy.copy(self)
+
+    def update(self, pair):
+        """-----------------------------------------------------------------------------------------
+        add the current pair to the stem, adding spaces as necessary to the vienna strings
+        :param pair:
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        self.bp_n += 1
+        for p in range(pair.pos, self.lbegin-1):
+            self.lvienna += '.'
+            self.unp_n += 1
+        self.lvienna += '('
+        self.lbegin = pair.pos
+
+        for p in range(self.rend, pair.ppos-1):
+            self.rvienna += '.'
+            self.unp_n += 1
+        self.rvienna += ')'
+        self.rend = pair.ppos
+
+        return
+
 # --------------------------------------------------------------------------------------------------
 # main
 # --------------------------------------------------------------------------------------------------
@@ -457,15 +499,34 @@ if __name__ == '__main__':
         pos += 1
     struc.makestems()
     stem_groups = struc.find_groups()
-    pos = 0
-    # for s in struc.stems:
-    #     if s[0][0] < s[0][1]:
-    #         # print(s)
-    #         ave = (s[0][0] + s[-1][0] + s[-1][1] + s[0][1]) / 4.0
-    #         print(f'{pos:3d}{ave:6.1f}{s[0][0]:5d}{s[-1][0]:5d}{s[-1][1]:5d}{s[0][1]:5d}', end='  ')
-    #         lstem, rstem = dp(s)
-    #         print(f'{lstem}     {rstem}')
-    #
-    #         pos += 1
+    print('\ngroups')
+    for g in stem_groups:
+        # new = True
+        stem_set = []
+        stack = []
+        for tip in g:
+            s = Stem(lbegin=tip.pos, lend=tip.pos, rbegin=tip.ppos, rend=tip.ppos)
+            stack.append((s,tip))
+
+        while stack:
+            s, pair = stack.pop()
+            s.update(pair)
+
+            if pair.parent:
+                # this stem continues
+                for p in pair.parent:
+                    stack.append((s.copy(),p))
+            else:
+                # this stem is complete
+                stem_set.append(s)
+
+        for s in sorted(stem_set,key=lambda x: (min(x.lend-x.lbegin, x.rend-x.rbegin),-x.unp_n),
+                        reverse=True):
+            print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
+                  f'{s.lvienna[::-1]}   {s.rvienna}')
+            # break
+        print()
+
+
 
     exit(0)
