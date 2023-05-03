@@ -175,10 +175,12 @@ class Struc:
                     # this starting point belongs to a previously known group
                     old_group = t.group
                     group[old_group].append(start)
+                    group[group_n].remove(start)
+                    # group_n -= 1
                     break
 
             if old_group:
-                # need to reset all groups
+                # need to reset to old groups
                 for t in self.trace_stem([start]):
                     t.group = old_group
             else:
@@ -452,11 +454,11 @@ class Stem():
         -----------------------------------------------------------------------------------------"""
         self.lbegin = lbegin
         self.lend = lend
-        self.lvienna = '('
+        self.lvienna = ''
         self.rbegin = rbegin
         self.rend = rend
-        self.rvienna = ')'
-        self.bp_n = 1
+        self.rvienna = ''
+        self.bp_n = 0
         self.unp_n = 0
 
     def copy(self):
@@ -522,8 +524,9 @@ if __name__ == '__main__':
 
         for s in sorted(stem_set,key=lambda x: (min(x.lend-x.lbegin, x.rend-x.rbegin),-x.unp_n),
                         reverse=True):
-            print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
-                  f'{s.lvienna[::-1]}   {s.rvienna}')
+            if s.bp_n >= 3:
+                print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
+                      f'{s.lvienna[::-1]}   {s.rvienna}')
             # break
         print()
 
