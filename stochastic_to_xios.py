@@ -7,11 +7,9 @@ Michael Gribskov     15 April 2023
 import copy
 
 
-# import numpy as np
-
 class Struc:
     """---------------------------------------------------------------------------------------------
-    Struc is used to construct a list of paired postions from the stochastic samples read from the
+    Struc is used to construct a list of paired positions from the stochastic samples read from the
     ct file. The positions are traversed in order; paired positions are added to stems - the
     stems that can potentially be extended are the tips. At each position all paired bases are
     examined and either added to a a growing stem (tip) or they create a new stem (which is a new
@@ -48,56 +46,21 @@ class Struc:
         for position in self.ct:
 
             if position[pair]:
-                self.tip_match2(pos)
+                self.tip_match(pos)
 
             pos += 1
 
         # print out traces for checking
-
-        for t in self.trace_stem(self.tips[:]):
-            if t in self.tips:
-                print(f'start', end='  ')
-            print(f'{t.pos}:{t.ppos}', end='  ')
-            if not t.parent:
-                print(f'end')
+        # for t in self.trace_stem(self.tips[:]):
+        #     if t in self.tips:
+        #         print(f'start', end='  ')
+        #     print(f'{t.pos}:{t.ppos}', end='  ')
+        #     if not t.parent:
+        #         print(f'end')
 
         return
 
-    def tip_update(self, pos, pairpos, gap=3):
-        """-----------------------------------------------------------------------------------------
-        Tips are the contguous base-paired regions (stems) that are currently available by
-        extension. Tips cease to be extensible when a unpaired region (gap) of gap or more is
-        encountered.
-
-        remove any active tips where adding pair, pairpos would create a bubble of gap or more on
-        both sides of the stem
-
-        :param gap: int     contiguous unpaired regions must < gap long
-        :return: int        current number of tips
-        -----------------------------------------------------------------------------------------"""
-        if not self.tips:
-            # no active tips create a new stem and return
-            self.stem_new(pos, pairpos)
-            return len(self.tips)
-
-        match = False
-        self.match_find(pos)
-
-        return len(self.tips)
-
-    def stem_new(self, pos, pairpos):
-        """-----------------------------------------------------------------------------------------
-        Stem is a list of positions and paired position that can be joined subject to the limit on
-        gaps
-        :param pos: int
-        :param pairpos: int
-        :return: list           last paired position in stem
-        -----------------------------------------------------------------------------------------"""
-        self.stems.append([(pos, pairpos)])
-        self.tips.append(self.stems[-1])
-        return self.stems[-1]
-
-    def tip_match2(self, pos):
+    def tip_match(self, pos):
         """-----------------------------------------------------------------------------------------
         check if the pos, pairpos can be added to any of the active tips
         if not, create a new stem with the pair,pairpos tuple and make it an active tip
@@ -137,24 +100,9 @@ class Struc:
                     # self.stems.append(thisbp)
                     self.tips.append(thisbp)
 
-        # self.merge_duplicate_tips()
-
         # end of loop over basepairs at this position
 
         return len(self.stems)
-
-    def merge_duplicate_tips(self):
-        """-----------------------------------------------------------------------------------------
-        when there are multiple possible extensions duplicate tips can result, check and merge
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        current_tips = self.tips[:]
-        for t0 in range(len(current_tips)):
-            for t1 in range(t0 + 1, len(current_tips)):
-                if current_tips[t0] == current_tips[t1]:
-                    print(f'duplicate found')
-
-        return
 
     def find_groups(self):
         """-----------------------------------------------------------------------------------------
@@ -252,7 +200,6 @@ class Struc:
                 matched = True
                 yield t
 
-        # raise StopIteration
         if not matched:
             yield None
         else:
@@ -328,105 +275,6 @@ class Struc:
         return pair_n
 
 
-def dp(stem):
-    """---------------------------------------------------------------------------------------------
-    use dp to find the best match of the base-pairs in the stem and generate the vienna string
-    :param stem:
-    :return:
-    ---------------------------------------------------------------------------------------------"""
-    import numpy as np
-
-    # find the max and min values in the stem
-    left_min, right_max = stem[0]
-    left_max, right_min = stem[-1]
-    for s in stem:
-        left_min = min(left_min, s[0])
-        left_max = max(left_max, s[0])
-        right_min = min(right_min, s[1])
-        right_max = max(right_max, s[1])
-
-    left_len = left_max - left_min + 1
-    right_len = right_max - right_min + 1
-
-    # init scoring matrix and fill in paired bases with ones
-    score_matrix = np.zeros((left_len, right_len))
-    for s in stem:
-        score_matrix[s[0] - left_min][right_max - s[1]] = 1
-
-    dir = np.zeros((left_len, right_len))
-    for i in range(1, left_len):
-        if score_matrix[i][0]:
-            dir[i][0] = 0
-        else:
-            dir[i][0] = 1
-    for j in range(1, right_len):
-        if score_matrix[0][j]:
-            dir[0][j] = 0
-        else:
-            dir[0][j] = 2
-
-    # Fill in the scoring matrix
-    for i in range(1, left_len):
-        for j in range(1, right_len):
-            match = score_matrix[i - 1][j - 1] + score_matrix[i][j]
-            gap1 = score_matrix[i - 1][j]
-            gap2 = score_matrix[i][j - 1]
-            best = max(match, gap1, gap2)
-            if best == match:
-                # diagonal
-                if score_matrix[i][j]:
-                    dir[i][j] = 0
-                else:
-                    dir[i][j] = 4
-            elif best == gap1:
-                dir[i][j] = 1
-            elif best == gap2:
-                dir[i][j] = 2
-            score_matrix[i][j] = best
-
-    # Traceback to find the alignment
-    vleft = ""
-    vright = ""
-    i = left_max - left_min
-    j = right_max - right_min
-    while True:
-        # print(f'i:{i}, j:{j}, {score_matrix[i][j]}, {dir[i][j]}')
-        if dir[i][j] == 0:
-            if score_matrix[i][j]:
-                vleft += '('
-                vright += ')'
-            i -= 1
-            j -= 1
-        if dir[i][j] == 4:
-            vleft += '.'
-            vright += '.'
-            i -= 1
-            j -= 1
-        elif dir[i][j] == 1:
-            vleft += '.'
-            vright += ''
-            i -= 1
-        elif dir[i][j] == 2:
-            vleft += ''
-            vright += '.'
-            j -= 1
-
-        if i < 0 or j < 0:
-            break
-
-        # if score_matrix[i][j] == 1:
-        #     vleft += '('
-        #     vright += ')'
-
-    # reverse the right vienna string
-    vleft = vleft.strip('.')[::-1]
-    vright = vright.strip('.')
-    # print('\n', score_matrix)
-    # print(dir)
-
-    return vleft, vright
-
-
 class Bp():
     """=============================================================================================
     one base pair in a stem. connected in a linked list where pos < previous_pos and pair_pos >
@@ -471,19 +319,20 @@ class Stem():
         :return:
         -----------------------------------------------------------------------------------------"""
         self.bp_n += 1
-        for p in range(pair.pos, self.lbegin-1):
+        for p in range(pair.pos, self.lbegin - 1):
             self.lvienna += '.'
             self.unp_n += 1
         self.lvienna += '('
         self.lbegin = pair.pos
 
-        for p in range(self.rend, pair.ppos-1):
+        for p in range(self.rend, pair.ppos - 1):
             self.rvienna += '.'
             self.unp_n += 1
         self.rvienna += ')'
         self.rend = pair.ppos
 
         return
+
 
 # --------------------------------------------------------------------------------------------------
 # main
@@ -496,9 +345,9 @@ if __name__ == '__main__':
     struc.ct_read_all()
     struc.filter(56)
     pos = 0
-    for s in struc.ct:
-        print(f'{pos:3d}\t{s}')
-        pos += 1
+    # for s in struc.ct:
+    #     print(f'{pos:3d}\t{s}')
+    #     pos += 1
     struc.makestems()
     stem_groups = struc.find_groups()
     print('\ngroups')
@@ -508,7 +357,7 @@ if __name__ == '__main__':
         stack = []
         for tip in g:
             s = Stem(lbegin=tip.pos, lend=tip.pos, rbegin=tip.ppos, rend=tip.ppos)
-            stack.append((s,tip))
+            stack.append((s, tip))
 
         while stack:
             s, pair = stack.pop()
@@ -517,20 +366,17 @@ if __name__ == '__main__':
             if pair.parent:
                 # this stem continues
                 for p in pair.parent:
-                    stack.append((s.copy(),p))
+                    stack.append((s.copy(), p))
             else:
                 # this stem is complete
                 stem_set.append(s)
 
         if not stem_set:
             break
-        stems = sorted(stem_set,key=lambda x: (min(x.lend-x.lbegin, x.rend-x.rbegin),-x.unp_n), reverse=True)
+        stems = sorted(stem_set, key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n), reverse=True)
         s = stems[0]
         if s.bp_n >= 3:
             print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
                   f'{s.lvienna[::-1]}   {s.rvienna}')
-
-
-
 
     exit(0)
