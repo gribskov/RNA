@@ -116,6 +116,50 @@ class Struc:
 
         return len(self.stems)
 
+    def final_stems(self, rna):
+        """-----------------------------------------------------------------------------------------
+        Select the final stem from each possible trace in stemgroups. The selected stem is the first
+        stem after sorting by stem length (longer is better) and number of unpaired bases (fewer
+        is better)
+
+        :param rna: RNAstructure
+        :return: int                number of stems
+        -----------------------------------------------------------------------------------------"""
+        stem_n = 0
+        for g in self.stemgroups:
+            # new = True
+            stem_set = []
+            stack = []
+            for tip in g:
+                s = Stem(lbegin=tip.pos, lend=tip.pos, rbegin=tip.ppos, rend=tip.ppos)
+                stack.append((s, tip))
+
+            while stack:
+                s, pair = stack.pop()
+                s.update(pair)
+
+                if pair.parent:
+                    # this stem continues
+                    for p in pair.parent:
+                        stack.append((s.copy(), p))
+                else:
+                    # this stem is complete
+                    stem_set.append(s)
+
+            if not stem_set:
+                break
+            stems = sorted(stem_set,
+                           key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n),
+                           reverse=True)
+            s = stems[0]
+            if s.bp_n >= 3:
+                print(f'{s.formatted()}')
+                s.name = stem_n
+                stem_n += 1
+                rna.stem_list.append(s)
+
+        return stem_n
+
     def find_groups(self):
         """-----------------------------------------------------------------------------------------
         trace the path from each tip, assigning each basepair to the same group.
@@ -381,7 +425,8 @@ if __name__ == '__main__':
         :return: command line namespace
         -----------------------------------------------------------------------------------------"""
         commandline = argparse.ArgumentParser(
-            description='Calculate XIOS from RNAStructure::Stochastic', formatter_class=arg_formatter)
+            description='Calculate XIOS from RNAStructure::Stochastic',
+            formatter_class=arg_formatter)
 
         commandline.add_argument('input_ct', type=str,
                                  help='CT file produced by Stochastic.exe (%(default)s)',
@@ -414,7 +459,6 @@ if __name__ == '__main__':
     struc.ctfile = open(opt['input_ct'], 'r')
     struc.ct_read_all()
     struc.filter(56)
-    # pos = 0
 
     rna = RNAstructure()
     rna.sequence_id = struc.id
@@ -425,40 +469,10 @@ if __name__ == '__main__':
     struc.makestems()
     group_n = struc.find_groups()
     sys.stdout.write(f'\n{group_n} groups found')
-    stem_n = 0
-    for g in struc.stemgroups:
-        # new = True
-        stem_set = []
-        stack = []
-        for tip in g:
-            s = Stem(lbegin=tip.pos, lend=tip.pos, rbegin=tip.ppos, rend=tip.ppos)
-            stack.append((s, tip))
-
-        while stack:
-            s, pair = stack.pop()
-            s.update(pair)
-
-            if pair.parent:
-                # this stem continues
-                for p in pair.parent:
-                    stack.append((s.copy(), p))
-            else:
-                # this stem is complete
-                stem_set.append(s)
-
-        if not stem_set:
-            break
-        stems = sorted(stem_set, key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n), reverse=True)
-        s = stems[0]
-        if s.bp_n >= 3:
-            print(f'{s.formatted()}')
-            s.name = stem_n
-            stem_n += 1
-            rna.stem_list.append(s)
-
+    stem_n = struc.final_stems(rna)
+    sys.stdout.write(f'\n{stem_n} stems selected')
     rna.adjacency_from_stemlist()
     rna.edgelist_from_adjacency(include="ijo", whole=False)
     rna.XIOSwrite(sys.stdout)
 
     exit(0)
-
