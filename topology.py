@@ -286,10 +286,10 @@ class Topology:
             self.iwrite(fp, self.sequence, 3, 'unformatted')
             self.iwrite(fp, '</sequence>', 2)
 
-            self.iwrite(fp, '<comment_list>', 2)
-            for comment in self.comment:
-                self.iwrite(fp, comment, 3, 'comment')
-            self.iwrite(fp, '</comment_list>', 2)
+        self.iwrite(fp, '<comment_list>', 2)
+        for comment in self.comment:
+            self.iwrite(fp, comment, 3, 'comment')
+        self.iwrite(fp, '</comment_list>', 2)
 
         self.iwrite(fp, '</information>', 1)
 
