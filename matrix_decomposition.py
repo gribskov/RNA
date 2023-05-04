@@ -52,8 +52,8 @@ if __name__ == '__main__':
     picklefile = 'fmatrix.pkl'
     fmat = FingerprintMatrix.unpickle(picklefile)
     print(f'{len(fmat.fpt)} fingerprints with {len(fmat.motifs)} motifs unpickled')
-    motif_mincount = 10
-    motif_maxcount = 140
+    motif_mincount = 40
+    motif_maxcount = 100
     fmat.select_min_max(motif_mincount, motif_maxcount, False, recalculate=True)
     f = fmat.fpt
     motif = np.array([[f[row][col] for col in range(len(f[0]))] for row in range(len(f))])
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     for c in pca.components_:
         count = 0
         for i in sorted(range(len(c)), key=lambda i: c[i], reverse=True):
-            print(f'{i}\t{c[i]:.3g}\t{rownames[i]}')
+            print(f'{i}\t{c[i]:.3g}\t{colnames[i]}')
             count += 1
             if count > 5:
                 break
