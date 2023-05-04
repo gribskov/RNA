@@ -116,13 +116,14 @@ class Struc:
 
         return len(self.stems)
 
-    def final_stems(self, rna):
+    def final_stems(self, rna, minstem=3):
         """-----------------------------------------------------------------------------------------
         Select the final stem from each possible trace in stemgroups. The selected stem is the first
         stem after sorting by stem length (longer is better) and number of unpaired bases (fewer
         is better)
 
         :param rna: RNAstructure
+        :param minstem:int          minimum number of paired positions in stem
         :return: int                number of stems
         -----------------------------------------------------------------------------------------"""
         stem_n = 0
@@ -152,8 +153,8 @@ class Struc:
                            key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n),
                            reverse=True)
             s = stems[0]
-            if s.bp_n >= 3:
-                print(f'{s.formatted()}')
+            if s.bp_n >= minstem:
+                # print(f'{s.formatted()}')
                 s.name = stem_n
                 stem_n += 1
                 rna.stem_list.append(s)
@@ -438,11 +439,11 @@ if __name__ == '__main__':
 
         commandline.add_argument('-m', '--minstem',
                                  help='Minimum number of paired bases in a stem (%(default)s)',
-                                 default=3)
+                                 default=3, type=int)
 
         args = commandline.parse_args()
-
-        return vars(args)  # convert namespace to dict
+        # return vars(args)  # convert namespace to dict
+        return args
 
 
     # ----------------------------------------------------------------------------------------------
@@ -451,28 +452,30 @@ if __name__ == '__main__':
     opt = getoptions()
     now = time.localtime()
     sys.stdout.write(f'stochastic_to_xios {time.asctime(now)}\n')
-    sys.stdout.write(f'\tminimum stems size: {opt["minstem"]}\n')
-    sys.stdout.write(f'\tinput ct file: {opt["input_ct"]}\n')
-    sys.stdout.write(f'\toutput xios file: {opt["output_xios"]}\n')
+    sys.stdout.write(f'\tminimum stems size: {opt.minstem}\n')
+    sys.stdout.write(f'\tinput ct file: {opt.input_ct}\n')
+    sys.stdout.write(f'\toutput xios file: {opt.output_xios}\n')
 
     struc = Struc()
-    struc.ctfile = open(opt['input_ct'], 'r')
+    struc.ctfile = open(opt.input_ct, 'r')
     struc.ct_read_all()
     struc.filter(56)
 
     rna = RNAstructure()
     rna.sequence_id = struc.id
-    rna.comment.append(f'creation_date {time.asctime(now)}')
-    rna.comment.append(f'Program: xios_from_stochastic')
-    rna.comment.append(f'input_file {opt["input_ct"]}')
+    comment = f'creation_date: {time.asctime(now)}\n'
+    comment += f'Program: xios_from_stochastic\n'
+    comment += f'input_file: {opt.input_ct}\n'
+    comment += f'minimum stem: {opt.minstem}'
+    rna.comment.append(comment)
 
     struc.makestems()
     group_n = struc.find_groups()
-    sys.stdout.write(f'\n{group_n} groups found')
-    stem_n = struc.final_stems(rna)
-    sys.stdout.write(f'\n{stem_n} stems selected')
+    sys.stdout.write(f'\n\t{group_n} groups found\n')
+    stem_n = struc.final_stems(rna, opt.minstem)
+    sys.stdout.write(f'\t{stem_n} stems selected\n\n')
     rna.adjacency_from_stemlist()
     rna.edgelist_from_adjacency(include="ijo", whole=False)
-    rna.XIOSwrite(sys.stdout)
+    rna.XIOSwrite(open(opt.output_xios, 'w'))
 
     exit(0)
