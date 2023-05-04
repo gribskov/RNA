@@ -8,7 +8,7 @@ import copy
 import sys
 import argparse
 import time
-from topology import Topology, Stem
+from topology import RNAstructure, Stem
 
 
 class Struc:
@@ -406,7 +406,7 @@ if __name__ == '__main__':
     struc.filter(56)
     # pos = 0
 
-    rna = Topology()
+    rna = RNAstructure()
     rna.sequence_id = struc.id
     rna.comment.append(f'creation_date {time.asctime(now)}')
     rna.comment.append(f'Program: xios_from_stochastic')
@@ -415,6 +415,7 @@ if __name__ == '__main__':
     struc.makestems()
     stem_groups = struc.find_groups()
     print('\ngroups')
+    stem_n = 0
     for g in stem_groups:
         # new = True
         stem_set = []
@@ -441,9 +442,13 @@ if __name__ == '__main__':
         s = stems[0]
         if s.bp_n >= 3:
             print(f'{s.formatted()}')
+            s.name = stem_n
+            stem_n += 1
+            rna.stem_list.append(s)
 
-        # rna.adjacency_from_stemlist()
-        # rna.edgelist_from_adjacency(include="ijo", whole=False)
+    rna.adjacency_from_stemlist()
+    rna.edgelist_from_adjacency(include="ijo", whole=False)
+    rna.XIOSwrite(sys.stdout)
 
     exit(0)
 
