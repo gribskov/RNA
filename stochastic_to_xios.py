@@ -452,9 +452,9 @@ if __name__ == '__main__':
     opt = getoptions()
     now = time.localtime()
     sys.stdout.write(f'stochastic_to_xios {time.asctime(now)}\n')
-    sys.stdout.write(f'\tminimum stems size: {opt.minstem}\n')
     sys.stdout.write(f'\tinput ct file: {opt.input_ct}\n')
     sys.stdout.write(f'\toutput xios file: {opt.output_xios}\n')
+    sys.stdout.write(f'\tminimum stem size: {opt.minstem}\n')
 
     struc = Struc()
     struc.ctfile = open(opt.input_ct, 'r')
