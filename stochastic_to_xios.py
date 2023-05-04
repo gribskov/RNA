@@ -18,23 +18,31 @@ class Struc:
     stems that can potentially be extended are the tips. At each position all paired bases are
     examined and either added to a a growing stem (tip) or they create a new stem (which is a new
     tip)
+
+    Struc could have been a subclass of topology::Topology, but it seems different enough to
+    stand alone
    ----------------------------------------------------------------------------------------------"""
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-        ctfile  fh, ctfile from RNAStructure Stochastic
-        ct      list of positions in sequence, each position has the base and a dictionary of paired
-                positions and a count of number of ocurrences pair:{pos:count, pos:count, ...}
-                ct[0] is blank because position numbering begins at 1
-        tips    used in tracing stems, distinct stems that are currently being extended
-        stems   contiguous base-paired regions, subject to gap
-        gap     stems must have fewer than gap contiguous unpaired positions ((((..((....))..))..))
-                is ok
+        ctfile      fh, ctfile from RNAStructure Stochastic
+        ct          list of positions in sequence, each position has the base and a dictionary of
+                    paired positions with counts of the number of ocurrences in the stochastic
+                    samples. pair:{pos:count, pos:count, ...}. t[0] is blank because position
+                    numbering begins at 1
+        tips        list of Bp. used in tracing stems, distinct stems that are currently being
+                    extended. Tips are the innermost basepairs in a stem (next to the loop)
+        stems       linked list of Bp. contiguous base-paired regions, subject to gap limits
+        stemgroups  list of Bp. stem tips that have base pairs in common, each group produces one
+                    stem in the final output
+        gap         unpaired regions in stems must be <= gap
+        id          name of the sequence, from the first line of the ct file
         -----------------------------------------------------------------------------------------"""
         self.ctfile = None
         self.ct = []
         self.tips = []
         self.stems = []
+        self.stemgroups = []
         self.gap = 3
         self.id = ''
 
@@ -139,7 +147,8 @@ class Struc:
                 group_n += 1
                 group.append([])
 
-        return group
+        self.stemgroups = group
+        return len(self.stemgroups)
 
     def trace_stem(self, start):
         """-----------------------------------------------------------------------------------------
@@ -300,6 +309,7 @@ class Bp:
 class Stem(Stem):
     """=============================================================================================
     Subclasses topology.py:Stem
+    holds the entire description of a stem
     ============================================================================================="""
 
     def __init__(self, lbegin=0, lend=0, rbegin=0, rend=0):
@@ -413,10 +423,10 @@ if __name__ == '__main__':
     rna.comment.append(f'input_file {opt["input_ct"]}')
 
     struc.makestems()
-    stem_groups = struc.find_groups()
-    print('\ngroups')
+    group_n = struc.find_groups()
+    sys.stdout.write(f'\n{group_n} groups found')
     stem_n = 0
-    for g in stem_groups:
+    for g in struc.stemgroups:
         # new = True
         stem_set = []
         stack = []
