@@ -8,6 +8,7 @@ import copy
 import sys
 import argparse
 import time
+from topology import Topology, Stem
 
 
 class Struc:
@@ -296,21 +297,23 @@ class Bp:
         self.group = None
 
 
-class Stem:
+class Stem(Stem):
     """=============================================================================================
-    maybe should be xios stem object but for the time being a new class
+    Subclasses topology.py:Stem
     ============================================================================================="""
 
     def __init__(self, lbegin=0, lend=0, rbegin=0, rend=0):
         """-----------------------------------------------------------------------------------------
-
+        lbegin, lend        begin and end position of left halfstem
+        rbegin, rend        begin and end position of right halfstem
+        bp_n                number of paired position
+        unp_n               number of unpaired positions, counted on both halfstems
         -----------------------------------------------------------------------------------------"""
+        super(Stem, self).__init__()
         self.lbegin = lbegin
         self.lend = lend
-        self.lvienna = ''
         self.rbegin = rbegin
         self.rend = rend
-        self.rvienna = ''
         self.bp_n = 0
         self.unp_n = 0
 
@@ -398,15 +401,17 @@ if __name__ == '__main__':
     sys.stdout.write(f'\toutput xios file: {opt["output_xios"]}\n')
 
     struc = Struc()
-    ctfilename = 'data/partition.stochastic.ct'
-    # ctfilename = 'data/stochastic.330.ct'
     struc.ctfile = open(opt['input_ct'], 'r')
     struc.ct_read_all()
     struc.filter(56)
-    pos = 0
-    # for s in struc.ct:
-    #     print(f'{pos:3d}\t{s}')
-    #     pos += 1
+    # pos = 0
+
+    rna = Topology()
+    rna.sequence_id = struc.id
+    rna.comment.append(f'creation_date {time.asctime(now)}')
+    rna.comment.append(f'Program: xios_from_stochastic')
+    rna.comment.append(f'input_file {opt["input_ct"]}')
+
     struc.makestems()
     stem_groups = struc.find_groups()
     print('\ngroups')
@@ -435,22 +440,10 @@ if __name__ == '__main__':
         stems = sorted(stem_set, key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n), reverse=True)
         s = stems[0]
         if s.bp_n >= 3:
-            print(f'{s.lbegin}\t{s.lend}\t{s.rbegin}\t{s.rend}\t'
-                  f'{s.lvienna[::-1]}   {s.rvienna}')
+            print(f'{s.formatted()}')
+
+        # rna.adjacency_from_stemlist()
+        # rna.edgelist_from_adjacency(include="ijo", whole=False)
 
     exit(0)
 
-# this is how ct2xios builds the structure
-#     rna = RNAstructure()
-#     rna.CTRead(args.ctfile, ddG=args.ddG)
-#     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-#     rna.comment.append('creation_date {}'.format(now))
-#     rna.comment.append('input_file {}'.format(args.ctfile))
-#     if rna.energy:
-#         rna.comment.append('input_format unifold')
-#     else:
-#         rna.comment.append('input_format probknot')
-#     rna.adjacency_from_stemlist()
-#     rna.edgelist_from_adjacency(include="ijo", whole=False)
-#
-#     rna.XIOSwrite(sys.stdout)
