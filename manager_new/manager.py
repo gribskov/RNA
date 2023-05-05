@@ -72,19 +72,54 @@ def getoptions():
 
 class Workflow:
     """=============================================================================================
-    python manager.py <project>
+    python manager.py
 
-    project is the base name for the run.
-    For each stage is created. Each stage directory contains:
-        {stage}.command = a list of all the executable commands for the stage
-        {stage}.complete = a list of all commands that have completed
-        {stage}.log = logfile for the stage
-        {stage}.complete = marker file, if present the stage is complete
+    The workflow manager is responsible for reading the workflow plan and converting it to a series
+    of executable commands. The files of command can then be executed in parallel by Executor.
 
     Workflow runs in two modes, controlled by --restart:
-        restart: delete any existing directories/files and start a new project from scratch
-        fastforward (default) use existing directories and files. Execute only stages and commands
-            that haven't completed
+    restart: delete any existing directories/files and start a new project from scratch
+    fastforward: (default) use existing directories and files. Execute only stages and commands
+        that haven't completed
+
+    main setup:
+        create project directory, project is the base name for the run and for the main directory,
+            all stages are subdirectories of project directory
+        create log directory
+        create main logfile
+
+    For each stage:
+        stages create/use the following files
+        {stage}/{stage}.command = a list of all the executable commands for the stage
+        {stage}/{stage}.complete = a list of all commands that have completed
+        {stage}/{stage}.log = logfile for the stage
+        {stage}/{stage}.complete = marker file, if present the stage is complete
+
+        open/create {stage}/{stage}.log
+        restart (denovo)
+            create directory {stage}
+            create, save, and open command from plan
+            create and open complete
+
+        fastforward:
+            if directory {stage} doesn't exist, run as for restart
+            if {stage}/finished, skip stage
+            if {stage}/{stage}.command exists
+                read commands
+                else generate commands from plan
+
+            if {stage}/{stage.complete exists
+                remove complete commands from command and store command
+                    reopen command for reading
+                open complete for reading (a)
+
+
+            after initial setup
+                command is open for reading
+                complete is open for writing (w if restart, a if fastforward)
+                stage_log is open for writing (w if restart, a if fastforward)
+
+        send command, complete, log to executor
     ============================================================================================="""
 
     def __init__(self):
@@ -107,7 +142,8 @@ class Workflow:
         self.complete = None
         self.log = Log()
 
-    def open_exist(self, filename, mode='w'):
+    @staticmethod
+    def open_exist(filename, mode='w'):
         """-----------------------------------------------------------------------------------------
         if filename exists, open for appending, otherwise open for writing
 
@@ -118,7 +154,13 @@ class Workflow:
             if os.path.exists(filename):
                 mode = 'a'
 
-        return open(filename, mode)
+        try:
+            fh = open(filename, mode)
+        except OSError:
+            sys.stderr.write(f'Workflow:open_exist - unable to open {filename} with mode={mode}')
+            exit(1)
+
+        return
 
     def yaml_read(self):
         """-----------------------------------------------------------------------------------------
@@ -515,7 +557,6 @@ class Log(dict):
 
         Log     dict, keys string with symbolic name for log, values file handle
         -----------------------------------------------------------------------------------------"""
-
 
     def logtime(self):
         """-----------------------------------------------------------------------------------------
