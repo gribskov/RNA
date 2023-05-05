@@ -40,7 +40,7 @@ def getoptions():
                              default=project_default)
 
     commandline.add_argument('-r', '--restart',
-                             help='Erase direcories/files and restart (%(default)s)',
+                             help='Erase directories/files and restart (%(default)s)',
                              default=False, action='store_true')
 
     commandline.add_argument('-w', '--workflow', type=str,
@@ -81,7 +81,7 @@ class Workflow:
         {stage}.log = logfile for the stage
         {stage}.complete = marker file, if present the stage is complete
 
-    Manager runs in two modes, controlled by --restart:
+    Workflow runs in two modes, controlled by --restart:
         restart: delete any existing directories/files and start a new project from scratch
         fastforward (default) use existing directories and files. Execute only stages and commands
             that haven't completed
@@ -95,7 +95,7 @@ class Workflow:
 
         stage:          name of the current stage, from yaml
         command:        filehandle - list of commands to run in this stage
-        complete:       filehandle - list of commands completeed in this stage
+        complete:       filehandle - list of commands completed in this stage
         log_stage:      filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
         self.option = getoptions()
@@ -105,7 +105,7 @@ class Workflow:
         # file pointers for commands, complete commands, and the stage log
         self.command = None
         self.complete = None
-        self.log_stage = None
+        self.log = Log()
 
     def open_exist(self, filename, mode='w'):
         """-----------------------------------------------------------------------------------------
@@ -172,7 +172,6 @@ class Workflow:
         self.command = new
         return new
 
-
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
         set up for the overall run
@@ -193,7 +192,7 @@ class Workflow:
                 # project directory exists
                 shutil.rmtree(dir, ignore_errors=False, onerror=None)
             os.mkdir(dir)
-            self.log_main = open(log, 'w')
+            self.log['main'] = open(log, 'w')
 
         else:
             # fastforward mode keeps the current directory without changing, if the project
@@ -202,31 +201,33 @@ class Workflow:
             if not os.path.isdir(dir):
                 # project directory does not exist, this is a new project, create logfile below
                 os.mkdir(dir)
-                self.log_main = open(log, 'w')
+                self.log['main'] = open(log, 'w')
 
             if os.path.isfile(log):
                 # if exists, append to mexisting log
-                self.log_main = open(log, 'a')
+                self.log['main'] = open(log, 'a')
             else:
                 # create log file if it doesn't exist
-                self.log_main = open(log, 'w')
+                self.log['main'] = open(log, 'w')
 
-        self.log_main.write(f'{self.logtime()}\tBegin: Project {self.option["project"]}\n')
+        mainlog = self.log['main']
+        mainlog.write(f'{self.log.logtime()}\tBegin: Project {self.option["project"]}\n')
 
         # read the workflow plan from the yaml file
 
         self.yaml_read()
-        self.log_main.write(f'{self.logtime()}\tRead: Workflow {self.option["workflow"]} ')
-        self.log_main.write(f'{len(self.plan["stage"])} stages\n')
+        mainlog.write(f'{self.log.logtime()}\tRead: Workflow {self.option["workflow"]} ')
+        mainlog.write(f'{len(self.plan["stage"])} stages\n')
 
         return
 
     def stage_setup(self, stage):
         """-----------------------------------------------------------------------------------------
-        1. check/create stage directory
+        Prepare to execute commands for this stage
+        1. check/create stage directory, if necessary
         2. open log file and store in object
 
-        TODO check directories exist
+
         :param dir: string      directory name
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -284,10 +285,11 @@ class Workflow:
 
         :return: bool   False if stage is complete, True if there are commands to execute
         -----------------------------------------------------------------------------------------"""
-        # TODO check for restart
+        if self.option['restart']:
+            return False
 
         # when a stage is finished a maker file {stage}.finished is created, if this file is present
-        # fast forward skips the stage
+        # fast_forward skips the stage
         finished = f'{w.option["project"]}/{stage}/{stage}.finished'
         if os.path.isfile(finished):
             time = Workflow.logtime()
@@ -406,7 +408,7 @@ class executor():
         self.commandlist.close()
 
         total = len(self.commands)
-        self.logwrite('manager', 'files', f'{stage["stage"]}',
+        self.logwrite('manager', 'files', f'{self.stage}',
                       f'{total} files in {self.source}')
 
         while self.manager_startjobs() or self.joblist:
@@ -429,27 +431,20 @@ class executor():
         :param stage: dict - information describing current pipeline stage
         :return: boolean - True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
-        while self.commands:
+        while self.commands and self.running < self.jobs:
+            # check number of jobs running and start more if necessary
+            # completed commands have already been removed by fast forward, so you don't
+            # have to check
+            thiscommand = self.commands.pop()
+            self.jobid += 1
 
-            if self.running < self.jobs:
-                # completed commands have already been removed by fast forward, so you don't
-                # have to check
-                thiscommand = self.commands.pop()
-                self.jobid += 1
+            print(f'starting job:{self.jobid}; {thiscommand}')
+            self.logstage.write('{self.stage}\t{thiscommand}')
 
-                print(f'starting job{self.jobid}')]
-                self.logstage.write('manager', 'start', stage['stage'],
-                f'jobid:{self.jobid}; input:{file} ')
-                self.logstage.write('manager', 'command', stage['stage'], ' '.join(thiscommand))
-
-                job = sub.Popen(' '.join(thiscommand), shell=True, stdout=self.errorlog,
-                stderr = self.errorlog)
-                self.joblist.append([self.jobid, job, file])
-                self.running += 1
-
-                else:
-                # desired number of jobs are running so continue to polling
-                break
+            job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
+            # TODO what is file?
+            self.joblist.append([self.jobid, job, file])
+            self.running += 1
 
         if self.commands:
             # files remain to be processed
@@ -507,7 +502,7 @@ class executor():
 # end of class executor
 ####################################################################################################
 
-class Log():
+class Log(dict):
     """=============================================================================================
     Make standardized entries in log files. Only a class so it can be shared by executor and
     workflow
@@ -515,15 +510,16 @@ class Log():
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-        log is a dict that relates the symbolic name of the log to a filehandle
+        multiple logs can be created, each is associated with a filehandle by an entry in the log
+        dict
 
+        Log     dict, keys string with symbolic name for log, values file handle
         -----------------------------------------------------------------------------------------"""
-        log = {}
+
 
     def logtime(self):
         """-----------------------------------------------------------------------------------------
-        Create a time string for use in logs year month day hour min sec
-        concatenated
+        Create a time string for use in logs year month day hour min sec concatenated
 
         :return: str - YYYYMoDyHrMnSc
         -----------------------------------------------------------------------------------------"""
@@ -534,8 +530,8 @@ class Log():
         add a timestamped message to the named log
 
         :param log: string - name of log (e.g., manager, error)
-        :param tag: string - tag describing action
-        :param stage: string - pipeline stage
+        **:param tag: string - tag describing action
+        **:param stage: string - pipeline stage
         :param message: string - message
         :return: string - message written to log
         -----------------------------------------------------------------------------------------"""
@@ -554,7 +550,7 @@ class Log():
 
 
 ####################################################################################################
-# end of class executor
+# end of class Log
 ####################################################################################################
 ####################################################################################################
 # Main Program
@@ -574,7 +570,7 @@ if __name__ == '__main__':
     for stage in w.plan['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
         w.stage_setup(stage)
-        if not w.stage_fast_foward():
+        if not w.stage_fast_forward():
             # fast_forward returns false for restart mode, or in fastforward mode if the stage
             # directory, and stage log, command, and complete files do not exist
             w.command_generate()
