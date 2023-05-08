@@ -195,7 +195,7 @@ class Workflow:
         fp.close()
         return self.plan
 
-    def command_generate(self, stage):
+    def command_generate(self):
         """-----------------------------------------------------------------------------------------
         generate a list of commands from the workflow for a specific stage
         1. split the command into tokens
@@ -209,9 +209,8 @@ class Workflow:
         :param stage: string            stage in workflow
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
+        stage = self.stage
         current = self.plan['stage'][stage]
-
-        # TODO check for stage finished
 
         command = current['command']
         token = command.split()
@@ -232,6 +231,10 @@ class Workflow:
                     token[t] = token[t].replace(target, self.plan['definitions'][d])
 
         new = ' '.join(token)
+
+        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
+        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
+
         self.command = new
         return new
 
@@ -295,7 +298,7 @@ class Workflow:
         stagedir = f'{self.option["project"]}/{stage}'
         if not os.path.isdir(stagedir):
             # create directory if absent
-            os.mkdir(dir)
+            os.mkdir(stagedir)
 
         # open stage log
         stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
@@ -384,7 +387,7 @@ class Workflow:
                 pass
         else:
             # generate commands for this stage and save
-            todo = generate_commands
+            todo = self.command_generate()
 
         # commands have been generated and/or fastforwarded
         # if todo list is empty, mark stage finished and return False
