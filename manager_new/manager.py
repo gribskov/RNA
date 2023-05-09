@@ -134,7 +134,7 @@ class Workflow:
         log_stage:      filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
         self.option = getoptions()
-        self.plan = {}
+        self.yaml = {}
         self.log_main = None
         self.stage = ''
         # file pointers for commands, complete commands, and the stage log
@@ -183,61 +183,6 @@ class Workflow:
         os.rename(uniquename, filename)
         return uniquename
 
-    def yaml_read(self):
-        """-----------------------------------------------------------------------------------------
-        read the workflow description from the yaml file
-
-        :param filename: string     yaml workflow description
-        :return: dict               workflow as a python dictionary
-        -----------------------------------------------------------------------------------------"""
-        fp = open(self.option['workflow'], 'r')
-        self.plan = yaml.load(fp, Loader=yaml.FullLoader)
-        fp.close()
-        return self.plan
-
-    def command_generate(self):
-        """-----------------------------------------------------------------------------------------
-        generate a list of commands from the workflow for a specific stage
-        1. split the command into tokens
-        2. for each token, match to the other keywords in plan['stage'][stage] and replace
-           %keyword with the value from the yaml. because % substitutions are processed first, they
-           can include global $ definitions
-        3. for each token, match to keywords in plan['definitions'] and replace $keyword with the
-           value from th yaml
-        4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
-
-        :param stage: string            stage in workflow
-        :return: string                 command string
-        -----------------------------------------------------------------------------------------"""
-        stage = self.stage
-        current = self.plan['stage'][stage]
-
-        command = current['command']
-        token = command.split()
-        # process %
-        for t in range(len(token)):
-            for d in current:
-                if d == 'command':
-                    continue
-                target = f'%{d}'
-                if token[t].find(target) > -1:
-                    token[t] = token[t].replace(target, current[d])
-
-        # process $
-        for t in range(len(token)):
-            for d in self.plan['definitions']:
-                target = f'${d}'
-                if token[t].find(target) > -1:
-                    token[t] = token[t].replace(target, self.plan['definitions'][d])
-
-        new = ' '.join(token)
-
-        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
-        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
-
-        self.command = new
-        return new
-
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
         set up for the overall run
@@ -271,10 +216,13 @@ class Workflow:
         self.log.start('main', log)
         self.log.add('main', f'Begin: Project {self.option["project"]}')
 
-        # read the workflow plan from the yaml file
-
-        self.yaml_read()
-        self.log.add('main', f'Read: Workflow {self.option["workflow"]} {len(self.plan["stage"])} stages')
+        # expand global symbols (definitions in yaml) and store in yaml
+        self.yaml = Command()
+        self.yaml.read()
+        self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
+        self.log.add('main', f'Read: Workflow {self.option["workflow"]} '
+                             f'{len(self.yaml.parsed["stage"])} stages')
+        sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
 
         return
 
@@ -338,6 +286,19 @@ class Workflow:
 
         return
 
+    def stage_denovo(self):
+        """-----------------------------------------------------------------------------------------
+        In a de novo run, all directories and files are created from scratch. The stage directory
+        and stage log are created by stage_startup. All that needs to be done here is to generate
+        the command file, and make sure the complete file is open.
+
+        at the end of stage_denovo, the stage_log and complete file are open for writing, and the
+        command file is open for reading
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        pass
+
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
         When stage_fast_forward() returns False it means that commands must be generated and stored
@@ -354,7 +315,8 @@ class Workflow:
             # de novo run can't fast forward
             return False
 
-        # try to open and read completed commands, if file is absent
+        # try to open and read completed commands, if file is absent the complete list will be
+        # empty
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
         done = []
         if os.path.exists(completefile):
@@ -387,14 +349,13 @@ class Workflow:
                 pass
         else:
             # generate commands for this stage and save
-            todo = self.command_generate()
+            return False
 
         # commands have been generated and/or fastforwarded
         # if todo list is empty, mark stage finished and return False
         if not todo:
             self.stage_finish()
             return False
-
 
         # now open the new file and write the command list
         self.save_exist(commandfile)
@@ -413,14 +374,118 @@ class Workflow:
 # end of class Workflow
 ####################################################################################################
 
+class Command:
+    """#############################################################################################
+    convert the yaml file describing the workflow to a list of executable commands
+    #############################################################################################"""
+
+    def __init__(self, filename='workflow1.yaml'):
+        """-----------------------------------------------------------------------------------------
+        file        path to yaml file containing the workflow
+        plan        python structure version of the plan
+        stage       current stage
+        def_main    dict, global definitions
+        def_stage   dict, definitions for current stage
+        -----------------------------------------------------------------------------------------"""
+        self.file = filename
+        self.parsed = None
+        self.stage = ''
+        self.def_main = {}
+        self.def_stage = {}
+
+    def read(self):
+        """-----------------------------------------------------------------------------------------
+        read the workflow description from the yaml file
+
+        :param filename: string     yaml workflow description
+        :return: dict               workflow as a python dictionary
+        -----------------------------------------------------------------------------------------"""
+        fp = open(self.file, 'r')
+        self.parsed = yaml.load(fp, Loader=yaml.FullLoader)
+        fp.close()
+        return self.parsed
+
+    def main(self):
+        """-----------------------------------------------------------------------------------------
+        Set up the main definitions for the plan
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        pass
+
+    def expand(self, defs):
+        """-----------------------------------------------------------------------------------------
+        recursively substitute symbols in defs with their values.
+
+        :param defs: dict   keys are the symbols, shown as $key in commands
+        :return: dict       definition dict after substitution
+        -----------------------------------------------------------------------------------------"""
+        stack = []
+        for d in defs:
+            stack.append(d)
+
+        while stack:
+            d = stack[0]
+            stack = stack[1:-1]
+            for thisd in defs:
+                symbol = f'${thisd}'
+                defs[d] = defs[d].replace(symbol, defs[thisd])
+            if defs[d].find('$') > -1:
+                stack.append(d)
+
+        return defs
+
+    def command_generate(self):
+        """-----------------------------------------------------------------------------------------
+        generate a list of commands from the workflow for a specific stage
+        1. split the command into tokens
+        2. for each token, match to the keywords in plan['stage'][stage] and replace
+           $keyword with the value from the yaml.
+        3. for each token, match to keywords in plan['definitions'] and replace $keyword with the
+           value from th yaml
+        4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
+
+        :param stage: string            stage in workflow
+        :return: string                 command string
+        -----------------------------------------------------------------------------------------"""
+        stage = self.stage
+        current = self.plan['stage'][stage]
+
+        command = current['command']
+        token = command.split()
+        # process %
+        for t in range(len(token)):
+            for d in current:
+                if d == 'command':
+                    continue
+                target = f'%{d}'
+                if token[t].find(target) > -1:
+                    token[t] = token[t].replace(target, current[d])
+
+        # process $
+        for t in range(len(token)):
+            for d in self.plan['definitions']:
+                target = f'${d}'
+                if token[t].find(target) > -1:
+                    token[t] = token[t].replace(target, self.plan['definitions'][d])
+
+        new = ' '.join(token)
+
+        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
+        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
+
+        self.command = new
+        return new
+
+
 ####################################################################################################
-# command executor, runs a set of command lines in a directory,
-# executor is the main part of the original rna_manager
+# end of class Command
 ####################################################################################################
-class executor():
-    """=============================================================================================
-    command executor, runs a set of command lines in a directory,
-    ============================================================================================="""
+
+class Executor():
+    """#############################################################################################
+    command executor, runs a set of command lines in a directory. Executor is the main part of
+    the original rna_manager
+    #############################################################################################"""
 
     def __init__(self, jobs=20):
         """-----------------------------------------------------------------------------------------
@@ -552,12 +617,12 @@ class executor():
 
 
 ####################################################################################################
-# end of class executor
+# end of class Executor
 ####################################################################################################
 
 class Log(dict):
     """=============================================================================================
-    Make standardized entries in log files. Only a class so it can be shared by executor and
+    Make standardized entries in log files. Only a class so it can be shared by Executor and
     workflow
     ============================================================================================="""
 
@@ -620,17 +685,19 @@ class Log(dict):
 ####################################################################################################
 if __name__ == '__main__':
 
-    w = Workflow()
-
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
+    w = Workflow()
     sys.stdout.write(f'project: {w.option["project"]}\n')
+
+    # main set up: create project directory, start main log file
     w.main_setup()
-    sys.stdout.write(f'Stages read from {w.option["workflow"]}:\n')
-    for stage in w.plan['stage']:
+
+    for stage in w.yaml.parsed['stage']:
         sys.stdout.write(f'\t{stage}\n')
 
-    for stage in w.plan['stage']:
+    # run each stage of the workflow plan (stage: in the yaml)
+    for stage in w.yaml.parsed['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
         w.stage_setup(stage)
         if not w.stage_fast_forward():
