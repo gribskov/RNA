@@ -150,15 +150,22 @@ class Workflow:
         :param filename: string
         :return: filehandle
         -----------------------------------------------------------------------------------------"""
+        fh = None
+        file_exists = os.path.exists(filename)
         if mode == 'w':
-            if os.path.exists(filename):
+            if file_exists:
                 mode = 'a'
-
-        try:
             fh = open(filename, mode)
-        except OSError:
-            sys.stderr.write(f'Workflow:open_exist - unable to open {filename} with mode={mode}')
-            exit(1)
+
+        if mode == 'r':
+            try:
+                fh = open(filename, mode)
+            except OSError:
+                # make sure the file exists by opening it for writing then reopening it for reading
+                fh = open(filename, 'w')
+                fh = open(filename, 'r')
+                # return False to indicate there's nothing in the file
+                fh = False
 
         return fh
 
@@ -292,8 +299,8 @@ class Workflow:
         and stage log are created by stage_startup. All that needs to be done here is to generate
         the command file, and make sure the complete file is open.
 
-        at the end of stage_denovo, the stage_log and complete file are open for writing, and the
-        command file is open for reading
+        at the end of stage_denovo, the stage_log is open for writing, and the command and
+        complete files are both closed
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -311,59 +318,45 @@ class Workflow:
 
         :return: bool   True if commands need to be generated (denovo())
         -----------------------------------------------------------------------------------------"""
-        if self.option['denovo']:
-            # de novo run can't fast forward
-            return False
+        # if self.option['denovo']:
+        #     # de novo run can't fast forward
+        #     return False
 
         # try to open and read completed commands, if file is absent the complete list will be
         # empty
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
         done = []
-        if os.path.exists(completefile):
+        self.complete = self.open_exist(completefile, 'r')
+        if self.complete:
             # read the completed job list; when run on multiple processors the complete list may not
             # be in the same order as the job list
-            self.complete = open(completefile, 'r')
             for line in self.complete:
                 done.append(line.rstrip())
 
+            # close will fail if file doesn't exist
             self.complete.close()
+        # complete file exists and is closed
 
-        # generate commands and store in commands file. for a de novo run, all files were deleted
-        # so the command file will not be present
-
+        # try to open and read commands, skip any commands in the done list
         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
+        self.command = self.open_exist(commandfile, 'r')
         todo = []
-        if os.path.exists(commandfile):
-            if done:
-                # since done has entries we need to fastforward
-                command = open(commandfile, 'r')
-                for line in self.command:
-                    line = line.rstrip()
-                    if line in done:
-                        continue
-                    todo.append(line)
-
-                self.command.close()
-            else:
-                # nothing to do, the commands are generated, and none have been done
-                pass
+        # if the command file is present, commands must be generated from the workflow
+        if not self.command:
+            self.yaml.command_generate(self.stage)
         else:
-            # generate commands for this stage and save
-            return False
+            # command file is present
+            # remove any existing commands and save
+            for line in self.command:
+                line = line.rstrip()
+                if line in done:
+                    continue
+                todo.append(line)
 
-        # commands have been generated and/or fastforwarded
-        # if todo list is empty, mark stage finished and return False
-        if not todo:
-            self.stage_finish()
-            return False
+            self.command.close()
+            self.save_exist(commandfile)
 
-        # now open the new file and write the command list
-        self.save_exist(commandfile)
-        self.command = open(commandfile, 'w')
-        for c in todo:
-            self.command.write(f'{c}\n')
-
-        # close the files so they can be reopened in read mode to run the commands
+        # close the files so they can be reopened by the executor
         self.command.close()
         self.complete.close()
 
@@ -392,6 +385,10 @@ class Command:
         self.stage = ''
         self.def_main = {}
         self.def_stage = {}
+        self.command = ''
+        self.mult = []
+        self.late = []
+        self.defs = []
 
     def read(self):
         """-----------------------------------------------------------------------------------------
@@ -425,7 +422,8 @@ class Command:
 
         while stack:
             d = stack[0]
-            stack = stack[1:-1]
+            end = len(stack)
+            stack = stack[1:end]
             for thisd in defs:
                 symbol = f'${thisd}'
                 defs[d] = defs[d].replace(symbol, defs[thisd])
@@ -434,7 +432,7 @@ class Command:
 
         return defs
 
-    def command_generate(self):
+    def command_generate0(self):
         """-----------------------------------------------------------------------------------------
         generate a list of commands from the workflow for a specific stage
         1. split the command into tokens
@@ -475,6 +473,59 @@ class Command:
 
         self.command = new
         return new
+
+    def command_generate(self, stage):
+        """-----------------------------------------------------------------------------------------
+        generate a list of commands from the workflow for a specific stage
+        1. split the command into tokens
+        2. for each token, match to the keywords in plan['stage'][stage] and replace
+           $keyword with the value from the yaml.
+        3. for each token, match to keywords in plan['definitions'] and replace $keyword with the
+           value from th yaml
+        4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
+
+        :param stage: string            stage in workflow
+        :return: string                 command string
+        -----------------------------------------------------------------------------------------"""
+        # stage = self.stage
+        current = self.parsed['stage'][stage]
+
+        # merge stage definitions iwth global definitions and expand the command
+        # separate the definitions into the command, simple symbols, mutltiple processings
+        # symbols, and late symbols
+        self.def_stage = {k:self.def_main[k] for k in self.def_main}
+        for item in current:
+            if item == 'command':
+                self.command = current[item]
+            elif current[item].find('*') > -1:
+                self.mult.append({item:current[item]})
+            elif current[item].find(':') == 0:
+                self.late.append(current[item])
+            else:
+                self.def_stage[item] = current[item]
+
+        self.def_stage = self.expand(self.def_stage)
+        for d in self.def_stage:
+            self.command = self.command.replace(f'${d}', self.def_stage[d])
+
+        print(self.command)
+        # command = current['command']
+        # token = self.command.split()
+
+        # process $
+        # for t in range(len(token)):
+        #     for d in self.parsed['definitions']:
+        #         target = f'${d}'
+        #         if token[t].find(target) > -1:
+        #             token[t] = token[t].replace(target, self.parsed['definitions'][d])
+        #
+        # new = ' '.join(token)
+
+        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
+        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
+
+        self.command = ''
+        return self.command
 
 
 ####################################################################################################
@@ -700,10 +751,9 @@ if __name__ == '__main__':
     for stage in w.yaml.parsed['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
         w.stage_setup(stage)
-        if not w.stage_fast_forward():
-            # fast_forward returns false for denovo mode, or in fastforward mode if the stage
-            # directory, and stage log, command, and complete files do not exist
-            w.stage_denovo()
+        w.stage_fast_forward()
+        # fast_forward returns false for denovo mode, or if the command file does
+        # w.stage_denovo()
 
         # command execute, check for stage finished
         # TODO execute here
