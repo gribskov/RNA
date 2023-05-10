@@ -5,7 +5,11 @@ import sys
 import time
 import argparse
 import yaml
+import glob
 
+#
+# glob  Command
+#
 
 def arg_formatter(prog):
     """---------------------------------------------------------------------------------------------
@@ -386,7 +390,7 @@ class Command:
         self.def_main = {}
         self.def_stage = {}
         self.command = ''
-        self.mult = []
+        self.mult = {}
         self.late = []
         self.defs = []
 
@@ -493,12 +497,12 @@ class Command:
         # merge stage definitions iwth global definitions and expand the command
         # separate the definitions into the command, simple symbols, mutltiple processings
         # symbols, and late symbols
-        self.def_stage = {k:self.def_main[k] for k in self.def_main}
+        self.def_stage = {k: self.def_main[k] for k in self.def_main}
         for item in current:
             if item == 'command':
                 self.command = current[item]
             elif current[item].find('*') > -1:
-                self.mult.append({item:current[item]})
+                self.mult[item] = current[item]
             elif current[item].find(':') == 0:
                 self.late.append(current[item])
             else:
@@ -508,6 +512,16 @@ class Command:
         for d in self.def_stage:
             self.command = self.command.replace(f'${d}', self.def_stage[d])
 
+        for m in self.mult:
+            for d in self.def_stage:
+                    self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
+        for l in self.late:
+            for lcom in l:
+                for d in self.def_stage:
+                    lcom = lcom.replace(f'${d}', self.def_stage[d])
+
+
+        self.multiple()
         print(self.command)
         # command = current['command']
         # token = self.command.split()
@@ -526,6 +540,43 @@ class Command:
 
         self.command = ''
         return self.command
+
+    def multiple(self):
+        """-----------------------------------------------------------------------------------------
+        based on the entries in self.mult, that is, symbols that contain wildcards, generate
+        lists of matching file names to be used in individual commands
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        filelist = {}
+        for symbol in self.mult:
+            filelist[symbol] = glob.glob(self.mult[symbol])
+
+        for  m in self.multiple_gen(filelist):
+            print(m)
+
+        return filelist
+
+    def multiple_gen(self, filelist):
+        """-----------------------------------------------------------------------------------------
+        generator to create all combinations of multiple values
+
+        :return: dict   value for each entry in self.mult
+        -----------------------------------------------------------------------------------------"""
+        pos = {symbol:0 for symbol in filelist}
+        while True:
+            combo = {symbol:filelist[symbol][pos[symbol]] for symbol in filelist}
+            yield combo
+            carry = 1
+            for symbol in pos:
+                pos[symbol] += carry
+                carry = 0
+                if pos[symbol] > len(filelist[symbol]):
+                    carry = 1
+            if carry:
+                break
+
+        return
 
 
 ####################################################################################################
