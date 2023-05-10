@@ -7,6 +7,7 @@ import argparse
 import yaml
 import glob
 
+
 #
 # glob  Command
 #
@@ -391,7 +392,7 @@ class Command:
         self.def_stage = {}
         self.command = ''
         self.mult = {}
-        self.late = []
+        self.late = {}
         self.defs = []
 
     def read(self):
@@ -504,7 +505,7 @@ class Command:
             elif current[item].find('*') > -1:
                 self.mult[item] = current[item]
             elif current[item].find(':') == 0:
-                self.late.append(current[item])
+                self.late[item] = current[item]
             else:
                 self.def_stage[item] = current[item]
 
@@ -514,29 +515,12 @@ class Command:
 
         for m in self.mult:
             for d in self.def_stage:
-                    self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
+                self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
         for l in self.late:
-            for lcom in l:
-                for d in self.def_stage:
-                    lcom = lcom.replace(f'${d}', self.def_stage[d])
-
+            for d in self.def_stage:
+                self.late[l] = self.late[l].replace(f'${d}', self.def_stage[d])
 
         self.multiple()
-        print(self.command)
-        # command = current['command']
-        # token = self.command.split()
-
-        # process $
-        # for t in range(len(token)):
-        #     for d in self.parsed['definitions']:
-        #         target = f'${d}'
-        #         if token[t].find(target) > -1:
-        #             token[t] = token[t].replace(target, self.parsed['definitions'][d])
-        #
-        # new = ' '.join(token)
-
-        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
-        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
 
         self.command = ''
         return self.command
@@ -552,8 +536,17 @@ class Command:
         for symbol in self.mult:
             filelist[symbol] = glob.glob(self.mult[symbol])
 
-        for  m in self.multiple_gen(filelist):
-            print(m)
+        for m in self.multiple_gen(filelist):
+            # m is a dict with a value for every multiple symbol
+            for symbol in m:
+                expand = self.command.replace(f'${symbol}', m[symbol])
+                for l in self.late:
+                    lcom = self.late[l][1:]
+                    for symbol in m:
+                        lcom = lcom.replace(f'%{symbol}', f'"{m[symbol]}"')
+                        t = eval(lcom)
+                        expand = expand.replace(f'${l}', t)
+                        print(lcom)
 
         return filelist
 
@@ -563,16 +556,18 @@ class Command:
 
         :return: dict   value for each entry in self.mult
         -----------------------------------------------------------------------------------------"""
-        pos = {symbol:0 for symbol in filelist}
+        pos = {symbol: 0 for symbol in filelist}
         while True:
-            combo = {symbol:filelist[symbol][pos[symbol]] for symbol in filelist}
+            combo = {symbol: filelist[symbol][pos[symbol]] for symbol in filelist}
             yield combo
             carry = 1
             for symbol in pos:
                 pos[symbol] += carry
                 carry = 0
-                if pos[symbol] > len(filelist[symbol]):
+                if pos[symbol] >= len(filelist[symbol]):
                     carry = 1
+                    pos[symbol] = 0
+
             if carry:
                 break
 
