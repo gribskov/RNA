@@ -167,8 +167,8 @@ class Workflow:
                 fh = open(filename, mode)
             except OSError:
                 # make sure the file exists by opening it for writing then reopening it for reading
-                fh = open(filename, 'w')
-                fh = open(filename, 'r')
+                # fh = open(filename, 'w')
+                # fh = open(filename, 'r')
                 # return False to indicate there's nothing in the file
                 fh = False
 
@@ -254,6 +254,7 @@ class Workflow:
         status = True
         self.stage = stage
         self.stage_finished = False
+        self.stage_dir = f'{self.option["project"]}/{stage}'
 
         stagedir = f'{self.option["project"]}/{stage}'
         if not os.path.isdir(stagedir):
@@ -288,12 +289,12 @@ class Workflow:
         -----------------------------------------------------------------------------------------"""
         # mark stage finished
         finished = f'{w.option["base"]}/{stage}/{stage}.finished'
-        marker = open(finished, 'r')
+        marker = open(finished, 'w')
         marker.close()
         self.log.add('main', f'{self.stage}:finished\n')
         self.log.add('stage', f'{self.stage}:finished\n')
 
-        for f in (self.log_stage, self.command, self.complete):
+        for f in (self.log['stage'], self.command, self.complete):
             f.close()
 
         return
@@ -337,18 +338,25 @@ class Workflow:
             # be in the same order as the job list
             for line in self.complete:
                 done.append(line.rstrip())
+        else:
+            self.complete = open(completefile, 'w')
 
-            # close will fail if file doesn't exist
-            self.complete.close()
+        self.complete.close()
         # complete file exists and is closed
 
         # try to open and read commands, skip any commands in the done list
         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
         self.command = self.open_exist(commandfile, 'r')
         todo = []
-        # if the command file is present, commands must be generated from the workflow
+        # if the command file is not present, commands must be generated from the workflow
         if not self.command:
-            self.yaml.command_generate(self.stage)
+            self.yaml.stage = self.stage
+            self.yaml.stage_dir = self.stage_dir
+            commands = self.yaml.command_generate()
+            self.command = self.open_exist(commandfile, 'w')
+            for c in commands:
+                self.command.write(f'{c}\n')
+            self.command.close()
         else:
             # command file is present
             # remove any existing commands and save
@@ -357,13 +365,12 @@ class Workflow:
                 if line in done:
                     continue
                 todo.append(line)
-
-            self.command.close()
             self.save_exist(commandfile)
+            for c in todo:
+                self.command.write(f'{c}\n')
+            self.command.close()
 
-        # close the files so they can be reopened by the executor
-        self.command.close()
-        self.complete.close()
+        # command and complete files are closed so they can be reopened by the executor
 
         return True
 
@@ -388,6 +395,7 @@ class Command:
         self.file = filename
         self.parsed = None
         self.stage = ''
+        self.stage_dir = ''
         self.def_main = {}
         self.def_stage = {}
         self.command = ''
@@ -437,7 +445,7 @@ class Command:
 
         return defs
 
-    def command_generate0(self):
+    def command_generate(self):
         """-----------------------------------------------------------------------------------------
         generate a list of commands from the workflow for a specific stage
         1. split the command into tokens
@@ -450,53 +458,10 @@ class Command:
         :param stage: string            stage in workflow
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        stage = self.stage
-        current = self.plan['stage'][stage]
-
-        command = current['command']
-        token = command.split()
-        # process %
-        for t in range(len(token)):
-            for d in current:
-                if d == 'command':
-                    continue
-                target = f'%{d}'
-                if token[t].find(target) > -1:
-                    token[t] = token[t].replace(target, current[d])
-
-        # process $
-        for t in range(len(token)):
-            for d in self.plan['definitions']:
-                target = f'${d}'
-                if token[t].find(target) > -1:
-                    token[t] = token[t].replace(target, self.plan['definitions'][d])
-
-        new = ' '.join(token)
-
-        # process in/out rules, for each rule, construct the inputs and outputs, a rule looks like
-        # {'in': 'glob($fasta/*.fa)', 'out': 'sub(%in(.fa,.ct)'}
-
-        self.command = new
-        return new
-
-    def command_generate(self, stage):
-        """-----------------------------------------------------------------------------------------
-        generate a list of commands from the workflow for a specific stage
-        1. split the command into tokens
-        2. for each token, match to the keywords in plan['stage'][stage] and replace
-           $keyword with the value from the yaml.
-        3. for each token, match to keywords in plan['definitions'] and replace $keyword with the
-           value from th yaml
-        4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
-
-        :param stage: string            stage in workflow
-        :return: string                 command string
-        -----------------------------------------------------------------------------------------"""
-        # stage = self.stage
         current = self.parsed['stage'][stage]
 
-        # merge stage definitions iwth global definitions and expand the command
-        # separate the definitions into the command, simple symbols, mutltiple processings
+        # merge stage definitions with global definitions and expand the command
+        # separate the definitions into the command, simple symbols, mutltiple processing
         # symbols, and late symbols
         self.def_stage = {k: self.def_main[k] for k in self.def_main}
         for item in current:
@@ -520,10 +485,7 @@ class Command:
             for d in self.def_stage:
                 self.late[l] = self.late[l].replace(f'${d}', self.def_stage[d])
 
-        self.multiple()
-
-        self.command = ''
-        return self.command
+        return self.multiple()
 
     def multiple(self):
         """-----------------------------------------------------------------------------------------
@@ -536,6 +498,7 @@ class Command:
         for symbol in self.mult:
             filelist[symbol] = glob.glob(self.mult[symbol])
 
+        commandlist = []
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
             for symbol in m:
@@ -543,12 +506,14 @@ class Command:
                 for l in self.late:
                     lcom = self.late[l][1:]
                     for symbol in m:
-                        lcom = lcom.replace(f'%{symbol}', f'"{m[symbol]}"')
+                        file = os.path.basename(m[symbol])
+                        lcom = lcom.replace(f'%{symbol}', f'"{file}"')
                         t = eval(lcom)
                         expand = expand.replace(f'${l}', t)
-                        print(lcom)
 
-        return filelist
+            commandlist.append(expand)
+
+        return commandlist
 
     def multiple_gen(self, filelist):
         """-----------------------------------------------------------------------------------------
