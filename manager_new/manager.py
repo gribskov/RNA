@@ -44,6 +44,7 @@ def getoptions():
                              help='project directory for project (%(default)s)',
                              default=project_default)
 
+    # TODO change denovo to restart throughout
     commandline.add_argument('-r', '--denovo',
                              help='Erase directories/files and denovo (%(default)s)',
                              default=False, action='store_true')
@@ -176,7 +177,7 @@ class Workflow:
 
     def save_exist(self, filename):
         """-----------------------------------------------------------------------------------------
-        if filename exists, generate filenames with a numerical suffic until an unused filename is
+        if filename exists, generate filenames with a numerical suffix until an unused filename is
         found. rename the existing file to the unique name.  this allows filename to be used without
         wiping out a previous result
 
@@ -192,7 +193,11 @@ class Workflow:
             suffix += 1
             uniquename = filename + f'.{suffix}'
 
-        os.rename(uniquename, filename)
+        # must close file to rename
+        self.command.close()
+        os.rename(filename, uniquename)
+        self.command = self.open_exist(filename, 'w')
+
         return uniquename
 
     def main_setup(self):
@@ -226,13 +231,14 @@ class Workflow:
         # start the main log
         log = f'{dir}/{self.option["base"]}.log'
         self.log.start('main', log)
-        self.log.add('main', f'Begin: Project {self.option["project"]}')
+        self.log['main'].write('\n')
+        self.log.add('main', f'Project {self.option["project"]}: started')
 
         # expand global symbols (definitions in yaml) and store in yaml
         self.yaml = Command()
         self.yaml.read()
         self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
-        self.log.add('main', f'Read: Workflow {self.option["workflow"]} '
+        self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read'
                              f'{len(self.yaml.parsed["stage"])} stages')
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
 
@@ -254,9 +260,8 @@ class Workflow:
         status = True
         self.stage = stage
         self.stage_finished = False
-        self.stage_dir = f'{self.option["project"]}/{stage}'
+        stagedir = self.stage_dir = f'{self.option["project"]}/{stage}'
 
-        stagedir = f'{self.option["project"]}/{stage}'
         if not os.path.isdir(stagedir):
             # create directory if absent
             os.mkdir(stagedir)
@@ -264,17 +269,22 @@ class Workflow:
         # open stage log
         stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
         self.log.start('stage', stage_log)
-        self.log.add('main', f'Starting stage: {self.stage} ')
-        self.log.add('stage', f'Starting stage: {self.stage} ')
+        self.log.add('main', f'Stage {self.stage}: starting')
+        self.log.add('stage', f'Stage started')
 
-        # when a stage is finished a marker file {stage}/{stage}.finished is created, if this file is present
-        # the stage will be skipped, return false without opening files: log.
+        # when a stage is finished a marker file {stage}/{stage}.finished is created,
+        # if this file is present, the stage will be skipped,
+        # return false without opening files: log.
         finished = f'{w.option["project"]}/{stage}/{stage}.finished'
         if os.path.isfile(finished):
-            self.log.add(f'stage:{self.stage}: finish marker detected\n')
+            self.log.add('main', f'Stage:{self.stage}: skipped (finished detected)\n')
+            self.log.add('stage', f'Finished marker detected\n')
             self.stage_finished = True
+            self.log['stage'].close()
             status = False
 
+        # False indicates the stage will not be run, and no processing of command/complete will
+        # occur
         return status
 
     def stage_finish(self):
@@ -291,9 +301,12 @@ class Workflow:
         finished = f'{w.option["base"]}/{stage}/{stage}.finished'
         marker = open(finished, 'w')
         marker.close()
-        self.log.add('main', f'{self.stage}:finished\n')
-        self.log.add('stage', f'{self.stage}:finished\n')
 
+        self.log.add('stage', f'Finished marker created')
+        self.log.add('main', f'Stage: {self.stage}: finished\n')
+        self.log.add('stage', f'Stage finished\n')
+
+        # close all stage files
         for f in (self.log['stage'], self.command, self.complete):
             f.close()
 
@@ -327,7 +340,8 @@ class Workflow:
         # if self.option['denovo']:
         #     # de novo run can't fast forward
         #     return False
-
+        self.yaml.stage = self.stage
+        self.yaml.stage_dir = self.stage_dir
         # try to open and read completed commands, if file is absent the complete list will be
         # empty
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
@@ -341,6 +355,7 @@ class Workflow:
         else:
             self.complete = open(completefile, 'w')
 
+        self.log.add('stage', f'Completed commands: {len(done)}')
         self.complete.close()
         # complete file exists and is closed
 
@@ -349,26 +364,38 @@ class Workflow:
         self.command = self.open_exist(commandfile, 'r')
         todo = []
         # if the command file is not present, commands must be generated from the workflow
+        new_commands = False
         if not self.command:
-            self.yaml.stage = self.stage
-            self.yaml.stage_dir = self.stage_dir
+            new_commands = True
             commands = self.yaml.command_generate()
+            self.log.add('stage', f'Commands generated: {len(commands)}')
+
             self.command = self.open_exist(commandfile, 'w')
             for c in commands:
                 self.command.write(f'{c}\n')
             self.command.close()
-        else:
-            # command file is present
-            # remove any existing commands and save
-            for line in self.command:
-                line = line.rstrip()
-                if line in done:
-                    continue
-                todo.append(line)
-            self.save_exist(commandfile)
-            for c in todo:
-                self.command.write(f'{c}\n')
-            self.command.close()
+            self.command = self.open_exist(commandfile, 'r')
+        # else:
+        # command file is open and readable
+        # remove any existing commands and save
+
+        command_n = 0
+        for line in self.command:
+            command_n += 1
+            line = line.rstrip()
+            if line in done:
+                continue
+            todo.append(line)
+
+        if not new_commands:
+            self.log.add('stage', f'Existing commands read: {command_n}')
+
+        self.save_exist(commandfile)
+        for c in todo:
+            self.command.write(f'{c}\n')
+
+        self.log.add('stage', f'Commands (completed removed): {len(todo)}')
+        self.command.close()
 
         # command and complete files are closed so they can be reopened by the executor
 
@@ -750,7 +777,11 @@ if __name__ == '__main__':
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
     w = Workflow()
-    sys.stdout.write(f'project: {w.option["project"]}\n')
+    sys.stdout.write(f'Project: {w.option["project"]}\n')
+    if w.option['denovo']:
+        sys.stdout.write(f'Restart mode (all previous files removed)\n')
+    else:
+        sys.stdout.write(f'Fast forward mode, continue previous run\n')
 
     # main set up: create project directory, start main log file
     w.main_setup()
@@ -761,14 +792,16 @@ if __name__ == '__main__':
     # run each stage of the workflow plan (stage: in the yaml)
     for stage in w.yaml.parsed['stage']:
         # create a list of commands to execute, and a file to store the list of completed commands
-        w.stage_setup(stage)
-        w.stage_fast_forward()
-        # fast_forward returns false for denovo mode, or if the command file does
-        # w.stage_denovo()
+        run_this_stage = w.stage_setup(stage)
+        if run_this_stage:
+            w.stage_fast_forward()
+            # fast_forward returns false for denovo mode, or if the command file does
+            # w.stage_denovo()
 
-        # command execute, check for stage finished
-        # TODO execute here
+            # command execute, check for stage finished
+            # TODO execute here
 
-        w.stage_finish()
+            w.stage_finish()
+    w.log.add('main', f'Project {w.option["project"]}: finished')
 
     exit(0)
