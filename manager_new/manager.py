@@ -238,7 +238,7 @@ class Workflow:
         self.yaml = Command()
         self.yaml.read()
         self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
-        self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read'
+        self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
                              f'{len(self.yaml.parsed["stage"])} stages')
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
 
@@ -576,30 +576,42 @@ class Executor():
     the original rna_manager
     #############################################################################################"""
 
-    def __init__(self, jobs=20):
+    def __init__(self, commandfile='stage.command', completefile='stage.complete',
+                 log=None, stage='', jobs=20, delay = 5):
         """-----------------------------------------------------------------------------------------
-        commandlist     fh, list of command lines to run
-        completelist    fh, list of completed commands
-        log_stage       fh, log for details
-        log_main        fh, log for general information
+        commandfile     file of commands to open (readable)
+        completefile    file of completed commands (writable)
+        command         fh, list of command lines to run
+        complete        fh, list of completed commands
+        log             Log object, set up in Workflow
 
-        jobs            number of jhob to run concurrently
+        jobs            number of job to run concurrently
+        delay           number of seconds to wait between polling
         running         number of jobs currently running
         TODO maybe the main log can be done before/after running manager
         -----------------------------------------------------------------------------------------"""
+        self.commandfile = commandfile
+        self.command = None
+        self.commandlist = []
+        self.completefile = completefile
+        self.complete = None
+        self.log = log
+        if not log:
+            self.log = Log()
+        self.stage = stage
         self.jobs = jobs
+        self.delay = delay
         self.jobid = 0
-        # may not need these with new setup
+        # may not need some of these with new setup
         self.running = 0
-        # self.total = 0
-        # self.started = 0
-        # self.finished = 0
-        # self.succeeded = 0
-        # self.failed = 0
-        self.delay = 5
+        self.total = 0
+        self.started = 0
+        self.finished = 0
+        self.succeeded = 0
+        self.failed = 0
         self.joblist = []
 
-    def manager(self):
+    def setup(self):
         """-----------------------------------------------------------------------------------------
         main loop for executing commands in parallel.
         1. read in commands from list of commands
@@ -610,20 +622,19 @@ class Executor():
         -----------------------------------------------------------------------------------------"""
         # read in commands
         self.commands = []
-        for line in self.commandlist:
-            self.commands.append(line.rstrip())
-        self.commandlist.close()
+        self.command = Workflow.open_exist(self.commandfile, 'r')
+        if self.command:
+            for line in self.command:
+                self.commandlist.append(line.rstrip())
+            self.command.close()
 
-        total = len(self.commands)
-        self.add('manager', 'files', f'{self.stage}',
-                 f'{total} files in {self.source}')
+        total = len(self.commandlist)
+        self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
+        self.log.start('raw_error', self.log['stage'].name+'.err')
 
-        while self.manager_startjobs() or self.joblist:
-            self.manager_polljobs()
+        return True
 
-        return self.finished
-
-    def manager_startjobs(self):
+    def startjobs(self):
         """-----------------------------------------------------------------------------------------
         process all commands in self.commandlist. All commands should already be complete so no
         expansion of wildcards or globs is needed
@@ -634,65 +645,63 @@ class Executor():
             while self.manager_startjobs(filelist, stage):
                 self.manager_polljobs(stage)
 
-        :param filelist: list - list of input files to process
-        :param stage: dict - information describing current pipeline stage
-        :return: boolean - True indicates there are more files to process
+        :param self.commandlist: list   list of input files to process
+        :param self.stage: string       name of current stage in workflow
+        :return: boolean                True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
-        while self.commands and self.running < self.jobs:
+        while self.commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
             # completed commands have already been removed by fast forward, so you don't
             # have to check
-            thiscommand = self.commands.pop()
+            job = 0
+            thiscommand = self.commandlist.pop()
             self.jobid += 1
+            self.log.add('stage', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
 
-            print(f'starting job:{self.jobid}; {thiscommand}')
-            self.logstage.write('{self.stage}\t{thiscommand}')
-
-            job = sub.Popen(thiscommand, shell=True, stdout=self.errorlog, stderr=self.errorlog)
-            # TODO what is file?
-            self.joblist.append([self.jobid, job, file])
+            job = sub.Popen(thiscommand, shell=True,
+                            stdout=self.log['raw_error'], stderr=self.log['raw_error'])
+            self.log.add('stage', f'Executor: {thiscommand}')
+            # job += 1
+            self.joblist.append([self.jobid, job])
             self.running += 1
 
-        if self.commands:
-            # files remain to be processed
+        if self.commandlist or self.running:
+            # files remain to be processed or are still running, make sure polling continues
             return True
         else:
             return False
 
-    def manager_polljobs(self):
+    def polljobs(self):
         """-----------------------------------------------------------------------------------------
         Poll the currently running jobs, and remove completed jobs from the joblist
 
-        :param stage: dict - information describing current pipeline stage
         :return:
         -----------------------------------------------------------------------------------------"""
         # poll all jobs in joblist
         time.sleep(self.delay)
         to_remove = []
         for j in self.joblist:
-            id, job, file = j
+            id, job = j
             # print(f'\tjob {id} ...', end='')
             result = job.poll()
             if result == None:
                 # None indicates job is still running
-                # print(f'job {id} still running')
+                print(f'job {id} still running')
                 pass
 
             else:
                 # job finished
-                # print(f'job{id} finished')
+                print(f'job {id} finished')
                 self.running -= 1
                 self.finished += 1
                 if result == 0:
                     # success
-                    print(f'job{id} succeeded {file}')
-                    self.add('manager', 'complete', stage['stage'], f'jobid:{id};file:{file}')
+                    self.log.add('stage', f'Executor: complete, stage:{self.stage}, jobid:{id}')
                     self.succeeded += 1
 
                 else:
                     # error
-                    print(f'job{id} failed {file}')
-                    self.add('manager', 'fail', self.current, f'status:{result};file:{file}')
+                    self.log.add('stage', f'Executor: fail, stage:{self.stage}, jobid:{id}')
                     self.failed += 1
 
                 # include the result in the remove list, it can't be removed here because it
@@ -703,6 +712,8 @@ class Executor():
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
+
+        return True
 
 
 ####################################################################################################
@@ -796,12 +807,17 @@ if __name__ == '__main__':
         if run_this_stage:
             w.stage_fast_forward()
             # fast_forward returns false for denovo mode, or if the command file does
-            # w.stage_denovo()
 
-            # command execute, check for stage finished
-            # TODO execute here
+            # command execute, TODO check for stage finished
+            commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
+            completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+            exec = Executor(commandfile, completefile, w.log, w.stage, jobs=5, delay=6)
+            exec.setup()
+            while exec.startjobs():
+                exec.polljobs()
 
             w.stage_finish()
+
     w.log.add('main', f'Project {w.option["project"]}: finished')
 
     exit(0)
