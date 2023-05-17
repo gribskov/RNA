@@ -532,6 +532,7 @@ class Command:
         expand = self.command
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
+            expand = self.command
             for symbol in m:
                 expand = expand.replace(f'${symbol}', m[symbol])
                 for l in self.late:
