@@ -1,0 +1,23 @@
+---
+  definitions:
+    project: human
+    python: python
+    fasta: ../data
+    base: $project
+    ct: $base/ct
+    xios: ../RNA
+    RNAstructure: ../RNAstructure
+  stage:
+    xios:
+      command: $python $xios/xios_from_rnastructure.py $option $in $out $another
+      option:
+        -c $fasta 
+        -x $ct 
+        -r $RNAstructure
+      in: $fasta/*.xios
+      out: :%in.replace('.xios', '.ct')
+      another: :%in.replace('.xios', '.fasta')
+    two:
+      command: $python $xios/xios_dummy.py $option
+      option:
+        -h
