@@ -524,13 +524,16 @@ class Command:
         filelist = {}
         for symbol in self.mult:
             filelist[symbol] = glob.glob(self.mult[symbol])
+            if not filelist:
+                # symbol expansion  produced an empty list
+                self.log.add['stage]', f'Error: expansion of symbol ${symbol} produced and empty file list']
 
         commandlist = []
         expand = self.command
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
             for symbol in m:
-                expand = self.expand.replace(f'${symbol}', m[symbol])
+                expand = expand.replace(f'${symbol}', m[symbol])
                 for l in self.late:
                     lcom = self.late[l][1:]
                     for symbol in m:
@@ -539,6 +542,10 @@ class Command:
                         t = eval(lcom)
                         expand = expand.replace(f'${l}', t)
 
+            commandlist.append(expand)
+
+        if not commandlist:
+            # in case there were no symbols in command
             commandlist.append(expand)
 
         return commandlist
