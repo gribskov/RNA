@@ -235,7 +235,7 @@ class Workflow:
         self.log.add('main', f'Project {self.option["project"]}: started')
 
         # expand global symbols (definitions in yaml) and store in yaml
-        self.yaml = Command()
+        self.yaml = Command(filename = self.option['workflow'])
         self.yaml.read()
         self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
         self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
@@ -526,10 +526,11 @@ class Command:
             filelist[symbol] = glob.glob(self.mult[symbol])
 
         commandlist = []
+        expand = self.command
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
             for symbol in m:
-                expand = self.command.replace(f'${symbol}', m[symbol])
+                expand = self.expand.replace(f'${symbol}', m[symbol])
                 for l in self.late:
                     lcom = self.late[l][1:]
                     for symbol in m:
