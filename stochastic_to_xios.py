@@ -272,7 +272,8 @@ class Struc:
 
         # first line
         line = ctfile.readline()
-        seqlen, self.id = line.rstrip().split()
+        # if there are comments in the fasta file there will be more tokens, so just look at the first two
+        seqlen, self.id = line.rstrip().split()[0:2]
         seqlen = int(seqlen)
 
         # initialize the list to that tracts the bases and their paired partners
