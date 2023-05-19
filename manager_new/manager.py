@@ -7,11 +7,6 @@ import argparse
 import yaml
 import glob
 
-
-#
-# glob  Command
-#
-
 def arg_formatter(prog):
     """---------------------------------------------------------------------------------------------
     Set up formatting for help. Used in arg_get.
@@ -361,7 +356,7 @@ class Workflow:
 
         # try to open and read commands, skip any commands in the done list
         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-        self.command = self.open_exist(commandfile, 'r')
+        # self.command = self.open_exist(commandfile, 'r')
         todo = []
         # if the command file is not present, commands must be generated from the workflow
         new_commands = False
@@ -524,14 +519,18 @@ class Command:
         filelist = {}
         for symbol in self.mult:
             filelist[symbol] = glob.glob(self.mult[symbol])
-            if not filelist:
+            # sys.stderr.write(f'filelist:{filelist}\tsymbol[{symbol}]:{self.mult[symbol]}\n')
+            if not filelist[symbol]:
                 # symbol expansion  produced an empty list
-                self.log.add['stage]', f'Error: expansion of symbol ${symbol} produced and empty file list']
+                # self.log.add('stage', f'Error: expansion of symbol ${symbol} produced and empty file list')
+                sys.stderr.write(f'Error: expansion of symbol ${symbol} produced and empty file list\n' )
 
         commandlist = []
         expand = self.command
+        # sys.stderr.write(f'command:{self.command}\n')
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
+            # sys.stderr.write(f'm:{m}\n')
             expand = self.command
             for symbol in m:
                 expand = expand.replace(f'${symbol}', m[symbol])
@@ -539,8 +538,12 @@ class Command:
                     lcom = self.late[l][1:]
                     for symbol in m:
                         file = os.path.basename(m[symbol])
-                        lcom = lcom.replace(f'%{symbol}', f'"{file}"')
+                        # sys.stderr.write(f'base:{file}\tsymbol:{symbol}\tlcom:{lcom}\n')
+                        lcom = lcom.replace(f'%{symbol}', f'{file}"')
+                        lcom = f'"{lcom}'
+                        # sys.stderr.write(f'lcom:{lcom}\n')
                         t = eval(lcom)
+                        # sys.stderr.write(f't:{t}\tl:{l}\n\n')
                         expand = expand.replace(f'${l}', t)
 
             commandlist.append(expand)
