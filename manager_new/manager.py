@@ -235,7 +235,7 @@ class Workflow:
         self.log.add('main', f'Project {self.option["project"]}: started')
 
         # expand global symbols (definitions in yaml) and store in yaml
-        self.yaml = Command()
+        self.yaml = Command(filename=self.option['workflow'])
         self.yaml.read()
         self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
         self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
@@ -524,12 +524,17 @@ class Command:
         filelist = {}
         for symbol in self.mult:
             filelist[symbol] = glob.glob(self.mult[symbol])
+            if not filelist:
+                # symbol expansion  produced an empty list
+                self.log.add['stage]', f'Error: expansion of symbol ${symbol} produced and empty file list']
 
         commandlist = []
+        expand = self.command
         for m in self.multiple_gen(filelist):
             # m is a dict with a value for every multiple symbol
+            expand = self.command
             for symbol in m:
-                expand = self.command.replace(f'${symbol}', m[symbol])
+                expand = expand.replace(f'${symbol}', m[symbol])
                 for l in self.late:
                     lcom = self.late[l][1:]
                     for symbol in m:
@@ -538,6 +543,10 @@ class Command:
                         t = eval(lcom)
                         expand = expand.replace(f'${l}', t)
 
+            commandlist.append(expand)
+
+        if not commandlist:
+            # in case there were no symbols in command
             commandlist.append(expand)
 
         return commandlist
@@ -577,7 +586,7 @@ class Executor():
     #############################################################################################"""
 
     def __init__(self, commandfile='stage.command', completefile='stage.complete',
-                 log=None, stage='', jobs=20, delay = 5):
+                 log=None, stage='', jobs=20, delay=5):
         """-----------------------------------------------------------------------------------------
         commandfile     file of commands to open (readable)
         completefile    file of completed commands (writable)
@@ -630,9 +639,12 @@ class Executor():
 
         total = len(self.commandlist)
         self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
-        self.log.start('raw_error', self.log['stage'].name+'.err')
+        self.log.start('raw_error', self.log['stage'].name + '.err')
+
+        self.complete = Workflow.open_exist(self.completefile, 'w')
 
         return True
+
 
     def startjobs(self):
         """-----------------------------------------------------------------------------------------
@@ -670,6 +682,7 @@ class Executor():
             return True
         else:
             return False
+
 
     def polljobs(self):
         """-----------------------------------------------------------------------------------------
@@ -712,6 +725,7 @@ class Executor():
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
+            self.complete.write(f'{j[1].args}\n')
 
         return True
 
