@@ -7,6 +7,7 @@ import argparse
 import yaml
 import glob
 
+
 def arg_formatter(prog):
     """---------------------------------------------------------------------------------------------
     Set up formatting for help. Used in arg_get.
@@ -22,7 +23,7 @@ def getoptions():
     Command line arguments:
     project: project directory, all stages will be in subdirectories
 
-    r, denovo      remove previous results and perform all stages
+    r, restart      remove previous results and perform all stages
     c, continue     continue existing run, skipping commands that are marked as complete
 
     options:
@@ -39,9 +40,8 @@ def getoptions():
                              help='project directory for project (%(default)s)',
                              default=project_default)
 
-    # TODO change denovo to restart throughout
-    commandline.add_argument('-r', '--denovo',
-                             help='Erase directories/files and denovo (%(default)s)',
+    commandline.add_argument('-r', '--restart',
+                             help='Erase directories/files and restart denovo (%(default)s)',
                              default=False, action='store_true')
 
     commandline.add_argument('-w', '--workflow', type=str,
@@ -78,8 +78,8 @@ class Workflow:
     The workflow manager is responsible for reading the workflow plan and converting it to a series
     of executable commands. The files of command can then be executed in parallel by Executor.
 
-    Workflow runs in two modes, controlled by --denovo:
-    denovo: delete any existing directories/files and start a new project from scratch
+    Workflow runs in two modes, controlled by --restart:
+    restart: delete any existing directories/files and start a new project from scratch
     fastforward: (default) use existing directories and files. Execute only stages and commands
         that haven't completed
 
@@ -97,13 +97,13 @@ class Workflow:
         {stage}/{stage}.complete = marker file, if present the stage is complete
 
         open/create {stage}/{stage}.log
-        denovo (denovo)
+        restart (denovo)
             create directory {stage}
             create, save, and open command from plan
             create and open complete
 
         fastforward:
-            if directory {stage} doesn't exist, run as for denovo
+            if directory {stage} doesn't exist, run as for restart
             if {stage}/finished, skip stage
             if {stage}/{stage}.command exists
                 read commands
@@ -117,8 +117,8 @@ class Workflow:
 
             after initial setup
                 command is open for reading
-                complete is open for writing (w if denovo, a if fastforward)
-                stage_log is open for writing (w if denovo, a if fastforward)
+                complete is open for writing (w if restart, a if fastforward)
+                stage_log is open for writing (w if restart, a if fastforward)
 
         send command, complete, log to executor
     ============================================================================================="""
@@ -135,9 +135,11 @@ class Workflow:
         log_stage:      filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
         self.option = getoptions()
-        self.yaml = {}
+        self.yaml = None
         self.log_main = None
         self.stage = ''
+        self.stage_dir = ''
+        self.stage_finished = False
         # file pointers for commands, complete commands, and the stage log
         self.command = None
         self.complete = None
@@ -149,6 +151,7 @@ class Workflow:
         if filename exists, open for appending, otherwise open for writing
 
         :param filename: string
+        :param mode: string          file open mode, r, w, or a
         :return: filehandle
         -----------------------------------------------------------------------------------------"""
         fh = None
@@ -179,8 +182,6 @@ class Workflow:
         :param filename: string
         :return: string             unique name for existing file
         -----------------------------------------------------------------------------------------"""
-        current = self.command.name
-
         # add a numeric suffix to the current file and change its name
         suffix = 0
         uniquename = filename + f'.{suffix}'
@@ -198,33 +199,33 @@ class Workflow:
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
         set up for the overall run
-        1) denovo==True: create project directory, deleting current data
-           denovo==False: create directory if not present, otherwise reuse current project
+        1) restart==True: create project directory, deleting current data
+           restart==False: create directory if not present, otherwise reuse current project
         2) create main log
         3) read workflow from yaml plan description
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        dir = self.option["project"]
-        self.option['base'] = os.path.basename(dir)
-        if self.option['denovo']:
-            # in denovo mode, delete existing directory if present and create the project directory
+        projdir = self.option["project"]
+        self.option['base'] = os.path.basename(projdir)
+        if self.option['restart']:
+            # in restart mode, delete existing directory if present and create the project directory
             # and main log
-            if os.path.isdir(dir):
+            if os.path.isdir(projdir):
                 # project directory exists
-                shutil.rmtree(dir, ignore_errors=False, onerror=None)
-            os.mkdir(dir)
+                shutil.rmtree(projdir, ignore_errors=False, onerror=None)
+            os.mkdir(projdir)
 
         else:
             # fastforward mode keeps the current directory without changing, if the project
             # directory and log file exist, proceed, otherwise create new ones
 
-            if not os.path.isdir(dir):
+            if not os.path.isdir(projdir):
                 # project directory does not exist, this is a new project, create logfile below
-                os.mkdir(dir)
+                os.mkdir(projdir)
 
         # start the main log
-        log = f'{dir}/{self.option["base"]}.log'
+        log = f'{projdir}/{self.option["base"]}.log'
         self.log.start('main', log)
         self.log['main'].write('\n')
         self.log.add('main', f'Project {self.option["project"]}: started')
@@ -246,11 +247,10 @@ class Workflow:
         2. open log file and store in object
         3. if stage is marked finished, return False, otherwise True
 
-        if this is a denovo run, main_setup already created a new project diretory so we don't have to check
+        if this is a restart run, main_setup already created a new project directory, so we don't have to check
 
-
-        :param dir: string      directory name
-        :return: bool           False if stage is finished and should be skipped, else True
+        : param stage: string       name of stage to initiate
+        :return: bool               False if stage is finished and should be skipped, else True
         -----------------------------------------------------------------------------------------"""
         status = True
         self.stage = stage
@@ -307,34 +307,18 @@ class Workflow:
 
         return
 
-    def stage_denovo(self):
-        """-----------------------------------------------------------------------------------------
-        In a de novo run, all directories and files are created from scratch. The stage directory
-        and stage log are created by stage_startup. All that needs to be done here is to generate
-        the command file, and make sure the complete file is open.
-
-        at the end of stage_denovo, the stage_log is open for writing, and the command and
-        complete files are both closed
-
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        pass
-
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
         When stage_fast_forward() returns False it means that commands must be generated and stored
         in the command file (done by command_generate)
 
-        1. check if this is a --denovo run, if yes return False
+        1. check if this is a --restart run, if yes return False
         3. check if command and complete files are available, if not return False
         4. examine the list of commands {stage}.commands and completed commands {stage}.complete and
            create a new list of commands that still need to be run, return True
 
-        :return: bool   True if commands need to be generated (denovo())
+        :return: bool   True if commands need to be generated (restart())
         -----------------------------------------------------------------------------------------"""
-        # if self.option['denovo']:
-        #     # de novo run can't fast forward
-        #     return False
         self.yaml.stage = self.stage
         self.yaml.stage_dir = self.stage_dir
         # try to open and read completed commands, if file is absent the complete list will be
@@ -356,7 +340,7 @@ class Workflow:
 
         # try to open and read commands, skip any commands in the done list
         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-        # self.command = self.open_exist(commandfile, 'r')
+        self.command = self.open_exist(commandfile, 'r')
         todo = []
         # if the command file is not present, commands must be generated from the workflow
         new_commands = False
@@ -427,9 +411,8 @@ class Command:
 
     def read(self):
         """-----------------------------------------------------------------------------------------
-        read the workflow description from the yaml file
+        read the workflow description from the yaml file. File is stored in Command.file
 
-        :param filename: string     yaml workflow description
         :return: dict               workflow as a python dictionary
         -----------------------------------------------------------------------------------------"""
         fp = open(self.file, 'r')
@@ -477,7 +460,6 @@ class Command:
            value from th yaml
         4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
 
-        :param stage: string            stage in workflow
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
         current = self.parsed['stage'][stage]
@@ -503,9 +485,9 @@ class Command:
         for m in self.mult:
             for d in self.def_stage:
                 self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
-        for l in self.late:
+        for litem in self.late:
             for d in self.def_stage:
-                self.late[l] = self.late[l].replace(f'${d}', self.def_stage[d])
+                self.late[litem] = self.late[litem].replace(f'${d}', self.def_stage[d])
 
         return self.multiple()
 
@@ -523,7 +505,7 @@ class Command:
             if not filelist[symbol]:
                 # symbol expansion  produced an empty list
                 # self.log.add('stage', f'Error: expansion of symbol ${symbol} produced and empty file list')
-                sys.stderr.write(f'Error: expansion of symbol ${symbol} produced and empty file list\n' )
+                sys.stderr.write(f'Error: expansion of symbol ${symbol} produced and empty file list\n')
 
         commandlist = []
         expand = self.command
@@ -534,9 +516,12 @@ class Command:
             expand = self.command
             for symbol in m:
                 expand = expand.replace(f'${symbol}', m[symbol])
-                for l in self.late:
-                    lcom = self.late[l][1:]
+                for litem in self.late:
+                    lcom = self.late[litem][1:]
                     for symbol in m:
+                        # TODO not sure why the for symbol in m loop is doubly nested, it think its so that symbols get
+                        # expanded both before and after a late function runs. may not be necessary but currently works
+                        # so i'm leaving as is
                         file = os.path.basename(m[symbol])
                         # sys.stderr.write(f'base:{file}\tsymbol:{symbol}\tlcom:{lcom}\n')
                         lcom = lcom.replace(f'%{symbol}', f'{file}"')
@@ -544,7 +529,7 @@ class Command:
                         # sys.stderr.write(f'lcom:{lcom}\n')
                         t = eval(lcom)
                         # sys.stderr.write(f't:{t}\tl:{l}\n\n')
-                        expand = expand.replace(f'${l}', t)
+                        expand = expand.replace(f'${litem}', t)
 
             commandlist.append(expand)
 
@@ -582,7 +567,7 @@ class Command:
 # end of class Command
 ####################################################################################################
 
-class Executor():
+class Executor:
     """#############################################################################################
     command executor, runs a set of command lines in a directory. Executor is the main part of
     the original rna_manager
@@ -600,7 +585,6 @@ class Executor():
         jobs            number of job to run concurrently
         delay           number of seconds to wait between polling
         running         number of jobs currently running
-        TODO maybe the main log can be done before/after running manager
         -----------------------------------------------------------------------------------------"""
         self.commandfile = commandfile
         self.command = None
@@ -614,7 +598,6 @@ class Executor():
         self.jobs = jobs
         self.delay = delay
         self.jobid = 0
-        # may not need some of these with new setup
         self.running = 0
         self.total = 0
         self.started = 0
@@ -629,11 +612,9 @@ class Executor():
         1. read in commands from list of commands
         2. report to log
         3. loop over manager_startjobs and manager_polljobs to run all jobs in commandlist
-        TODO open file for raw error messages from subprocess
-        TODO how do i know what directory.log to, probably use log directory
         -----------------------------------------------------------------------------------------"""
         # read in commands
-        self.commands = []
+        self.command = []
         self.command = Workflow.open_exist(self.commandfile, 'r')
         if self.command:
             for line in self.command:
@@ -648,7 +629,6 @@ class Executor():
 
         return True
 
-
     def startjobs(self):
         """-----------------------------------------------------------------------------------------
         process all commands in self.commandlist. All commands should already be complete so no
@@ -660,15 +640,14 @@ class Executor():
             while self.manager_startjobs(filelist, stage):
                 self.manager_polljobs(stage)
 
-        :param self.commandlist: list   list of input files to process
-        :param self.stage: string       name of current stage in workflow
+        self.commandlist: list   list of input files to process
+        self.stage: string       name of current stage in workflow
         :return: boolean                True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
         while self.commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
             # completed commands have already been removed by fast forward, so you don't
             # have to check
-            job = 0
             thiscommand = self.commandlist.pop()
             self.jobid += 1
             self.log.add('stage', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
@@ -686,7 +665,6 @@ class Executor():
         else:
             return False
 
-
     def polljobs(self):
         """-----------------------------------------------------------------------------------------
         Poll the currently running jobs, and remove completed jobs from the joblist
@@ -697,27 +675,27 @@ class Executor():
         time.sleep(self.delay)
         to_remove = []
         for j in self.joblist:
-            id, job = j
-            # print(f'\tjob {id} ...', end='')
+            jid, job = j
+            # print(f'\tjob {jid} ...', end='')
             result = job.poll()
-            if result == None:
+            if result is None:
                 # None indicates job is still running
-                print(f'job {id} still running')
+                # print(f'job {jid} still running')
                 pass
 
             else:
                 # job finished
-                print(f'job {id} finished')
+                # print(f'job {jid} finished')
                 self.running -= 1
                 self.finished += 1
                 if result == 0:
                     # success
-                    self.log.add('stage', f'Executor: complete, stage:{self.stage}, jobid:{id}')
+                    self.log.add('stage', f'Executor: complete, stage:{self.stage}, jobid:{jid}')
                     self.succeeded += 1
 
                 else:
                     # error
-                    self.log.add('stage', f'Executor: fail, stage:{self.stage}, jobid:{id}')
+                    self.log.add('stage', f'Executor: fail, stage:{self.stage}, jobid:{jid}')
                     self.failed += 1
 
                 # include the result in the remove list, it can't be removed here because it
@@ -743,13 +721,14 @@ class Log(dict):
     workflow
     ============================================================================================="""
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         """-----------------------------------------------------------------------------------------
         multiple logs can be created, each is associated with a filehandle by an entry in the log
         dict
 
         Log     dict, keys string with symbolic name for log, values file handle
         -----------------------------------------------------------------------------------------"""
+        super(Log, self).__init__(*args, **kwargs)
 
     def start(self, logname, filename):
         """-----------------------------------------------------------------------------------------
@@ -767,6 +746,7 @@ class Log(dict):
     def logtime(self):
         """-----------------------------------------------------------------------------------------
         Create a time string for use in logs year month day hour min sec concatenated
+        TODO could make this static
 
         :return: str - YYYYMoDyHrMnSc
         -----------------------------------------------------------------------------------------"""
@@ -806,7 +786,7 @@ if __name__ == '__main__':
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
     w = Workflow()
     sys.stdout.write(f'Project: {w.option["project"]}\n')
-    if w.option['denovo']:
+    if w.option['restart']:
         sys.stdout.write(f'Restart mode (all previous files removed)\n')
     else:
         sys.stdout.write(f'Fast forward mode, continue previous run\n')
@@ -823,15 +803,14 @@ if __name__ == '__main__':
         run_this_stage = w.stage_setup(stage)
         if run_this_stage:
             w.stage_fast_forward()
-            # fast_forward returns false for denovo mode, or if the command file does
+            # fast_forward returns false for restart mode, or if the command file does
 
-            # command execute, TODO check for stage finished
             commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
             completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-            exec = Executor(commandfile, completefile, w.log, w.stage, jobs=5, delay=6)
-            exec.setup()
-            while exec.startjobs():
-                exec.polljobs()
+            exe = Executor(commandfile, completefile, w.log, w.stage, jobs=5, delay=6)
+            exe.setup()
+            while exe.startjobs():
+                exe.polljobs()
 
             w.stage_finish()
 
