@@ -442,6 +442,10 @@ if __name__ == '__main__':
                                  help='Minimum number of paired bases in a stem (%(default)s)',
                                  default=3, type=int)
 
+        commandline.add_argument('-c', '--countstem',
+                                 help='Minimum number of counts to include paired bases as a stem (%(default)s)',
+                                 default=50, type=int)
+
         args = commandline.parse_args()
         # return vars(args)  # convert namespace to dict
         return args
@@ -460,7 +464,7 @@ if __name__ == '__main__':
     struc = Struc()
     struc.ctfile = open(opt.input_ct, 'r')
     struc.ct_read_all()
-    struc.filter(56)
+    struc.filter(opt.countstem)
 
     rna = RNAstructure()
     rna.sequence_id = struc.id
