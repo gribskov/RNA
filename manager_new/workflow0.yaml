@@ -1,0 +1,10 @@
+---
+  definitions:
+    project: test0
+    python: python
+  stage:
+    setup:
+      command: source activate py10_10
+    tester:
+      command: $python tester.py $in
+      in: ../data/*.xios
