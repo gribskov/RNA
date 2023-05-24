@@ -131,18 +131,20 @@ class Topology:
                 else:
                     colmax[column] = len(colstr)
 
-        fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}\n'. \
-            format(colmax['name'], colmax['rend'] + 2,
-                   colmax['lbegin'], colmax['lend'],
-                   colmax['rbegin'], colmax['rend'],
-                   colmax['lvienna'], colmax['rvienna'])
+        if s:
+            # string may be blank if stemlist is empty
+            fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}\n'. \
+                format(colmax['name'], colmax['rend'] + 2,
+                       colmax['lbegin'], colmax['lend'],
+                       colmax['rbegin'], colmax['rend'],
+                       colmax['lvienna'], colmax['rvienna'])
 
-        for s in self.stem_list:
-            # stem center is average of lbegin and rend
-            string += fmt.format(s.name, round((s.lbegin + s.rend) / 2, 1),
-                                 s.lbegin, s.lend,
-                                 s.rbegin, s.rend,
-                                 s.lvienna, s.rvienna)
+            for s in self.stem_list:
+                # stem center is average of lbegin and rend
+                string += fmt.format(s.name, round((s.lbegin + s.rend) / 2, 1),
+                                     s.lbegin, s.lend,
+                                     s.rbegin, s.rend,
+                                     s.lvienna, s.rvienna)
 
         return string.rstrip()
 
@@ -1232,7 +1234,6 @@ class Topology:
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
         vlist = self.samplebyweight(adj, n, w)
 
-
         struct = []
         for row in vlist:
             for col in vlist:
@@ -1260,7 +1261,6 @@ class SerialRNA(list):
         if list is None:
             list = []
         super(SerialRNA, self).__init__(list)
-
 
         # add additional attributes
 
