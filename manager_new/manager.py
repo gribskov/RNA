@@ -808,7 +808,7 @@ if __name__ == '__main__':
             commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
             completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
             exec = Executor(commandfile, completefile, w.log, w.stage, jobs=w.option["jobs"],
-                            delay=6)
+                            delay=4)
             exec.setup()
             while exec.startjobs():
                 exec.polljobs()
