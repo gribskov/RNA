@@ -497,6 +497,7 @@ class Topology:
         -----------------------------------------------------------------------------------------"""
         n = 0
         cols = 0
+        adjacency = []
         for line in text.split('\n'):
 
             if not line.strip():
