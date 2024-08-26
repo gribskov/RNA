@@ -1,0 +1,119 @@
+<XIOS version='2.0'>
+  <information>
+  </information>
+  <stem_list>
+     0 264.0 [   6   9   519 522 ]               ((((   ))))            
+     1 264.5 [  13  24   505 516 ]       ((((((((((((   ))))))))))))    
+     2  34.0 [  26  30    38  42 ]              (((((   )))))           
+     3  51.0 [  43  47    55  59 ]              (((((   )))))           
+     4 168.0 [  62  64   272 274 ]                (((   )))             
+     5  88.5 [  67  71   106 110 ]              (((((   )))))           
+     6  86.5 [  79  84    89  94 ]             ((((((   ))))))          
+     7 135.0 [ 125 132   138 145 ]           ((((((((   ))))))))        
+     8 211.0 [ 153 157   265 269 ]              (((((   )))))           
+     9 169.0 [ 161 166   172 177 ]             ((((((   ))))))          
+    10 205.5 [ 179 183   228 232 ]              (((((   )))))           
+    11 241.5 [ 235 239   244 248 ]              (((((   )))))           
+    12 256.5 [ 251 254   259 262 ]               ((((   ))))            
+    13 386.5 [ 277 284   489 496 ]           ((((((((   ))))))))        
+    14 386.0 [ 287 290   482 485 ]               ((((   ))))            
+    15 295.5 [ 292 293   298 299 ]                 ((   ))              
+    16 393.5 [ 303 319   468 481 ]  ((((...((((((((((   ))))))))))))))  
+    17 357.0 [ 330 334   380 384 ]              (((((   )))))           
+    18 357.0 [ 339 343   371 375 ]              (((((   )))))           
+    19 357.5 [ 348 350   365 367 ]                (((   )))             
+    20 399.0 [ 386 388   410 412 ]                (((   )))             
+    21 400.5 [ 395 397   404 406 ]                (((   )))             
+    22 441.0 [ 415 420   462 467 ]             ((((((   ))))))          
+    23 436.0 [ 425 431   441 447 ]            (((((((   )))))))         
+    24 555.0 [ 527 534   576 583 ]           ((((((((   ))))))))        
+    25 543.0 [ 537 540   546 549 ]               ((((   ))))            
+    26 559.5 [ 550 557   562 569 ]           ((((((((   ))))))))        
+    27 630.0 [ 592 597   663 668 ]             ((((((   ))))))          
+    28 629.5 [ 601 602   657 658 ]                 ((   ))              
+    29 617.0 [ 608 613   621 626 ]             ((((((   ))))))          
+    30 636.5 [ 630 634   639 643 ]              (((((   )))))           
+    31 650.5 [ 645 648   653 656 ]               ((((   ))))            
+    32 793.5 [ 673 681   906 914 ]          (((((((((   )))))))))       
+    33 932.5 [ 917 930   935 950 ]     ((((((((((((((   )))))..)))))))))
+    34 970.0 [ 954 960   980 987 ]            (((((((   ))).))))        
+    35 970.5 [ 965 968   973 976 ]               ((((   ))))            
+  </stem_list>
+  <edge_list>
+     0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i 17i 18i 19i 20i 21i 22i 23i
+     1:  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i 14i 15i 16i 17i 18i 19i 20i 21i 22i 23i
+     2:
+     3:
+     4:  5i  6i  7i  8i  9i 10i 11i 12i
+     5:  6i
+     6:
+     7:
+     8:  9i 10i 11i 12i
+     9:
+    10:
+    11:
+    12:
+    13: 14i 15i 16i 17i 18i 19i 20i 21i 22i 23i
+    14: 15i 16i 17i 18i 19i 20i 21i 22i 23i
+    15:
+    16: 17i 18i 19i 20i 21i 22i 23i
+    17: 18i 19i
+    18: 19i
+    19:
+    20: 21i
+    21:
+    22: 23i
+    23:
+    24: 25i 26i
+    25:
+    26:
+    27: 28i 29i 30i 31i
+    28: 29i 30i 31i
+    29:
+    30:
+    31:
+    32:
+    33:
+    34: 35i
+    35:
+  </edge_list>
+  <adjacency>
+        0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 
+     0  -  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s 
+     1  j  -  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s 
+     2  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     3  j  j  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     4  j  j  s  s  -  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     5  j  j  s  s  j  -  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     6  j  j  s  s  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     7  j  j  s  s  j  s  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     8  j  j  s  s  j  s  s  s  -  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     9  j  j  s  s  j  s  s  s  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    10  j  j  s  s  j  s  s  s  j  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    11  j  j  s  s  j  s  s  s  j  s  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    12  j  j  s  s  j  s  s  s  j  s  s  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    13  j  j  s  s  s  s  s  s  s  s  s  s  s  -  i  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s 
+    14  j  j  s  s  s  s  s  s  s  s  s  s  s  j  -  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s 
+    15  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    16  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  -  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s  s  s 
+    17  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  -  i  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    18  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  j  -  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    19  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    20  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  s  s  s  -  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    21  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  s  s  s  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+    22  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  s  s  s  s  s  -  i  s  s  s  s  s  s  s  s  s  s  s  s 
+    23  j  j  s  s  s  s  s  s  s  s  s  s  s  j  j  s  j  s  s  s  s  s  j  -  s  s  s  s  s  s  s  s  s  s  s  s 
+    24  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  i  i  s  s  s  s  s  s  s  s  s 
+    25  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  -  s  s  s  s  s  s  s  s  s  s 
+    26  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  s  -  s  s  s  s  s  s  s  s  s 
+    27  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  i  i  i  i  s  s  s  s 
+    28  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  -  i  i  i  s  s  s  s 
+    29  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  j  -  s  s  s  s  s  s 
+    30  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  j  s  -  s  s  s  s  s 
+    31  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  j  s  s  -  s  s  s  s 
+    32  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s  s  s 
+    33  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s  s 
+    34  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  i 
+    35  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  j  - 
+  </adjacency>
+</XIOS>

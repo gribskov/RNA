@@ -1,0 +1,65 @@
+<XIOS version='2.0'>
+  <information>
+  </information>
+  <stem_list>
+     0 253.0 [   6  77   429 442 ]  ((((((..........................................................((((((((   ))))))))))))))   
+     1  90.0 [  82  88    92  98 ]                                                                   (((((((   )))))))          
+     2 128.0 [ 101 104   152 155 ]                                                                      ((((   ))))             
+     3 187.5 [ 171 174   201 204 ]                                                                      ((((   ))))             
+     4 183.5 [ 179 181   186 188 ]                                                                       (((   )))              
+     5 217.5 [ 207 213   222 228 ]                                                                   (((((((   )))))))          
+     6 332.0 [ 245 250   414 419 ]                                                                    ((((((   ))))))           
+     7 335.0 [ 269 271   399 401 ]                                                                       (((   )))              
+     8 335.0 [ 274 283   387 395 ]                                                                (((((.((((   )))))))))        
+     9 309.5 [ 293 304   315 326 ]                                                              ((((((((((((   ))))))))))))     
+    10 359.5 [ 333 336   383 386 ]                                                                      ((((   ))))             
+    11 360.5 [ 340 342   379 381 ]                                                                       (((   )))              
+    12 462.0 [ 447 452   472 477 ]                                                                    ((((((   ))))))           
+    13 510.5 [ 484 489   532 537 ]                                                                    ((((((   ))))))           
+    14 510.0 [ 493 495   525 527 ]                                                                       (((   )))              
+    15 574.0 [ 538 540   608 610 ]                                                                       (((   )))              
+    16 628.5 [ 612 626   631 647 ]                                                           (((((((((((((((   )))))..))))))))))
+    17 668.5 [ 652 661   676 686 ]                                                                ((((((((((   ))))))).)))      
+  </stem_list>
+  <edge_list>
+     0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i
+     1:
+     2:
+     3:  4i
+     4:
+     5:
+     6:  7i  8i  9i 10i 11i
+     7:  8i  9i 10i 11i
+     8:  9i 10i 11i
+     9:
+    10: 11i
+    11:
+    12:
+    13: 14i
+    14:
+    15:
+    16:
+    17:
+  </edge_list>
+  <adjacency>
+        0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 
+     0  -  i  i  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s 
+     1  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     2  j  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     3  j  s  s  -  i  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     4  j  s  s  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     5  j  s  s  s  s  -  s  s  s  s  s  s  s  s  s  s  s  s 
+     6  j  s  s  s  s  s  -  i  i  i  i  i  s  s  s  s  s  s 
+     7  j  s  s  s  s  s  j  -  i  i  i  i  s  s  s  s  s  s 
+     8  j  s  s  s  s  s  j  j  -  i  i  i  s  s  s  s  s  s 
+     9  j  s  s  s  s  s  j  j  j  -  s  s  s  s  s  s  s  s 
+    10  j  s  s  s  s  s  j  j  j  s  -  i  s  s  s  s  s  s 
+    11  j  s  s  s  s  s  j  j  j  s  j  -  s  s  s  s  s  s 
+    12  s  s  s  s  s  s  s  s  s  s  s  s  -  s  s  s  s  s 
+    13  s  s  s  s  s  s  s  s  s  s  s  s  s  -  i  s  s  s 
+    14  s  s  s  s  s  s  s  s  s  s  s  s  s  j  -  s  s  s 
+    15  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s  s 
+    16  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s 
+    17  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  - 
+  </adjacency>
+</XIOS>

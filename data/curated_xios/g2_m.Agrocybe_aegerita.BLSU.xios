@@ -1,0 +1,71 @@
+<XIOS version='2.0'>
+  <information>
+  </information>
+  <stem_list>
+     0  142.5 [    6    9    276  279 ]              ((((   ))))                
+     1  144.0 [   15   26    262  273 ]      ((((((((((((   ))))))))))))        
+     2   36.0 [   29   32     40   43 ]              ((((   ))))                
+     3   52.5 [   44   50     55   61 ]           (((((((   )))))))             
+     4   94.0 [   62   67    121  126 ]            ((((((   ))))))              
+     5   87.5 [   70   85     90  109 ]  ((((((((((((((((   ))))))))))))....))))
+     6  191.0 [  128  132    250  254 ]             (((((   )))))               
+     7  190.5 [  138  139    242  243 ]                ((   ))                  
+     8  189.5 [  148  151    228  231 ]              ((((   ))))                
+     9  194.0 [  184  190    198  204 ]           (((((((   )))))))             
+    10  316.5 [  284  294    339  349 ]       (((((.(((((   ))))).)))))         
+    11  303.5 [  295  300    307  312 ]            ((((((   ))))))              
+    12  324.5 [  314  322    327  335 ]         (((((((((   )))))))))           
+    13  396.0 [  357  362    430  435 ]            ((((((   ))))))              
+    14  383.0 [  374  380    386  392 ]           (((((((   )))))))             
+    15  402.5 [  396  400    405  409 ]             (((((   )))))               
+    16  416.5 [  411  414    419  422 ]              ((((   ))))                
+    17 1060.5 [  437  443   1678 1684 ]           (((((((   )))))))             
+    18 1701.5 [ 1686 1699   1704 1719 ]    ((((((((((((((   )))))..)))))))))    
+    19 1739.5 [ 1723 1737   1742 1757 ]   (((((((((((.(((   ))))))))))..))))    
+  </stem_list>
+  <edge_list>
+     0:  1i  2i  3i  4i  5i  6i  7i  8i  9i
+     1:  2i  3i  4i  5i  6i  7i  8i  9i
+     2:
+     3:
+     4:  5i
+     5:
+     6:  7i  8i  9i
+     7:  8i  9i
+     8:  9i
+     9:
+    10: 11i 12i
+    11:
+    12:
+    13: 14i 15i 16i
+    14:
+    15:
+    16:
+    17:
+    18:
+    19:
+  </edge_list>
+  <adjacency>
+        0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 
+     0  -  i  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s 
+     1  j  -  i  i  i  i  i  i  i  i  s  s  s  s  s  s  s  s  s  s 
+     2  j  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     3  j  j  s  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     4  j  j  s  s  -  i  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     5  j  j  s  s  j  -  s  s  s  s  s  s  s  s  s  s  s  s  s  s 
+     6  j  j  s  s  s  s  -  i  i  i  s  s  s  s  s  s  s  s  s  s 
+     7  j  j  s  s  s  s  j  -  i  i  s  s  s  s  s  s  s  s  s  s 
+     8  j  j  s  s  s  s  j  j  -  i  s  s  s  s  s  s  s  s  s  s 
+     9  j  j  s  s  s  s  j  j  j  -  s  s  s  s  s  s  s  s  s  s 
+    10  s  s  s  s  s  s  s  s  s  s  -  i  i  s  s  s  s  s  s  s 
+    11  s  s  s  s  s  s  s  s  s  s  j  -  s  s  s  s  s  s  s  s 
+    12  s  s  s  s  s  s  s  s  s  s  j  s  -  s  s  s  s  s  s  s 
+    13  s  s  s  s  s  s  s  s  s  s  s  s  s  -  i  i  i  s  s  s 
+    14  s  s  s  s  s  s  s  s  s  s  s  s  s  j  -  s  s  s  s  s 
+    15  s  s  s  s  s  s  s  s  s  s  s  s  s  j  s  -  s  s  s  s 
+    16  s  s  s  s  s  s  s  s  s  s  s  s  s  j  s  s  -  s  s  s 
+    17  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s  s 
+    18  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  -  s 
+    19  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  s  - 
+  </adjacency>
+</XIOS>

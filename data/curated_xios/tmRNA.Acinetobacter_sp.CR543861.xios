@@ -1,0 +1,53 @@
+<XIOS version='2.0'>
+  <information>
+  </information>
+  <stem_list>
+     0 178.5 [   1   7   350 356 ]         (((((((   )))))))       
+     1 175.0 [  21  30   320 329 ]      ((((((((.(   ).))))))))    
+     2 175.5 [  34  37   314 317 ]            ((((   ))))          
+     3 174.0 [  41  49   299 310 ]       (((((((((   )))))...))))  
+     4  59.5 [  50  54    65  69 ]           (((((   )))))         
+     5  69.0 [  57  63    75  81 ]         (.(((((   ))))).)       
+     6 127.5 [ 114 126   129 141 ]   (..(.((((((((   )))))))).)..) 
+     7 156.5 [ 146 154   159 167 ]       ((((((.((   )).))))))     
+     8 182.5 [ 171 171   194 194 ]               (   )             
+     9 182.0 [ 177 178   186 187 ]              ((   ))            
+    10 259.0 [ 242 255   263 276 ]  ((((((.((..(((   )))..)).))))))
+    11 275.5 [ 256 258   293 295 ]             (.(   ).)           
+    12 274.5 [ 260 262   287 289 ]             (((   )))           
+    13 341.0 [ 333 337   345 349 ]           (((((   )))))         
+  </stem_list>
+  <edge_list>
+     0:  1i  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i 13i
+     1:  2i  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i
+     2:  3i  4i  5i  6i  7i  8i  9i 10i 11i 12i
+     3:  4i  5i  6i  7i  8i  9i 10i 11i 12i
+     4:  5o
+     5:
+     6:
+     7:
+     8:  9i
+     9:
+    10: 11o 12o
+    11: 12i
+    12:
+    13:
+  </edge_list>
+  <adjacency>
+        0  1  2  3  4  5  6  7  8  9 10 11 12 13 
+     0  -  i  i  i  i  i  i  i  i  i  i  i  i  i 
+     1  j  -  i  i  i  i  i  i  i  i  i  i  i  s 
+     2  j  j  -  i  i  i  i  i  i  i  i  i  i  s 
+     3  j  j  j  -  i  i  i  i  i  i  i  i  i  s 
+     4  j  j  j  j  -  o  s  s  s  s  s  s  s  s 
+     5  j  j  j  j  o  -  s  s  s  s  s  s  s  s 
+     6  j  j  j  j  s  s  -  s  s  s  s  s  s  s 
+     7  j  j  j  j  s  s  s  -  s  s  s  s  s  s 
+     8  j  j  j  j  s  s  s  s  -  i  s  s  s  s 
+     9  j  j  j  j  s  s  s  s  j  -  s  s  s  s 
+    10  j  j  j  j  s  s  s  s  s  s  -  o  o  s 
+    11  j  j  j  j  s  s  s  s  s  s  o  -  i  s 
+    12  j  j  j  j  s  s  s  s  s  s  o  j  -  s 
+    13  j  s  s  s  s  s  s  s  s  s  s  s  s  - 
+  </adjacency>
+</XIOS>
