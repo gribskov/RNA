@@ -62,9 +62,9 @@ Calculate XIOS graph from sampled ct files ####
    - -m \<int> minimum number of paired bases in a stem (default=3)
 
 ## Libraries ##
-## fingerprint.py (Fingerprint, FingerprintMatrix, FingerprintSet) ##
+### fingerprint.py (Fingerprint, FingerprintMatrix, FingerprintSet) ###
 ### xios.py (XIOS, XiosEdge, MotifDB, Edge, Gspan) ###
-### topology.py (Topology, SerialRNA, PairRNA, RNAstructure, Stem) ##
+### topology.py (Topology, SerialRNA, PairRNA, RNAstructure, Stem) ###
 
 
 
