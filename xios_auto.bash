@@ -1,7 +1,7 @@
 #!/bin/bash
 #-------------------------------------------------------------------------------
 # automatically run xios_from_rnastructure over a set of fast files with a grid
-# of windows and deltaG.  deltaG range is handled by xios_from_rnastructur.py
+# of windows and deltaG.  deltaG range is handled by xios_from_rnastructure.py
 # and only one run of Fold is required per window
 #-------------------------------------------------------------------------------
 family=                             # prefix on fastafile names, blank gives all
