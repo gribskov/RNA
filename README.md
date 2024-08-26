@@ -37,22 +37,26 @@ The partition function is used to sample in structures according to their free e
  * input: FASTA sequence - *.fa
  * output: partition function - *.pfs
  * options
-   - -t folding temperature (K), e.g. 260 - 340K
+   - -t \<int> folding temperature (K), e.g. 260 - 340K
 
 #### ../RNAstructure/stochastic
 Probabalistically sample structures from the partition function according to free energy of folding.
+Sampling uses a random number generator which must be seeded; the same seed will always generate the
+same samples. For testing, you may want to use the same seed to guarantee that results are comparable.
+The seed should be a large integer without obvious small factors - the current system 
+time is often used.
  * input: *.pfs
  * output: *.ct
  * options
-   - -s random number seed for sampling (default=1234 which is not a good seed)
+   - -s \<int> random number seed for sampling (default=1234 which is not a good seed)
 
 #### stochastic_to_xios.py
 Calculate XIOS graph from sampled ct files ####
  * input: *.ct
  * output: *.xios
  * options
-   - -c minimum number of counts to include paired bases as a stem (default=50)
-   - -m minimum number of paired bases in a stem (default=3)
+   - -c \<int> minimum number of counts to include paired bases as a stem (default=50)
+   - -m \<int> minimum number of paired bases in a stem (default=3)
 
 
 
