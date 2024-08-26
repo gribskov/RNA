@@ -7,12 +7,14 @@ mkdir rna
 cd rna
 ```
 2. Install the XIOS/fingerprint package by cloning the git trepository. 
-This will create a directory RNA with the XIOS/fingerprint code
+This will create a directory ***RNA*** with the XIOS/fingerprint code
 ```commandline
 git clone https://github.com/RNA.git
 ```
 2. Install Matthews RNAstructure package (command line version).
-See https://rna.urmc.rochester.edu/RNAstructureDownload.html for more information. This will create a directory called RNAstructure. 
+See https://rna.urmc.rochester.edu/RNAstructureDownload.html for more information. 
+3. This will create a directory called ***RNAstructure***. Most of the scripts assume 
+4. that the ***RNAstructure*** directory is a sub-directory of ***RNA***.
 ```
 wget https://rna.urmc.rochester.edu/Releases/current/RNAstructureLinuxTextInterfaces64bit.tgz
 tar -xvzf RNAstructureLinuxTextInterfaces64bit.tgz
