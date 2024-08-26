@@ -13,14 +13,15 @@ git clone https://github.com/RNA.git
 ```
 2. Install Matthews RNAstructure package (command line version).
 See https://rna.urmc.rochester.edu/RNAstructureDownload.html for more information. 
-3. This will create a directory called ***RNAstructure***. Most of the scripts assume 
-4. that the ***RNAstructure*** directory is a sub-directory of ***RNA***.
+This will create a directory called ***RNAstructure***. Most of the scripts assume 
+that the ***RNAstructure*** directory is a sub-directory of ***RNA***.
 ```
 wget https://rna.urmc.rochester.edu/Releases/current/RNAstructureLinuxTextInterfaces64bit.tgz
 tar -xvzf RNAstructureLinuxTextInterfaces64bit.tgz
 ```
 
 ## Making the motif library
+Available soon
 
 ## Constructing fingerprints from sequence
 * Sequences should be in FASTA format and should contain only RNA bases ACGU
@@ -59,6 +60,11 @@ Calculate XIOS graph from sampled ct files ####
  * options
    - -c \<int> minimum number of counts to include paired bases as a stem (default=50)
    - -m \<int> minimum number of paired bases in a stem (default=3)
+
+## Libraries ##
+## fingerprint.py (Fingerprint, FingerprintMatrix, FingerprintSet) ##
+### xios.py (XIOS, XiosEdge, MotifDB, Edge, Gspan) ###
+### topology.py (Topology, SerialRNA, PairRNA, RNAstructure, Stem) ##
 
 
 
