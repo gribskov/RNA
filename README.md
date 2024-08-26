@@ -22,33 +22,37 @@ tar -xvzf RNAstructureLinuxTextInterfaces64bit.tgz
 
 ## Constructing fingerprints from sequence
 * Sequences should be in FASTA format and should contain only RNA bases ACGU
+* Code locations below are with respect to the ***RNA*** directory.
 
 Multiple steps can be run using *manager_new.py*, which manages submitting multiple jobs 
-in a workflow as individual *SLURM* jobs. 
-Code locations below are with respect to the ***RNA*** directory.
+in a workflow as individual *SLURM* jobs. See *parameter_sweep.py* for an example of how 
+to run *manager_new.py* on a series of three computational steps. 
 
-### Calculate structural ensemble and sample structures
+
+### Calculate XIOS graphs from structural ensemble
 #### ../RNAstructure/partition
-Calculate the structural ensemble from the FASTA file.
+Calculate the partition function from the FASTA file. 
+The partition function is used to sample in structures according to their free energy of folding
+(ΔG) in the next step.
  * input: FASTA sequence - *.fa
  * output: partition function - *.pfs
  * options
-  - -t
+   - -t folding temperature (K), e.g. 260 - 340K
 
 #### ../RNAstructure/stochastic
-Probabalistically sample structures from the structural ensemble.
+Probabalistically sample structures from the partition function according to free energy of folding.
  * input: *.pfs
  * output: *.ct
  * options
-  - -s
+   - -s random number seed for sampling (default=1234 which is not a good seed)
 
 #### stochastic_to_xios.py
 Calculate XIOS graph from sampled ct files ####
  * input: *.ct
  * output: *.xios
  * options
-  - -c
-  - -m
+   - -c minimum number of counts to include paired bases as a stem (default=50)
+   - -m minimum number of paired bases in a stem (default=3)
 
 
 
