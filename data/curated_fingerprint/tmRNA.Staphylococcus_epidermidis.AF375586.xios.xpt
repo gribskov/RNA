@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<XIOS_fingerprint>
+    <query>
+        <query_id>/home/huang147/reactor/holder20160220/tmRNA.Staphylococcus_epidermidis.AF375586.xios</query_id>
+        <query_vertex>11</query_vertex>
+        <query_edge>23</query_edge>
+    </query>
+
+    <fingerprint>
+        <type>random</type>
+        <iteration>500000</iteration>
+        <program>fingerprint_random.pl v1.1.4.8</program>
+        <time_elapsed>531.601081</time_elapsed>
+    </fingerprint>
+    <database>
+        <database_id>/home/huang147/Motif_fingerprint/2_to_7_stems_topologies.removed_not_true.mini_dfs.txt.removed_redundant.with_label.motif.storable</database_id>
+    </database>
+
+    <motif_list>
+        <motif_n>6</motif_n>
+        <motif>
+            <id>7_39361</id>
+            <count>171731</count>
+            <first_observed>3</first_observed>
+            <encoded_dfs>0428414e6165308134a138c1</encoded_dfs>
+            <mapping>80</mapping>
+        </motif>
+        <motif>
+            <id>7_48837</id>
+            <count>134382</count>
+            <first_observed>2</first_observed>
+            <encoded_dfs>042a410c72811418</encoded_dfs>
+            <mapping>96</mapping>
+        </motif>
+        <motif>
+            <id>7_17012</id>
+            <count>77795</count>
+            <first_observed>4</first_observed>
+            <encoded_dfs>042a410c101418</encoded_dfs>
+            <mapping>64</mapping>
+        </motif>
+        <motif>
+            <id>7_34034</id>
+            <count>75627</count>
+            <first_observed>14</first_observed>
+            <encoded_dfs>0428414e6165308196a1a538c1</encoded_dfs>
+            <mapping>30</mapping>
+        </motif>
+        <motif>
+            <id>7_39994</id>
+            <count>27914</count>
+            <first_observed>1</first_observed>
+            <encoded_dfs>0428412c61308134a138c1</encoded_dfs>
+            <mapping>16</mapping>
+        </motif>
+        <motif>
+            <id>7_10270</id>
+            <count>12551</count>
+            <first_observed>74</first_observed>
+            <encoded_dfs>042a410c728114bac1</encoded_dfs>
+            <mapping>8</mapping>
+        </motif>
+    </motif_list>
+
+</XIOS_fingerprint>

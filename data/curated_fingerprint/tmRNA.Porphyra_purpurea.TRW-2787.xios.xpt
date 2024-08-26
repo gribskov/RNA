@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<XIOS_fingerprint>
+    <query>
+        <query_id>/home/huang147/reactor/holder20160220/tmRNA.Porphyra_purpurea.TRW-2787.xios</query_id>
+        <query_vertex>8</query_vertex>
+        <query_edge>19</query_edge>
+    </query>
+
+    <fingerprint>
+        <type>random</type>
+        <iteration>500000</iteration>
+        <program>fingerprint_random.pl v1.1.4.8</program>
+        <time_elapsed>646.259699</time_elapsed>
+    </fingerprint>
+    <database>
+        <database_id>/home/huang147/Motif_fingerprint/2_to_7_stems_topologies.removed_not_true.mini_dfs.txt.removed_redundant.with_label.motif.storable</database_id>
+    </database>
+
+    <motif_list>
+        <motif_n>5</motif_n>
+        <motif>
+            <id>7_26832</id>
+            <count>155146</count>
+            <first_observed>1</first_observed>
+            <encoded_dfs>0428414c61657081858996a1a5a9ad58c1c5</encoded_dfs>
+            <mapping>1</mapping>
+        </motif>
+        <motif>
+            <id>7_30045</id>
+            <count>115187</count>
+            <first_observed>4</first_observed>
+            <encoded_dfs>0428414c61657081858954a1a518</encoded_dfs>
+            <mapping>2</mapping>
+        </motif>
+        <motif>
+            <id>7_3723</id>
+            <count>108291</count>
+            <first_observed>24</first_observed>
+            <encoded_dfs>0428414c61657281858934a118</encoded_dfs>
+            <mapping>2</mapping>
+        </motif>
+        <motif>
+            <id>7_9910</id>
+            <count>63977</count>
+            <first_observed>7</first_observed>
+            <encoded_dfs>0428414c61657081858996a1a5a9ad18</encoded_dfs>
+            <mapping>1</mapping>
+        </motif>
+        <motif>
+            <id>7_44447</id>
+            <count>57399</count>
+            <first_observed>2</first_observed>
+            <encoded_dfs>0428414c61657281858954a1a518</encoded_dfs>
+            <mapping>1</mapping>
+        </motif>
+    </motif_list>
+
+</XIOS_fingerprint>

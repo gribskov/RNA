@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<XIOS_fingerprint>
+    <query>
+        <query_id>/home/huang147/reactor/holder20160220/tRNA.1H4S.xios</query_id>
+        <query_vertex>7</query_vertex>
+        <query_edge>14</query_edge>
+    </query>
+
+    <fingerprint>
+        <type>random</type>
+        <iteration>500000</iteration>
+        <program>fingerprint_random.pl v1.1.4.8</program>
+        <time_elapsed>447.314257</time_elapsed>
+    </fingerprint>
+    <database>
+        <database_id>/home/huang147/Motif_fingerprint/2_to_7_stems_topologies.removed_not_true.mini_dfs.txt.removed_redundant.with_label.motif.storable</database_id>
+    </database>
+
+    <motif_list>
+        <motif_n>2</motif_n>
+        <motif>
+            <id>6_1467</id>
+            <count>267410</count>
+            <first_observed>3</first_observed>
+            <encoded_dfs>042a414e6166728156a1</encoded_dfs>
+            <mapping>1</mapping>
+        </motif>
+        <motif>
+            <id>6_1</id>
+            <count>232590</count>
+            <first_observed>1</first_observed>
+            <encoded_dfs>0428414d6166728114</encoded_dfs>
+            <mapping>1</mapping>
+        </motif>
+    </motif_list>
+
+</XIOS_fingerprint>
