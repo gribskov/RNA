@@ -53,8 +53,8 @@ time is often used.
  * options
    - -s \<int> random number seed for sampling (default=1234 which is not a good seed)
 
-#### stochastic_to_xios.py
-Calculate XIOS graph from sampled ct files ####
+#### stochastic_to_xios.py ####
+Calculate XIOS graph from sampled ct files 
  * input: *.ct
  * output: *.xios
  * options
