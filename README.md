@@ -1,22 +1,32 @@
 # RNA XIOS Fingerprint
 
 ## Installation
-1. Create a directory for the package
+1. The ***XIOS*** package is written in python (currently using Python v3.11) and 
+requires python &ge;3.8 with 
+the numpy and pyyaml packages installed. This is conveniently done with *anaconda*, 
+for example
+```commandline
+ conda create --name=rna python=3.11
+ conda install numpy
+ conda install pyyaml
+ conda activate rna
 ```
+2. Create a directory for the package
+```commandline
 mkdir rna
 cd rna
 ```
-2. Install the XIOS/fingerprint package by cloning the git trepository. 
+3. Install the XIOS/fingerprint package by cloning the git trepository. 
 This will create a directory ***RNA*** with the XIOS/fingerprint code
 ```commandline
 git clone https://github.com/gribskov/RNA.git
 ```
-2. Install Matthews RNAstructure package (command line version).
+4. Install the Matthews RNAstructure package (command line version).
 See https://rna.urmc.rochester.edu/RNAstructureDownload.html for more information. 
 This will create a directory called ***RNAstructure***. Most of the scripts assume 
 that the ***RNAstructure*** directory is a sub-directory of the parent directory of 
 ***RNA***, *i.e.* ***../RNAstructure***.
-```
+```commandline
 wget https://rna.urmc.rochester.edu/Releases/current/RNAstructureLinuxTextInterfaces64bit.tgz
 tar -xvzf RNAstructureLinuxTextInterfaces64bit.tgz
 ```
@@ -69,7 +79,7 @@ of multiple programs from the RNAstructure and XIOS RNA packages. If executed as
 a compute cluster, thousands of jobs may need to be launched and tracked. On computers with large 
 multi-processor compute nodes, the clusters we use typically use have 128-256 cpus, it is more 
 efficient to run a single job that internally manages the usage of the cpus. We provide a flexible job 
-manager in *new_manager/manager.py* for running arbitrary pipelines in a ***SLURM*** controlled 
+manager in *new_manager/manager.py* for running arbitrary pipelines multi-CPU 
 cluster environment.
 
 Features
@@ -170,7 +180,33 @@ means that the output file should appear in the *partition/* directory and be th
       in: $stochastic/*.ct
       out: :$xios/%in.replace('.ct', '.xios')
 ```
+### Running Workflows ###
+#### SLURM ####
+Typically run the workflow manager (*manager_new/manager.py*) as a ***SLURM*** job 
+using a script such as
+```commandline
+#!/bin/bash
+#SBATCH --job-name test_manager
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
+#SBATCH --account standby
+#SBATCH --nodes=1
+#SBATCH --ntasks=32
+#SBATCH --time=4:00:00
 
+module load anaconda
+conda activate rna
+
+cd $SLURM_SUBMIT_DIR
+export set DATAPATH=/scratch/bell/mgribsko/rna/RNAstructure/data_tables
+python ../RNA/manager_new/manager.py -w fingerprint.yaml -j 32 testmanager
+```
+the *-j* option tells the manager how many jobs to run synchronously. Normally this
+will be the number of CPUS (*SLURM ntasks*) on the ocmput node you are using. For very long
+sequences, you may need to run fewer jobs than the number of CPUs to make sure you have 
+sufficient memory for running RNA structure prediction steps.
+
+#### Log files ####
 
 ## Libraries - file to import (classes,...) ##
 More details to come
