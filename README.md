@@ -9,7 +9,7 @@ cd rna
 2. Install the XIOS/fingerprint package by cloning the git trepository. 
 This will create a directory ***RNA*** with the XIOS/fingerprint code
 ```commandline
-git clone https://github.com/RNA.git
+git clone https://github.com/gribskov/RNA.git
 ```
 2. Install Matthews RNAstructure package (command line version).
 See https://rna.urmc.rochester.edu/RNAstructureDownload.html for more information. 
