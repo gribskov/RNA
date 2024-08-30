@@ -246,13 +246,15 @@ if __name__ == '__main__':
         family = current_ref.split('.')[0]
         if '_' in family:
             family = family.split('_')[0]
-        print(f'\tfamily:{family}')
+
         #family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
         #all = f'all.w{parsed["w"]}.d{parsed["d"]}'
+        all = f'all.ti{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         if family not in overall:
             overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
         if all not in overall:
             overall[all] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+        print(f'\tfamily:{family}\tall:{all}')
         # summary(ref, 'Curated')
 
         # read subject xios (test structures to compare)
@@ -276,12 +278,20 @@ if __name__ == '__main__':
         #     len(ref.stem_list), len(subject.stem_list), current_ref))
 
     for k in sorted(overall):
-        (id, w, d) = k.split('.')
-        w = int(w[1])
-        d = int(d[1])
+        # (id, w, d) = k.split('.')
+        # w = int(w[1])
+        # d = int(d[1])
+        (id,t,m,s) = k.split('.')
+        t = int(t[1])
+        m = int(m[1])
+        s = int(s[1])
         n = overall[k]['n']
-        print('{}\t{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}'.format(
-            id, w, d, n,
-            overall[k]['precision'] / n, overall[k]['recall'] / n, overall[k]['jaccard'] / n))
+        # print('{}\t{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}'.format(
+        #     id, w, d, n,
+        #     overall[k]['precision'] / n, overall[k]['recall'] / n, overall[k]['jaccard'] / n))
+        print(f'{id}\t{t}\t{m}\t{s}\t{n}', end='\t')
+        print(f'{overall[k]["precision"] / n:.3f}', end='\t')
+        print(f'{overall[k]["recall"] / n:.3f}', end='\t')
+        print(f'{overall[k]["jaccard"] / n:.3f}')
 
     exit(0)
