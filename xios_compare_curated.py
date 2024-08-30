@@ -214,9 +214,11 @@ if __name__ == '__main__':
     # subjectglob = sys.argv[2]
 
     xiosdir = sys.argv[1]
+    sys.stderr.write( f'Trial XIOS files read from: {xiosdir}\n')
     refdir = sys.argv[2]
     if not refdir.endswith('/'):
         refdir += '/'
+    sys.stderr.write( f'Reference XIOS files read from: {refdir}\n\n')
 
     # for each xios file, determine the reference name from the xios filename and read
     # for a name like rnasep_m.M_jannaschii.w1.d0.xios
@@ -238,6 +240,7 @@ if __name__ == '__main__':
                 ref.XIOSread(parsed['name'])
         else:
             # skip if there is no reference file
+            sys.stderr.write( f'No reference - skipping {testfile}\n')
             continue
 
         ref.sequence_id = parsed['name']
@@ -246,15 +249,17 @@ if __name__ == '__main__':
         family = current_ref.split('.')[0]
         if '_' in family:
             family = family.split('_')[0]
+        family_short = family
 
         #family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
         #all = f'all.w{parsed["w"]}.d{parsed["d"]}'
+        family = f'{family}.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         all = f'all.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         if family not in overall:
             overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
         if all not in overall:
             overall[all] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
-        print(f'\tfamily:{family}\t{all}')
+        sys.stderr.write(f'family:{family_short}\t{all}\t\t{testfile}\n')
         # summary(ref, 'Curated')
 
         # read subject xios (test structures to compare)
@@ -280,20 +285,21 @@ if __name__ == '__main__':
         #     len(ref.stem_list), len(subject.stem_list), current_ref))
 
     for k in sorted(overall):
+        #print(f'k:{k}')
         # (id, w, d) = k.split('.')
         # w = int(w[1])
         # d = int(d[1])
         (id,t,m,s) = k.split('.')
-        t = int(t[1])
-        m = int(m[1])
-        s = int(s[1])
+        t = int(t[1:])
+        m = int(m[1:])
+        s = int(s[1:])
         n = overall[k]['n']
         # print('{}\t{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}'.format(
         #     id, w, d, n,
         #     overall[k]['precision'] / n, overall[k]['recall'] / n, overall[k]['jaccard'] / n))
-        print(f'{id}\t{t}\t{m}\t{s}\t{n}', end='\t')
-        print(f'{overall[k]["precision"] / n:.3f}', end='\t')
-        print(f'{overall[k]["recall"] / n:.3f}', end='\t')
-        print(f'{overall[k]["jaccard"] / n:.3f}')
+        sys.stdout.write(f'{id}\t{t}\t{m}\t{s}\t{n}\t')
+        sys.stdout.write(f'{overall[k]["precision"] / n:.3f}\t')
+        sys.stdout.write(f'{overall[k]["recall"] / n:.3f}\t')
+        sys.stdout.write(f'{overall[k]["jaccard"] / n:.3f}\n')
 
     exit(0)
