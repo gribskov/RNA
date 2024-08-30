@@ -300,6 +300,7 @@ if __name__ == '__main__':
         #     family, parsed['d'], parsed['w'], stat['precision'],
         #     stat['recall'], stat['jaccard'],
         #     len(ref.stem_list), len(subject.stem_list), current_ref))
+        # TODO write out the family result for each parameter setting
 
     for k in sorted(overall):
         # print(f'k:{k}')
