@@ -132,6 +132,7 @@ def stat_stem(match1, nstem_2):
 
 def dwe(numerator, denominator, err_result=0):
     """---------------------------------------------------------------------------------------------
+    divide with error (dwe)
     Trap divide by zero errors
 
     numerator: numerator for division
@@ -215,11 +216,39 @@ def parse_by_dir(filename, refdir, pkey='p'):
         if f.startswith(pkey + '_'):
             param = f.split('_')
 
-    return {'name': refdir + '/' + base,
-            't':    param[1],
-            'm':    param[2],
-            's':    param[3]
+    # get the family name by splitting on whichever comes first, '.' or '_'
+    family = base.split('.')[0]
+    if '_' in family:
+        family = family.split('_')[0]
+
+    return {'name':   refdir + '/' + base,
+            'base':   base,
+            'dir':    dir,
+            'family': family,
+            'param':  f't{param[1]}.m{param[2]}.s{param[3]}',
+            't':      param[1],
+            'm':      param[2],
+            's':      param[3]
             }
+
+
+def print_report():
+    """---------------------------------------------------------------------------------------------
+    ---------------------------------------------------------------------------------------------"""
+    return
+
+
+def add_stat(stat, keys, quality):
+    """---------------------------------------------------------------------------------------------
+    add the values in quality to the keys in keys, in the dict stat, i.e., update stat[key] with
+    the values in quality
+
+    :param stat: dict       key is family or 'all', stats are stored by family and overall for this parameter set
+    :param keys: dict       list of keys to update
+    :param quality: dict    precision, recall, and jaccard from stat_stem()
+    :return:
+    ---------------------------------------------------------------------------------------------"""
+    return
 
 
 # ===================================================================================================
@@ -237,47 +266,33 @@ if __name__ == '__main__':
         refdir += '/'
     sys.stderr.write(f'Reference XIOS files read from: {refdir}\n\n')
 
-    # for each xios file, determine the reference name from the xios filename and read
-    # for a name like rnasep_m.M_jannaschii.w1.d0.xios
-    # the reference would be rnasep_m.M_jannaschii.xios
-
-    current_ref = None
-    overall = {}
-
+    stat = {}
+    param = ''
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
-        # sys.stderr.write(testfile)
-        # parsed = parse(testfile, refdir)
+        # testfile contains the working directory which has the parameter list, for example
+        # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
+        # parse_by_dir returns these in a hash with keys:t, m, S
         parsed = parse_by_dir(testfile, refdir)
-        # print(f'\ttest:{testfile} | ref:{parsed["name"]}', flush=True)
+        this_param = f't{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
 
+        # make sure the reference exists
         if os.path.exists(parsed['name']):
-            # read reference xios (gold standard)
-            if parsed['name'] != current_ref:
-                ref = Topology()
-                ref.XIOSread(parsed['name'])
+            # name is the inferred reference file
+            ref = Topology()
+            ref.XIOSread(parsed['name'])
         else:
             # skip if there is no reference file
             sys.stderr.write(f'No reference - skipping {testfile}\n')
             continue
 
-        ref.sequence_id = parsed['name']
-        current_ref = os.path.basename(parsed['name'])
-        # split on whatever comes first, . or _
-        family = current_ref.split('.')[0]
-        if '_' in family:
-            family = family.split('_')[0]
-        family_short = family
+        # if the params have changed, reset the statistics
+        if this_param != param:
+            print_report()
+            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}}
 
-        # family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
-        # all = f'all.w{parsed["w"]}.d{parsed["d"]}'
-        family = f'{family}.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
-        all = f'all.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
-        if family not in overall:
-            overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
-        if all not in overall:
-            overall[all] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
-        sys.stderr.write(f'family:{family_short}\t{all}\t\t{testfile}\n')
-        # summary(ref, 'Curated')
+        if parsed['family'] not in stat:
+            # new family
+            stat[parsed['family']] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
 
         # read subject xios (test structures to compare)
         subject = Topology()
@@ -287,15 +302,16 @@ if __name__ == '__main__':
         # summary(subject, 'Test')
 
         both = overlap(ref, subject)
-        stat = stat_stem(both, len(subject.stem_list))
-        overall[family]['precision'] += stat['precision']
-        overall[family]['recall'] += stat['recall']
-        overall[family]['jaccard'] += stat['jaccard']
-        overall[family]['n'] += 1
-        overall[all]['precision'] += stat['precision']
-        overall[all]['recall'] += stat['recall']
-        overall[all]['jaccard'] += stat['jaccard']
-        overall[all]['n'] += 1
+        quality = stat_stem(both, len(subject.stem_list))
+        add_stat(stat, [all, family], quality)
+        # overall[family]['precision'] += stat['precision']
+        # overall[family]['recall'] += stat['recall']
+        # overall[family]['jaccard'] += stat['jaccard']
+        # overall[family]['n'] += 1
+        # overall[all]['precision'] += stat['precision']
+        # overall[all]['recall'] += stat['recall']
+        # overall[all]['jaccard'] += stat['jaccard']
+        # overall[all]['n'] += 1
         # print('{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
         #     family, parsed['d'], parsed['w'], stat['precision'],
         #     stat['recall'], stat['jaccard'],
