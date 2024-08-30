@@ -335,7 +335,11 @@ class Topology:
             # file is not str, assume it is a file pointer
             fp = file
 
-        x = etree.parse(fp)
+        try:
+            x = etree.parse(fp)
+        except etree.ParseError:
+            return 0
+
         # print(etree.tostring(x))
         for section in x.xpath('//XIOS/*'):
             # print('section {}\n{}'.format(section.tag, section.text))
