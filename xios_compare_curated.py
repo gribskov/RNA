@@ -121,13 +121,29 @@ def stat_stem(match1, nstem_2):
         else:
             fn2 += 1
 
-    recall_1 = tp1 / len(match1)
-    precision_1 = tp2 / len(match2)
-    recall_2 = tp2 / len(match2)
-    precision_2 = tp1 / len(match1)
-    jaccard = (tp1 + tp2) / (len(match1) + len(match2))
+    recall_1 = dwe(tp1, len(match1))
+    precision_1 = dwe(tp2, len(match2))
+    recall_2 = dwe(tp2, len(match2))
+    precision_2 = dwe(tp1, len(match1))
+    jaccard = dwe(tp1 + tp2, len(match1) + len(match2))
 
     return {'precision': precision_1, 'recall': recall_1, 'jaccard': jaccard}
+
+
+def dwe(numerator, denominator, err_result=0):
+    """---------------------------------------------------------------------------------------------
+    Trap divide by zero errors
+
+    numerator: numerator for division
+    denominator:    denominator for devision
+    err_result:     value to return on divide by zero
+    ---------------------------------------------------------------------------------------------"""
+    try:
+        result = numerator / denominator
+    except ZeroDivisionError:
+        return err_result
+
+    return result
 
 
 def overlap(x1, x2):
@@ -183,6 +199,7 @@ def parse(filename, refdir):
 
     return {'name': reference, 'd': d, 'w': w}
 
+
 def parse_by_dir(filename, refdir, pkey='p'):
     """---------------------------------------------------------------------------------------------
     for use with parameter_sweep.py 
@@ -195,15 +212,15 @@ def parse_by_dir(filename, refdir, pkey='p'):
     field = dir.split('/')
     param = []
     for f in field:
-        if f.startswith(pkey+'_'):
+        if f.startswith(pkey + '_'):
             param = f.split('_')
 
-    return {'name':refdir+'/'+base,
-            't': param[1],
-            'm': param[2],
-            's': param[3] 
-           }
-    
+    return {'name': refdir + '/' + base,
+            't':    param[1],
+            'm':    param[2],
+            's':    param[3]
+            }
+
 
 # ===================================================================================================
 # main program
@@ -214,11 +231,11 @@ if __name__ == '__main__':
     # subjectglob = sys.argv[2]
 
     xiosdir = sys.argv[1]
-    sys.stderr.write( f'Trial XIOS files read from: {xiosdir}\n')
+    sys.stderr.write(f'Trial XIOS files read from: {xiosdir}\n')
     refdir = sys.argv[2]
     if not refdir.endswith('/'):
         refdir += '/'
-    sys.stderr.write( f'Reference XIOS files read from: {refdir}\n\n')
+    sys.stderr.write(f'Reference XIOS files read from: {refdir}\n\n')
 
     # for each xios file, determine the reference name from the xios filename and read
     # for a name like rnasep_m.M_jannaschii.w1.d0.xios
@@ -228,8 +245,8 @@ if __name__ == '__main__':
     overall = {}
 
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
-        #sys.stderr.write(testfile)
-        #parsed = parse(testfile, refdir)
+        # sys.stderr.write(testfile)
+        # parsed = parse(testfile, refdir)
         parsed = parse_by_dir(testfile, refdir)
         # print(f'\ttest:{testfile} | ref:{parsed["name"]}', flush=True)
 
@@ -240,7 +257,7 @@ if __name__ == '__main__':
                 ref.XIOSread(parsed['name'])
         else:
             # skip if there is no reference file
-            sys.stderr.write( f'No reference - skipping {testfile}\n')
+            sys.stderr.write(f'No reference - skipping {testfile}\n')
             continue
 
         ref.sequence_id = parsed['name']
@@ -251,8 +268,8 @@ if __name__ == '__main__':
             family = family.split('_')[0]
         family_short = family
 
-        #family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
-        #all = f'all.w{parsed["w"]}.d{parsed["d"]}'
+        # family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
+        # all = f'all.w{parsed["w"]}.d{parsed["d"]}'
         family = f'{family}.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         all = f'all.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         if family not in overall:
@@ -285,11 +302,11 @@ if __name__ == '__main__':
         #     len(ref.stem_list), len(subject.stem_list), current_ref))
 
     for k in sorted(overall):
-        #print(f'k:{k}')
+        # print(f'k:{k}')
         # (id, w, d) = k.split('.')
         # w = int(w[1])
         # d = int(d[1])
-        (id,t,m,s) = k.split('.')
+        (id, t, m, s) = k.split('.')
         t = int(t[1:])
         m = int(m[1:])
         s = int(s[1:])
