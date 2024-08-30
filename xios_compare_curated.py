@@ -229,7 +229,7 @@ if __name__ == '__main__':
         #sys.stderr.write(testfile)
         #parsed = parse(testfile, refdir)
         parsed = parse_by_dir(testfile, refdir)
-        print(f'\ttest:{testfile} | ref:{parsed["name"]}', flush=True)
+        # print(f'\ttest:{testfile} | ref:{parsed["name"]}', flush=True)
 
         if os.path.exists(parsed['name']):
             # read reference xios (gold standard)
@@ -249,12 +249,12 @@ if __name__ == '__main__':
 
         #family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
         #all = f'all.w{parsed["w"]}.d{parsed["d"]}'
-        all = f'all.ti{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
+        all = f'all.t{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         if family not in overall:
             overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
         if all not in overall:
             overall[all] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
-        print(f'\tfamily:{family}\tall:{all}')
+        print(f'\tfamily:{family}\t{all}')
         # summary(ref, 'Curated')
 
         # read subject xios (test structures to compare)
