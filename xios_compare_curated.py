@@ -259,7 +259,9 @@ if __name__ == '__main__':
 
         # read subject xios (test structures to compare)
         subject = Topology()
-        subject.XIOSread(testfile)
+        success = subject.XIOSread(testfile)
+        if not success:
+            continue
         # summary(subject, 'Test')
 
         both = overlap(ref, subject)
