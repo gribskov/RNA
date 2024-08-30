@@ -174,6 +174,7 @@ def parse(filename, refdir):
     base = os.path.basename(filename)
     field = base.split('.')
     suffix = field.pop()
+    print(f'field:{field}')
     d = field.pop().lstrip('d')
     w = field.pop().lstrip('w')
     field += [suffix]
@@ -182,6 +183,27 @@ def parse(filename, refdir):
 
     return {'name': reference, 'd': d, 'w': w}
 
+def parse_by_dir(filename, refdir, pkey='p'):
+    """---------------------------------------------------------------------------------------------
+    for use with parameter_sweep.py 
+    the desired xios files have names like ../p_280_30_3/xios/5S_e.Schizochytrium_aggregatum.xios
+    where the three fields are the folding temperature (280) minimum fraction in pfs (30) and
+    minimum stem length (3).
+    ---------------------------------------------------------------------------------------------"""
+    base = os.path.basename(filename)
+    dir = os.path.dirname(filename)
+    field = dir.split('/')
+    param = []
+    for f in field:
+        if f.startswith(pkey+'_'):
+            param = f.split('_')
+
+    return {'name':refdir+'/'+base,
+            't': param[1],
+            'm': param[2],
+            's': param[3] 
+           }
+    
 
 # ===================================================================================================
 # main program
@@ -205,8 +227,9 @@ if __name__ == '__main__':
 
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
         #sys.stderr.write(testfile)
-        print(testfile, flush=True)
-        parsed = parse(testfile, refdir)
+        #parsed = parse(testfile, refdir)
+        parsed = parse_by_dir(testfile, refdir)
+        print(f'\ttest:{testfile} | ref:{parsed["name"]}', flush=True)
 
         if os.path.exists(parsed['name']):
             # read reference xios (gold standard)
@@ -221,8 +244,11 @@ if __name__ == '__main__':
         current_ref = os.path.basename(parsed['name'])
         # split on whatever comes first, . or _
         family = current_ref.split('.')[0]
-        family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
-        all = f'all.w{parsed["w"]}.d{parsed["d"]}'
+        if '_' in family:
+            family = family.split('_')[0]
+        print(f'\tfamily:{family}')
+        #family = f'{family.split("_")[0]}.w{parsed["w"]}.d{parsed["d"]}'
+        #all = f'all.w{parsed["w"]}.d{parsed["d"]}'
         if family not in overall:
             overall[family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
         if all not in overall:
