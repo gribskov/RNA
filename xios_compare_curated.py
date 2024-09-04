@@ -249,7 +249,14 @@ def add_stat(stat, keys, quality):
     :param quality: dict    precision, recall, and jaccard from stat_stem()
     :return:
     ---------------------------------------------------------------------------------------------"""
-    print( f'{keys}')
+    for k in keys:
+        if k not in stat:
+            stat[k] = {'precision':0, 'recall':0, 'jaccard':0, 'n':0}
+
+        stat[k]['precision'] += quality['precision']
+        stat[k]['recall'] += quality['recall']
+        stat[k]['jaccard'] += quality['jaccard']
+        stat[k]['n'] += 1
 
     return
 
@@ -308,14 +315,8 @@ if __name__ == '__main__':
         both = overlap(ref, subject)
         quality = stat_stem(both, len(subject.stem_list))
         add_stat(stat, ['all', parsed['family']], quality)
-        # overall[family]['precision'] += stat['precision']
-        # overall[family]['recall'] += stat['recall']
-        # overall[family]['jaccard'] += stat['jaccard']
-        # overall[family]['n'] += 1
-        # overall[all]['precision'] += stat['precision']
-        # overall[all]['recall'] += stat['recall']
-        # overall[all]['jaccard'] += stat['jaccard']
-        # overall[all]['n'] += 1
+        print(stat)
+
         # print('{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
         #     family, parsed['d'], parsed['w'], stat['precision'],
         #     stat['recall'], stat['jaccard'],
