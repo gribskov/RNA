@@ -210,6 +210,7 @@ def parse_by_dir(filename, refdir, pkey='p'):
     ---------------------------------------------------------------------------------------------"""
     base = os.path.basename(filename)
     dir = os.path.dirname(filename)
+    dir = dir.replace('\\', '/')        # kludge for windows
     field = dir.split('/')
     param = []
     for f in field:
@@ -248,6 +249,8 @@ def add_stat(stat, keys, quality):
     :param quality: dict    precision, recall, and jaccard from stat_stem()
     :return:
     ---------------------------------------------------------------------------------------------"""
+    print( f'{keys}')
+
     return
 
 
@@ -273,6 +276,7 @@ if __name__ == '__main__':
         # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
         # parse_by_dir returns these in a hash with keys:t, m, S
         parsed = parse_by_dir(testfile, refdir)
+        # print(parsed)
         this_param = f't{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
 
         # make sure the reference exists
@@ -303,7 +307,7 @@ if __name__ == '__main__':
 
         both = overlap(ref, subject)
         quality = stat_stem(both, len(subject.stem_list))
-        add_stat(stat, [all, family], quality)
+        add_stat(stat, ['all', parsed['family']], quality)
         # overall[family]['precision'] += stat['precision']
         # overall[family]['recall'] += stat['recall']
         # overall[family]['jaccard'] += stat['jaccard']
