@@ -321,13 +321,13 @@ if __name__ == '__main__':
                 print()
                 best[param] = stat['all']
 
-            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't':0, 'm':0, 's':0}}
-            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't':0, 'm':0, 's':0}
+            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't': 0, 'm': 0, 's': 0}}
+            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't': 0, 'm': 0, 's': 0}
             param = this_param
             family = this_family
 
         if family != this_family:
-        # when family changes print result for old family
+            # when family changes print result for old family
             print_report(family, stat)
             family = this_family
 
@@ -353,6 +353,10 @@ if __name__ == '__main__':
 
     print()
     for p in sorted(best, key=lambda p: best[p]['recall'], reverse=True):
+        print_report(p, best)
+
+    print()
+    for p in sorted(best, key=lambda p: best[p]['recall'] + best[p]['precision'], reverse=True):
         print_report(p, best)
 
     exit(0)
