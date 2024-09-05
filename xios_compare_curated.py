@@ -317,6 +317,7 @@ if __name__ == '__main__':
         # if the params have changed, reset the statistics
         if this_param != param:
             if param:
+                print_report(family, stat)
                 print_report('all', stat)
                 print()
                 best[param] = stat['all']
@@ -343,19 +344,23 @@ if __name__ == '__main__':
         add_stat(stat, ['all', parsed['family']], quality, parsed)
 
     # summary for last parameter set
-    print_report('all', stat)
-    print()
 
-    # sorted summary of best overall jaccard
+    print_report(family, stat)
+    print_report('all', stat)
+
+    # sorted results
+    print(f'\nSorted by jaccard')
+
+    # sorted summary of best overall jaccard, recall, and F1
     best[param] = stat['all']
     for p in sorted(best, key=lambda p: best[p]['jaccard'], reverse=True):
         print_report(p, best)
 
-    print()
+    print(f'\nSorted by recall')
     for p in sorted(best, key=lambda p: best[p]['recall'], reverse=True):
         print_report(p, best)
 
-    print()
+    print(f'\nSorted by F1')
     for p in sorted(best, key=lambda p: best[p]['recall'] + best[p]['precision'], reverse=True):
         print_report(p, best)
 
