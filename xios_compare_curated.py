@@ -210,7 +210,7 @@ def parse_by_dir(filename, refdir, pkey='p'):
     ---------------------------------------------------------------------------------------------"""
     base = os.path.basename(filename)
     dir = os.path.dirname(filename)
-    dir = dir.replace('\\', '/')        # kludge for windows
+    dir = dir.replace('\\', '/')  # kludge for windows
     field = dir.split('/')
     param = []
     for f in field:
@@ -233,9 +233,15 @@ def parse_by_dir(filename, refdir, pkey='p'):
             }
 
 
-def print_report():
+def print_report(family, stat, parsed):
     """---------------------------------------------------------------------------------------------
     ---------------------------------------------------------------------------------------------"""
+    this = stat[family]
+    n = this['n']
+    print(f"{family}\t{parsed['t']}\t{parsed['m']}\t{parsed['s']}\t{n}", end='\t')
+    print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}")
+    # len(ref.stem_list), len(subject.stem_list), current_ref))
+
     return
 
 
@@ -251,7 +257,7 @@ def add_stat(stat, keys, quality):
     ---------------------------------------------------------------------------------------------"""
     for k in keys:
         if k not in stat:
-            stat[k] = {'precision':0, 'recall':0, 'jaccard':0, 'n':0}
+            stat[k] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
 
         stat[k]['precision'] += quality['precision']
         stat[k]['recall'] += quality['recall']
@@ -278,6 +284,8 @@ if __name__ == '__main__':
 
     stat = {}
     param = ''
+    family = ''
+    best = {}
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
         # testfile contains the working directory which has the parameter list, for example
         # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
@@ -285,6 +293,7 @@ if __name__ == '__main__':
         parsed = parse_by_dir(testfile, refdir)
         # print(parsed)
         this_param = f't{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
+        this_family = parsed['family']
 
         # make sure the reference exists
         if os.path.exists(parsed['name']):
@@ -298,12 +307,21 @@ if __name__ == '__main__':
 
         # if the params have changed, reset the statistics
         if this_param != param:
-            print_report()
+            if param:
+                print_report('all', stat, parsed)
+                print()
+                best[param] = stat['all']
+                # best.append(stat['all'])
+                # best[-1]['param'] = param
             stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}}
+            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+            param = this_param
+            family = this_family
 
-        if parsed['family'] not in stat:
+        if family != this_family:
             # new family
-            stat[parsed['family']] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+            print_report(family, stat, parsed)
+            family = this_family
 
         # read subject xios (test structures to compare)
         subject = Topology()
@@ -315,30 +333,14 @@ if __name__ == '__main__':
         both = overlap(ref, subject)
         quality = stat_stem(both, len(subject.stem_list))
         add_stat(stat, ['all', parsed['family']], quality)
-        print(stat)
 
-        # print('{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}\t{}\t{}\t{}'.format(
-        #     family, parsed['d'], parsed['w'], stat['precision'],
-        #     stat['recall'], stat['jaccard'],
-        #     len(ref.stem_list), len(subject.stem_list), current_ref))
-        # TODO write out the family result for each parameter setting
+    # summary for last parameter set
+    print_report('all', stat, parsed)
+    print()
 
-    for k in sorted(overall):
-        # print(f'k:{k}')
-        # (id, w, d) = k.split('.')
-        # w = int(w[1])
-        # d = int(d[1])
-        (id, t, m, s) = k.split('.')
-        t = int(t[1:])
-        m = int(m[1:])
-        s = int(s[1:])
-        n = overall[k]['n']
-        # print('{}\t{}\t{}\t{}\t{:.3f}\t{:.3f}\t{:.3f}'.format(
-        #     id, w, d, n,
-        #     overall[k]['precision'] / n, overall[k]['recall'] / n, overall[k]['jaccard'] / n))
-        sys.stdout.write(f'{id}\t{t}\t{m}\t{s}\t{n}\t')
-        sys.stdout.write(f'{overall[k]["precision"] / n:.3f}\t')
-        sys.stdout.write(f'{overall[k]["recall"] / n:.3f}\t')
-        sys.stdout.write(f'{overall[k]["jaccard"] / n:.3f}\n')
+    # sorted summary of best overall jaccard
+    best[param] = stat['all']
+    for p in sorted(best, key=lambda p:best[p]['jaccard'], reverse=True):
+        print_report(p, best, parsed)
 
     exit(0)
