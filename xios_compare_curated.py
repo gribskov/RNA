@@ -353,15 +353,15 @@ if __name__ == '__main__':
 
     # sorted summary of best overall jaccard, recall, and F1
     best[param] = stat['all']
-    for p in sorted(best, key=lambda p: best[p]['jaccard'], reverse=True):
+    for p in sorted(best, key=lambda p: best[p]['jaccard']/best[p]['n'], reverse=True):
         print_report(p, best)
 
     print(f'\nSorted by recall')
-    for p in sorted(best, key=lambda p: best[p]['recall'], reverse=True):
+    for p in sorted(best, key=lambda p: best[p]['recall']/best[p]['n'], reverse=True):
         print_report(p, best)
 
     print(f'\nSorted by F1')
-    for p in sorted(best, key=lambda p: best[p]['recall'] + best[p]['precision'], reverse=True):
+    for p in sorted(best, key=lambda p: (best[p]['recall'] + best[p]['precision'])/best[p]['n'], reverse=True):
         print_report(p, best)
 
     exit(0)
