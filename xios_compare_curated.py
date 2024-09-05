@@ -233,7 +233,7 @@ def parse_by_dir(filename, refdir, pkey='p'):
             }
 
 
-def print_report(family, stat, parsed):
+def print_report(family, stat):
     """---------------------------------------------------------------------------------------------
     calculate average values for family in stat
 
@@ -245,14 +245,14 @@ def print_report(family, stat, parsed):
 
     this = stat[family]
     n = this['n']
-    print(f"{family}\t{parsed['t']}\t{parsed['m']}\t{parsed['s']}\t{n}", end='\t')
+    print(f"{family}\t{this['t']}\t{this['m']}\t{this['s']}\t{n}", end='\t')
     print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}")
     # len(ref.stem_list), len(subject.stem_list), current_ref))
 
     return True
 
 
-def add_stat(stat, keys, quality):
+def add_stat(stat, keys, quality, parsed):
     """---------------------------------------------------------------------------------------------
     add the values in quality to the keys in keys, in the dict stat, i.e., update stat[key] with
     the values in quality
@@ -270,6 +270,9 @@ def add_stat(stat, keys, quality):
         stat[k]['recall'] += quality['recall']
         stat[k]['jaccard'] += quality['jaccard']
         stat[k]['n'] += 1
+        stat[k]['t'] = parsed['t']
+        stat[k]['m'] = parsed['m']
+        stat[k]['s'] = parsed['s']
 
     return
 
@@ -314,18 +317,18 @@ if __name__ == '__main__':
         # if the params have changed, reset the statistics
         if this_param != param:
             if param:
-                print_report('all', stat, parsed)
+                print_report('all', stat)
                 print()
                 best[param] = stat['all']
 
-            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}}
-            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't':0, 'm':0, 's':0}}
+            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't':0, 'm':0, 's':0}
             param = this_param
             family = this_family
 
         if family != this_family:
         # when family changes print result for old family
-            print_report(family, stat, parsed)
+            print_report(family, stat)
             family = this_family
 
         # read subject xios (test structures to compare)
@@ -337,15 +340,19 @@ if __name__ == '__main__':
 
         both = overlap(ref, subject)
         quality = stat_stem(both, len(subject.stem_list))
-        add_stat(stat, ['all', parsed['family']], quality)
+        add_stat(stat, ['all', parsed['family']], quality, parsed)
 
     # summary for last parameter set
-    print_report('all', stat, parsed)
+    print_report('all', stat)
     print()
 
     # sorted summary of best overall jaccard
     best[param] = stat['all']
     for p in sorted(best, key=lambda p: best[p]['jaccard'], reverse=True):
-        print_report(p, best, parsed)
+        print_report(p, best)
+
+    print()
+    for p in sorted(best, key=lambda p: best[p]['recall'], reverse=True):
+        print_report(p, best)
 
     exit(0)
