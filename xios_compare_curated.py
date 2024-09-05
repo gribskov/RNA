@@ -12,7 +12,7 @@ def summary(xios, title):
     """---------------------------------------------------------------------------------------------
     Summarize the stems in the XIOS structure
     :param xios: Topology object
-    : param title: string, describes file in summary
+    :param title: string, describes file in summary
     :return: True
     ---------------------------------------------------------------------------------------------"""
     print(f'\n{title} XIOS file {xios.sequence_id}')
@@ -89,16 +89,16 @@ def check_right(x1, x2, p1, overlap):
 
 def stat_stem(match1, nstem_2):
     """---------------------------------------------------------------------------------------------
-    for the matched stems, calculate the stem level precision and recall.  The index of the matched
+    for the matched stems, calculate the stem level precision and recall.  The index of the match1
     list is the number of the stem in structure 1, the value is a list of overlapping stems in 
     structure 2
     
-    :param matched: list of list, structure 2 stems that max the index stem in structure 1
+    :param match1:  list of list, structure 2 stems that max the structure 1 stem given by index
     :param nstem_2: number of stems in structure 2
-    :return: 
+    :return: dict   keys: precision, recall, jaccard
     ---------------------------------------------------------------------------------------------"""
     # set up a match list for structure 2
-    match2 = [[] for i in range(nstem_2)]
+    match2 = [[] for _ in range(nstem_2)]
 
     # count true positives and false negatives in structure one while populating the second
     # match list
@@ -123,8 +123,9 @@ def stat_stem(match1, nstem_2):
 
     recall_1 = dwe(tp1, len(match1))
     precision_1 = dwe(tp2, len(match2))
-    recall_2 = dwe(tp2, len(match2))
-    precision_2 = dwe(tp1, len(match1))
+    # recall_2 = dwe(tp2, len(match2))
+    # precision_2 = dwe(tp1, len(match1))
+    # precision = min( precision_1, precision_2)
     jaccard = dwe(tp1 + tp2, len(match1) + len(match2))
 
     return {'precision': precision_1, 'recall': recall_1, 'jaccard': jaccard}
@@ -154,8 +155,7 @@ def overlap(x1, x2):
     :param x2: Topology object, structure 2
     :return:
     ---------------------------------------------------------------------------------------------"""
-    p2 = 0
-    left = []
+    # left = []
     both = []
     for p1 in range(len(x1.stem_list)):
         p2 = 0
@@ -235,14 +235,21 @@ def parse_by_dir(filename, refdir, pkey='p'):
 
 def print_report(family, stat, parsed):
     """---------------------------------------------------------------------------------------------
+    calculate average values for family in stat
+
+    :param family: string   key in stat for calculation
+    :param stat: dict       statistics for all families in current parameter set
+    :param parsed: dict     used to get parameters for output
+    :return: True
     ---------------------------------------------------------------------------------------------"""
+
     this = stat[family]
     n = this['n']
     print(f"{family}\t{parsed['t']}\t{parsed['m']}\t{parsed['s']}\t{n}", end='\t')
     print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}")
     # len(ref.stem_list), len(subject.stem_list), current_ref))
 
-    return
+    return True
 
 
 def add_stat(stat, keys, quality):
@@ -283,15 +290,14 @@ if __name__ == '__main__':
     sys.stderr.write(f'Reference XIOS files read from: {refdir}\n\n')
 
     stat = {}
+    best = {}
     param = ''
     family = ''
-    best = {}
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
         # testfile contains the working directory which has the parameter list, for example
         # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
         # parse_by_dir returns these in a hash with keys:t, m, S
         parsed = parse_by_dir(testfile, refdir)
-        # print(parsed)
         this_param = f't{parsed["t"]}.m{parsed["m"]}.s{parsed["s"]}'
         this_family = parsed['family']
 
@@ -311,15 +317,14 @@ if __name__ == '__main__':
                 print_report('all', stat, parsed)
                 print()
                 best[param] = stat['all']
-                # best.append(stat['all'])
-                # best[-1]['param'] = param
+
             stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}}
             stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
             param = this_param
             family = this_family
 
         if family != this_family:
-            # new family
+        # when family changes print result for old family
             print_report(family, stat, parsed)
             family = this_family
 
@@ -340,7 +345,7 @@ if __name__ == '__main__':
 
     # sorted summary of best overall jaccard
     best[param] = stat['all']
-    for p in sorted(best, key=lambda p:best[p]['jaccard'], reverse=True):
+    for p in sorted(best, key=lambda p: best[p]['jaccard'], reverse=True):
         print_report(p, best, parsed)
 
     exit(0)
