@@ -4,16 +4,36 @@ RNAstructure:Partition
 RNAstructure:Stochastic
 stochastic_to_xios.py
 
-parameters are
-T = folding temperature: 280 - 340 by 20
-F = minimum occurrence of base-pairs in stochastic sample: 30, 50, 80
-S = minimum stem length: 3, 4
+parameters are set below in the main program
+T = folding temperature: 
+F = minimum occurrence of base-pairs in stochastic sample:
+S = minimum stem length:
+
+output is produced in the current directory when the program is run. 
+the base variable must be defined in main to point to the directory where RNA and RNAstructure
+are installed. currently base = '/scratch/bell/mgribsko/rna/'
+
+All parameter settings use the same random seed in stochastic. This seed depends on the current
+time so it will be different for every run of parameter_sweep
+
+------------------
+Running the jobs
+All jobs can be run using a simple bash script such as
+
+for f in *.slurm; do
+  echo "$f"
+  sbatch $f
+done
 ================================================================================================="""
 from itertools import product
 from time import time, sleep
 
 
 def slurm_template():
+"""-------------------------------------------------------------------------------------------------
+return a string with the header for the Slurm job file. XPROJECT, XACCOUNT, XXIOS_EXE are replaced
+with real values in main
+-------------------------------------------------------------------------------------------------"""
     return """#!/bin/bash
 #SBATCH --job-name XPROJECT
 #SBATCH --output=%x_%j.out
@@ -30,15 +50,20 @@ python XXIOS_EXEmanager_new/manager.py -w XWORKFLOW -j 32 XPROJECT
 
 
 def workflow_template():
+"""-------------------------------------------------------------------------------------------------
+return a string with the yaml formatted workflow. XRNASTRUCTURE, XXIOS_EXE, and XPROJECT are
+replaced with real values in main
+-------------------------------------------------------------------------------------------------"""
     return """
 ---
   definitions:
 #   code locations
     python: python
+    base: /scratch/bell/mgribsko/rna
     RNAstructure: XRNASTRUCTURE_EXE
     xiosexe: XXIOS_EXE
 #   project input/output directories
-    fasta: ../standards/fasta_fixed
+    fasta: $base/RNA/data/curated_fasta
     project: XPROJECT
     partition: $project/partition
     stochastic: $project/stochastic
@@ -66,23 +91,37 @@ def workflow_template():
 
 """=================================================================================================
 # main program
+
+base = root directory contain RNA and RNAStructure code (/scratch/bell/mgribsko/rna/)
+XACCOUNT: Slurm account to run under (standby)
+XRNASTRUCTURE_DATA': RNAstructure energy tables directory (f'{base}RNAstructure/data_tables/')
+XRNASTRUCTURE_EXE': RNAstructure program executables (f'{base}RNAstructure/exe/')
+XXIOS_EXE': XIOS program executables (f'{base}RNA/'})
+
+subs['XT'] = list of folding temperatures to survey (partition)
+subs['XF'] = list of minimum fraction to survey (stochastic)
+subs['XR'] = random number seed for sampling from ensemble (stochastic), currently int(time()/101)
+subs['XS'] = list of minimum stem length to survey (stochastic_to_xios.py)
+subs['XPROJECT'] = name for parameter setting directory, currently f'p_{t}_{f}_{s}'
+subs['XWORKFLOW'] = name for workflow file, currently f'{subs["XPROJECT"]}.workflow'
 ================================================================================================="""
 if __name__ == '__main__':
-    T = [280 + i * 10 for i in range(7)]
-    F = [30, 50, 80]
-    S = [3, 4]
+    T = [260 + i * 10 for i in range(9)]
+    F = [10, 20, 30, 40, 50, 60]
+    S = [2, 3, 4]
 
+    base = '/scratch/bell/mgribsko/rna/'
     subs = {'XACCOUNT': 'standby',
-            'XRNASTRUCTURE_DATA': '~/RNAstructure/data_tables/',
-            'XRNASTRUCTURE_EXE': '~/RNAstructure/exe/',
-            'XXIOS_EXE': '~/PycharmProjects/RNA/'}
+            'XRNASTRUCTURE_DATA': f'{base}RNAstructure/data_tables/',
+            'XRNASTRUCTURE_EXE': f'{base}RNAstructure/exe/',
+            'XXIOS_EXE': f'{base}RNA/'}
 
     for t, f, s in product(T, F, S):
         print(f'{t}  {f}  {s}')
         subs['XT'] = f'{t}'
         subs['XF'] = f'{f}'
         subs['XS'] = f'{s}'
-        r = int(time()/1001)
+        r = int(time()/101)
         if not r % 2:
             r += 199
         subs['XR'] = f'{r}'

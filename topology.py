@@ -981,7 +981,8 @@ class Topology:
             # print(attempt)
             attempt += 1
             # randomly determine starting vertex
-            v0 = random.sample(neighbor, 1)[0]
+            # print(f'neighbor:{neighbor}')
+            v0 = random.sample(sorted(neighbor), 1)[0]
             vlist.append(v0)
             neighbor.discard(v0)
             excluded.add(v0)
