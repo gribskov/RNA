@@ -131,6 +131,40 @@ def stat_stem(match1, nstem_2):
     return {'precision': precision_1, 'recall': recall_1, 'jaccard': jaccard}
 
 
+def stat_stem_pair(both, pstem):
+    """---------------------------------------------------------------------------------------------
+    calculate recall  for the pseudoknotted stems in structure 1, based on the mapping in both. A
+    stem is confirmed if both stems in pstem have a mapping in structure 2.
+
+    It makes little sense to calculate precision sin falsely predicted stems in structure 2 will
+    generate a huge number of false pseudoknots - the over all precision of stems seems to be
+    enough to me
+
+    :param both: list of list   indices of stems in structure 2 stems that match the stems in
+    :param pstem: list of list  pairs of pseudoknotted stems in structure 1
+    :return: float              pseudoknot recall
+    ---------------------------------------------------------------------------------------------"""
+    pos = 0
+    neg = 0
+    for [s1, s2] in pstem:
+        # s1 and s2 are stems in the reference structure that are pseudoknotted, if both have
+        # overlaps in the test structure, the pseudoknot is present in the test structure
+        # print(f'{s1}\t{s2}')
+        try:
+            if both[s1] and both[s2]:
+                pos += 1
+            else:
+                neg += 1
+        except IndexError:
+            # stems after the last match in s1 are not defined
+            # print(f'indexerror: {s1}:{s2}')
+            neg += 1
+
+    # print(f'pos:{pos}\tneg:{neg}\trecall={pos / (pos + neg):.3f}')
+
+    return dwe(pos, pos + neg)
+
+
 def dwe(numerator, denominator, err_result=0):
     """---------------------------------------------------------------------------------------------
     divide with error (dwe)
@@ -151,6 +185,9 @@ def dwe(numerator, denominator, err_result=0):
 def overlap(x1, x2):
     """---------------------------------------------------------------------------------------------
     compare the stems in structure 1 and structure 2 and identify the overlapping stems
+    in the returned list, the index corresponds to a stem in structure to, the value is a list of
+    all of the structure 2 stems that overlap on both left and right.
+
     :param x1: Topology object  structure 1
     :param x2: Topology object  structure 2
     :return:list                indices of matching stems in structure 1 and structure 2
@@ -244,9 +281,9 @@ def find_pknot(struct):
     pstems = []
     s1 = 0
     for row in struct.adjacency:
-        for s2 in range(s1+1, len(row)):
+        for s2 in range(s1 + 1, len(row)):
             if row[s2] == 'o':
-                pstems.append([s1,s2])
+                pstems.append([s1, s2])
         s1 += 1
 
     return pstems
@@ -254,7 +291,7 @@ def find_pknot(struct):
 
 def print_report(family, stat):
     """---------------------------------------------------------------------------------------------
-    calculate average values for family in stat
+    print average values for family in stat
 
     :param family: string   key in stat for calculation
     :param stat: dict       statistics for all families in current parameter set
@@ -264,8 +301,8 @@ def print_report(family, stat):
 
     this = stat[family]
     n = this['n']
-    print(f"{family}\t{this['t']}\t{this['m']}\t{this['s']}\t{n}", end='\t')
-    print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}")
+    print(f"{family:10s}\t{this['t']}\t{this['m']}\t{this['s']}\t{n}", end='\t')
+    print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}\t{this['pkrecall']/n:.3f}")
     # len(ref.stem_list), len(subject.stem_list), current_ref))
 
     return True
@@ -283,11 +320,12 @@ def add_stat(stat, keys, quality, parsed):
     ---------------------------------------------------------------------------------------------"""
     for k in keys:
         if k not in stat:
-            stat[k] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0}
+            stat[k] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'pkrecall': 0, 'n': 0}
 
         stat[k]['precision'] += quality['precision']
         stat[k]['recall'] += quality['recall']
         stat[k]['jaccard'] += quality['jaccard']
+        stat[k]['pkrecall'] += quality['pkrecall']
         stat[k]['n'] += 1
         stat[k]['t'] = parsed['t']
         stat[k]['m'] = parsed['m']
@@ -315,6 +353,7 @@ if __name__ == '__main__':
     best = {}
     param = ''
     family = ''
+    print(f'#parameters\tT\tF\tS\tN\tprec\trecall\tjaccard\tpkrecall')
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
         # testfile contains the working directory which has the parameter list, for example
         # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
@@ -343,8 +382,9 @@ if __name__ == '__main__':
                 print()
                 best[param] = stat['all']
 
-            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't': 0, 'm': 0, 's': 0}}
-            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'n': 0, 't': 0, 'm': 0, 's': 0}
+            stat = {'all': {'precision': 0, 'recall': 0, 'jaccard': 0, 'pkrecall': 0, 'n': 0, 't': 0, 'm': 0, 's': 0}}
+            stat[this_family] = {'precision': 0, 'recall': 0, 'jaccard': 0, 'pkrecall': 0, 'n': 0, 't': 0, 'm': 0,
+                                 's':         0}
             param = this_param
             family = this_family
 
@@ -362,6 +402,7 @@ if __name__ == '__main__':
 
         both = overlap(ref, subject)
         quality = stat_stem(both, len(subject.stem_list))
+        quality['pkrecall'] = stat_stem_pair(both, pstems)
         add_stat(stat, ['all', parsed['family']], quality, parsed)
 
     # summary for last parameter set
@@ -370,19 +411,23 @@ if __name__ == '__main__':
     print_report('all', stat)
 
     # sorted results
-    print(f'\nSorted by jaccard')
+    print(f'\n# Sorted by jaccard')
 
     # sorted summary of best overall jaccard, recall, and F1
     best[param] = stat['all']
     for p in sorted(best, key=lambda p: best[p]['jaccard'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
-    print(f'\nSorted by recall')
+    print(f'\n#  recall')
     for p in sorted(best, key=lambda p: best[p]['recall'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
-    print(f'\nSorted by F1')
+    print(f'\n# Sorted by F1')
     for p in sorted(best, key=lambda p: (best[p]['recall'] + best[p]['precision']) / best[p]['n'], reverse=True):
+        print_report(p, best)
+
+    print(f'\n# Sorted by Pseudoknot recall')
+    for p in sorted(best, key=lambda p: (best[p]['pkrecall'] + best[p]['precision']) / best[p]['n'], reverse=True):
         print_report(p, best)
 
     exit(0)
