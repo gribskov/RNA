@@ -302,7 +302,7 @@ def print_report(family, stat):
     this = stat[family]
     n = this['n']
     print(f"{family:10s}\t{this['t']}\t{this['m']}\t{this['s']}\t{n}", end='\t')
-    print(f"{this['precision'] / n:.3f}\t{this['recall'] / n:.3f}\t{this['jaccard'] / n:.3f}\t{this['pkrecall']/n:.3f}")
+    print(f"{this['precision']/n:.3f}\t{this['recall']/n:.3f}\t{this['jaccard']/n:.3f}\t{this['pkrecall']/n:.3f}")
     # len(ref.stem_list), len(subject.stem_list), current_ref))
 
     return True
@@ -353,7 +353,7 @@ if __name__ == '__main__':
     best = {}
     param = ''
     family = ''
-    print(f'#parameters\tT\tF\tS\tN\tprec\trecall\tjaccard\tpkrecall')
+    print(f'#family    \tT\tF\tS\tN\tprec\trecall\tjaccard\tpkrecall')
     for testfile in sorted(glob.glob(xiosdir + '/*.xios')):
         # testfile contains the working directory which has the parameter list, for example
         # p_340_150_2 => temp=340i, minimum_occurance=150, minimum_stem_length=2
@@ -411,23 +411,23 @@ if __name__ == '__main__':
     print_report('all', stat)
 
     # sorted results
-    print(f'\n# Sorted by jaccard')
+    print(f'\n# All sorted by jaccard')
 
     # sorted summary of best overall jaccard, recall, and F1
     best[param] = stat['all']
     for p in sorted(best, key=lambda p: best[p]['jaccard'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
-    print(f'\n#  recall')
+    print(f'\n#  All sorted by recall')
     for p in sorted(best, key=lambda p: best[p]['recall'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
-    print(f'\n# Sorted by F1')
+    print(f'\n# All sorted by F1')
     for p in sorted(best, key=lambda p: (best[p]['recall'] + best[p]['precision']) / best[p]['n'], reverse=True):
         print_report(p, best)
 
-    print(f'\n# Sorted by Pseudoknot recall')
-    for p in sorted(best, key=lambda p: (best[p]['pkrecall'] + best[p]['precision']) / best[p]['n'], reverse=True):
+    print(f'\n# All sorted by Pseudoknot recall')
+    for p in sorted(best, key=lambda p: best[p]['pkrecall']  / best[p]['n'], reverse=True):
         print_report(p, best)
 
     exit(0)
