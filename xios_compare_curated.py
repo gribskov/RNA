@@ -93,7 +93,7 @@ def stat_stem(match1, nstem_2):
     list is the number of the stem in structure 1, the value is a list of overlapping stems in 
     structure 2
     
-    :param match1:  list of list, structure 2 stems that max the structure 1 stem given by index
+    :param match1:  list of list, structure 2 stems that match the structure 1 stem given by index
     :param nstem_2: number of stems in structure 2
     :return: dict   keys: precision, recall, jaccard
     ---------------------------------------------------------------------------------------------"""
@@ -151,9 +151,9 @@ def dwe(numerator, denominator, err_result=0):
 def overlap(x1, x2):
     """---------------------------------------------------------------------------------------------
     compare the stems in structure 1 and structure 2 and identify the overlapping stems
-    :param x1: Topology object, structure 1
-    :param x2: Topology object, structure 2
-    :return:
+    :param x1: Topology object  structure 1
+    :param x2: Topology object  structure 2
+    :return:list                indices of matching stems in structure 1 and structure 2
     ---------------------------------------------------------------------------------------------"""
     # left = []
     both = []
@@ -233,6 +233,25 @@ def parse_by_dir(filename, refdir, pkey='p'):
             }
 
 
+def find_pknot(struct):
+    """---------------------------------------------------------------------------------------------
+    find pseudoknotted pairs of stems, pseudoknots are found by looking for o relationships in the
+    adjacency matrix.
+
+    :param struct: Topology
+    :return: list of list       each element is a list of the indices of two pseudoknotted stems
+    ---------------------------------------------------------------------------------------------"""
+    pstems = []
+    s1 = 0
+    for row in struct.adjacency:
+        for s2 in range(s1+1, len(row)):
+            if row[s2] == 'o':
+                pstems.append([s1,s2])
+        s1 += 1
+
+    return pstems
+
+
 def print_report(family, stat):
     """---------------------------------------------------------------------------------------------
     calculate average values for family in stat
@@ -309,6 +328,8 @@ if __name__ == '__main__':
             # name is the inferred reference file
             ref = Topology()
             ref.XIOSread(parsed['name'])
+            pstems = find_pknot(ref)
+
         else:
             # skip if there is no reference file
             sys.stderr.write(f'No reference - skipping {testfile}\n')
@@ -353,15 +374,15 @@ if __name__ == '__main__':
 
     # sorted summary of best overall jaccard, recall, and F1
     best[param] = stat['all']
-    for p in sorted(best, key=lambda p: best[p]['jaccard']/best[p]['n'], reverse=True):
+    for p in sorted(best, key=lambda p: best[p]['jaccard'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
     print(f'\nSorted by recall')
-    for p in sorted(best, key=lambda p: best[p]['recall']/best[p]['n'], reverse=True):
+    for p in sorted(best, key=lambda p: best[p]['recall'] / best[p]['n'], reverse=True):
         print_report(p, best)
 
     print(f'\nSorted by F1')
-    for p in sorted(best, key=lambda p: (best[p]['recall'] + best[p]['precision'])/best[p]['n'], reverse=True):
+    for p in sorted(best, key=lambda p: (best[p]['recall'] + best[p]['precision']) / best[p]['n'], reverse=True):
         print_report(p, best)
 
     exit(0)
