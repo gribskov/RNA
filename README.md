@@ -6,7 +6,9 @@ requires python &ge;3.8 with
 the numpy and pyyaml packages installed. This is conveniently done with *anaconda*, 
 for example
 ```commandline
- conda create --name=rna python=3.11
+ conda create --name=rna python=3.12
+ conda activate rna
+ conda install lxml
  conda install numpy
  conda install pyyaml
  conda activate rna
@@ -17,7 +19,7 @@ mkdir rna
 cd rna
 ```
 3. Install the XIOS/fingerprint package by cloning the git trepository. 
-This will create a directory ***RNA*** with the XIOS/fingerprint code
+This will create a directory ***RNA*** with the XIOS/fingerprint code.
 ```commandline
 git clone https://github.com/gribskov/RNA.git
 ```
@@ -30,7 +32,19 @@ that the ***RNAstructure*** directory is a sub-directory of the parent directory
 wget https://rna.urmc.rochester.edu/Releases/current/RNAstructureLinuxTextInterfaces64bit.tgz
 tar -xvzf RNAstructureLinuxTextInterfaces64bit.tgz
 ```
-
+We are currently using version 6.5 of RNAstructure (64-bit), released on June 14, 2024. 
+***RNAstructure*** does not include precompiled executables so you will have to compile
+the source.
+```commandline
+cd RNAstructure
+make all
+```
+5. When running ***RNAstructure*** you must define the ***DATAPATH*** symbol which identifies
+the location of the folding energy files
+```commandline
+export DATAPATH=RNAstructure/RNAstructure/data_tables/
+```
+obviously this must be prefixed with the path to where you installed ***RNAstructure***.
 ## Making the motif library
 Available soon
 
