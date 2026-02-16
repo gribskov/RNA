@@ -460,6 +460,12 @@ class Command:
            value from th yaml
         4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
 
+        break command lines from workflow yaml into
+        commands
+        mult - symbols generated with wild cards
+        late - dependent symbols created from other symbols. they are late because they geneerally
+                can't be resolved unitl the previous stage finishes
+
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
         current = self.parsed['stage'][stage]
@@ -810,8 +816,9 @@ if __name__ == '__main__':
             exec = Executor(commandfile, completefile, w.log, w.stage, jobs=w.option["jobs"],
                             delay=4)
             exec.setup()
-            while exec.startjobs():
-                exec.polljobs()
+            # TODO job execution turned off
+            # while exec.startjobs():
+            #     exec.polljobs()
 
             w.stage_finish()
 
