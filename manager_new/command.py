@@ -5,7 +5,7 @@ test version to improve command processing
 
 Michael Gribskov 2/16/2026
 ====================================================================================================================="""
-
+import yaml
 
 class Command:
     """#############################################################################################
@@ -49,26 +49,35 @@ class Command:
         -----------------------------------------------------------------------------------------"""
         pass
 
-    def expand(self, defs):
+    def expand(self):
         """-----------------------------------------------------------------------------------------
-        recursively substitute symbols in defs with their values.
+        recursively substitute symbols in defs with their values. Definitions to expand are in
+        self.parsed['definitions']
 
-        :param defs: dict   keys are the symbols, shown as $key in commands
         :return: dict       definition dict after substitution
         -----------------------------------------------------------------------------------------"""
         stack = []
+        defs = self.parsed['definitions']
         for d in defs:
-            stack.append(d)
-
-        while stack:
-            d = stack[0]
-            end = len(stack)
-            stack = stack[1:end]
-            for thisd in defs:
-                symbol = f'${thisd}'
-                defs[d] = defs[d].replace(symbol, defs[thisd])
+            # put definitions that have $ on the stack, these need expansion
             if defs[d].find('$') > -1:
                 stack.append(d)
+
+        while stack:
+            # d = stack[0]
+            d = stack.pop()
+            # end = len(stack)
+            # stack = stack[1:end]
+            for thisd in defs:
+                symbol = f'${thisd}'
+                if defs[d].find(symbol) > -1:
+                    # symbol is in this definition, expand it
+                    defs[d] = defs[d].replace(symbol, defs[thisd])
+                    if defs[d].find('$') > -1:
+                        # if there are still $, push back on the stack
+                        stack.append(d)
+                    else:
+                        break
 
         return defs
 
@@ -199,6 +208,8 @@ class Command:
 # ======================================================================================================================
 if __name__ == '__main__':
     workflow_file = 'workflow1.yaml'
-    yaml = Command(filename=workflow_file)
-
+    cmd = Command(filename=workflow_file)
+    cmd.read()
+    # cmd.parsed['definitions']
+    cmd.def_main = cmd.expand()
     exit(0)
