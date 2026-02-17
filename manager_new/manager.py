@@ -426,26 +426,40 @@ class Command:
         -----------------------------------------------------------------------------------------"""
         pass
 
-    def expand(self, defs):
+    def expand(self):
         """-----------------------------------------------------------------------------------------
-        recursively substitute symbols in defs with their values.
+        recursively substitute symbols in defs with their values. Definitions to expand are in
+        self.parsed['definitions']
 
-        :param defs: dict   keys are the symbols, shown as $key in commands
         :return: dict       definition dict after substitution
         -----------------------------------------------------------------------------------------"""
         stack = []
+        symbol = {}
+        defs = self.parsed['definitions']
         for d in defs:
-            stack.append(d)
-
-        while stack:
-            d = stack[0]
-            end = len(stack)
-            stack = stack[1:end]
-            for thisd in defs:
-                symbol = f'${thisd}'
-                defs[d] = defs[d].replace(symbol, defs[thisd])
+            # add $ to the definition keys and add definitions that have $ on the stack,
+            # these need expansion
+            symbol['$' + d] = defs[d]
             if defs[d].find('$') > -1:
                 stack.append(d)
+
+        while stack:
+            d = stack.pop()
+            for s in symbol:
+                if defs[d].find(s) == -1:
+                    # symbol not present, skip to next symbol
+                    continue
+
+                # symbol is in this definition, expand it
+                defs[d] = defs[d].replace(s, symbol[s])
+                if defs[d].find('$') == -1:
+                    # no additional $ in this definition, done with this definition, back to stack
+                    break
+
+                # there are still $, push definition back on the stack, and start from beginning of
+                # symbol list
+                stack.append(d)
+                break
 
         return defs
 
