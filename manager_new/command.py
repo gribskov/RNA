@@ -57,27 +57,32 @@ class Command:
         :return: dict       definition dict after substitution
         -----------------------------------------------------------------------------------------"""
         stack = []
+        symbol = {}
         defs = self.parsed['definitions']
         for d in defs:
-            # put definitions that have $ on the stack, these need expansion
+            # add $ to the definition keys and add definitions that have $ on the stack,
+            # these need expansion
+            symbol['$'+d] = defs[d]
             if defs[d].find('$') > -1:
                 stack.append(d)
 
         while stack:
-            # d = stack[0]
             d = stack.pop()
-            # end = len(stack)
-            # stack = stack[1:end]
-            for thisd in defs:
-                symbol = f'${thisd}'
-                if defs[d].find(symbol) > -1:
-                    # symbol is in this definition, expand it
-                    defs[d] = defs[d].replace(symbol, defs[thisd])
-                    if defs[d].find('$') > -1:
-                        # if there are still $, push back on the stack
-                        stack.append(d)
-                    else:
-                        break
+            for s in symbol:
+                if defs[d].find(s) == -1:
+                    # symbol not present, skip to next symbol
+                    continue
+
+                # symbol is in this definition, expand it
+                defs[d] = defs[d].replace(s, symbol[s])
+                if defs[d].find('$') == -1:
+                    # no additional $ in this definition, done with this definition, back to stack
+                    break
+
+                # there are still $, push definition back on the stack, and start from beginning of
+                # symbol list
+                stack.append(d)
+                break
 
         return defs
 
