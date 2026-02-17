@@ -128,11 +128,10 @@ class Workflow:
         option:         dict of options set on command line
         plan:           python object created from plan xml
         log_main        filehandle - overall logfile
-
         stage:          name of the current stage, from yaml
         command:        filehandle - list of commands to run in this stage
         complete:       filehandle - list of commands completed in this stage
-        log_stage:      filehandle - current stage log
+        log:            filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
         self.option = getoptions()
         self.yaml = None

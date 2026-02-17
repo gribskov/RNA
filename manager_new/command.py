@@ -217,4 +217,6 @@ if __name__ == '__main__':
     cmd.read()
     # cmd.parsed['definitions']
     cmd.def_main = cmd.expand()
+    cmd.command_generate()
+
     exit(0)
