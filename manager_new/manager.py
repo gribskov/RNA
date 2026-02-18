@@ -409,8 +409,13 @@ class Stage():
         """-----------------------------------------------------------------------------------------
         Prepare the expanded command for execution with runtime lists of files
         for each filename with wildcard, create list of matching files
+
+        :%in.set(str) defines a glob that matches str
+        :%in.replace(from,to) creates a new filename from glob %in
+
         :return:
         -----------------------------------------------------------------------------------------"""
+        setre = '(:%in.set\((\w+)\)'
         return None
 
 
@@ -499,11 +504,26 @@ class Command:
                     continue
 
                 # symbol s is in this definition, expand it
-                dval = dval.replace(s, symbol[s])
+                if any(c in dval for c in '*?'):
+                    # wildcard replace with % expression, escape * and ? to prevent duplicating
+                    # escape replaces c with &ord(c);
+                    print(dval)
+                    d = dkey.replace('$','')
+                    dval = dval.replace('*',f'&{ord("*")};')
+                    dval = dval.replace('?', f'&{ord("?")};')
+                    dval = f':%{d}.set({dval})'
+                else:
+                    dval = dval.replace(s, symbol[s])
 
             # if you reach here the symbol is either unknown (needs more expansion) or has been
             # completely expanded (next time it is popped it will go into the symbol dict)
             stack = [[dkey, dval]] + stack
+
+        # convert escaped symbols back to characters
+        r1 = f'&{ord("*")};'
+        r2 = f'&{ord("?")};'
+        for s in symbol:
+            symbol[s] = symbol[s].replace(r1, '*').replace(r2, '?')
 
         return symbol
 
