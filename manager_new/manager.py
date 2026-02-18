@@ -6,6 +6,7 @@ import time
 import argparse
 import yaml
 import glob
+from copy import deepcopy
 
 
 def arg_formatter(prog):
@@ -232,7 +233,8 @@ class Workflow:
         # expand global symbols (definitions in yaml) and store in yaml
         self.yaml = Command(filename=self.option['workflow'])
         self.yaml.read()
-        self.yaml.def_main = self.yaml.expand_all()
+        # global static symbols
+        self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
         self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
                              f'{len(self.yaml.parsed["stage"])} stages')
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
@@ -424,16 +426,19 @@ class Command:
         def_main    dict, global definitions => dict with keys as $symbol
         def_stage   dict, definitions for current stage
         mult        commands that expand to multiple values (usually input or output files)
-        late        symbols that can only be expanded at runtion (realtime)
+        late        symbols that can only be expanded at run time (realtime)
         defs        i think this was the same as def main
         -----------------------------------------------------------------------------------------"""
         self.file = filename
         self.parsed = None
+        self.command = []
+        self.static_symbols = {}
+
         self.stage = ''
         self.stage_dir = ''
         self.def_main = {}
         self.def_stage = {}
-        self.command = ''
+
         self.mult = {}
         self.late = {}
         self.defs = []
@@ -449,69 +454,66 @@ class Command:
         fp.close()
         return self.parsed
 
-    def main(self):
+    def expand(self, definitions):
         """-----------------------------------------------------------------------------------------
-        Set up the main definitions for the plan
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        pass
+        Expand all static symbols (indicated by $ in workflow). Return symbols with the
+        $symbol as the key
 
-    def expand(self):
-        """-----------------------------------------------------------------------------------------
-        recursively substitute symbols in defs with their values. Definitions to expand are in
-        self.parsed['definitions']
-
-        :return: dict       definition dict after substitution
+        :param definitions: dict    definition lines converted from workflow yaml
+        :return: dict               expanded symbols dict
         -----------------------------------------------------------------------------------------"""
         stack = []
-        symbol = {}
-        defs = self.parsed['definitions']
-        for d in defs:
-            # add $ to the definition keys and add definitions that have $ on the stack,
-            # these need expansion
-            symbol['$' + d] = defs[d]
-            if defs[d].find('$') > -1:
-                stack.append(d)
+        symbol = deepcopy(self.static_symbols)
+        # Symbols may be defined in terms of other symbols so recursive expansion
+        # is necessary. As translated from workflow yaml defs is a dictionary with the symbols as
+        # keys (no $)
+        for d in definitions:
+            # add $ to the definition keys and push definitions all definitions on stack
+            stack.append(['$' + d, definitions[d]])
 
         while stack:
-            d = stack.pop()
+            # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
+            dkey, dval = stack.pop()
+            if dval.find('$') == -1:
+                # no expandable symbol, save to symbol dict. this is the only place definitions are
+                # removed from stack
+                symbol[dkey] = dval
+                continue
+
             for s in symbol:
-                if defs[d].find(s) == -1:
+                # expandable symbol detected, check all currently known symbols to see which it is
+                # (or unknown)
+                if dval.find(s) == -1:
                     # symbol not present, skip to next symbol
                     continue
 
-                # symbol is in this definition, expand it
-                defs[d] = defs[d].replace(s, symbol[s])
-                if defs[d].find('$') == -1:
-                    # no additional $ in this definition, done with this definition, back to stack
-                    break
+                # symbol s is in this definition, expand it
+                dval = dval.replace(s, symbol[s])
 
-                # there are still $, push definition back on the stack, and start from beginning of
-                # symbol list
-                stack.append(d)
-                break
+            # if you reach here the symbol is either unknown (needs more expansion) or has been
+            # completely expanded (next time it is popped it will go into the symbol dict)
+            stack = [[dkey, dval]] + stack
 
-        return defs
+        return symbol
 
-    def expand_all(self):
-        """-----------------------------------------------------------------------------------------
-        Expand all $ symbols in the parsed yaml workflow description
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        stack = [self.parsed]
-        while stack:
-            item = stack.pop()
-            if type(item) == dict:
-                for each in item:
-                    if each == dict:
-                        stack = [each] + stack
-                    else:
-                        stack = [{item:each}] + stack
-            else:
-                pass
-
-        return True
-
+    # def expand_all(self):
+    #     """-----------------------------------------------------------------------------------------
+    #     Expand all $ symbols in the parsed yaml workflow description
+    #     :return:
+    #     -----------------------------------------------------------------------------------------"""
+    #     stack = [self.parsed]
+    #     while stack:
+    #         item = stack.pop()
+    #         if type(item) == dict:
+    #             for each in item:
+    #                 if each == dict:
+    #                     stack = [each] + stack
+    #                 else:
+    #                     stack = [{item:each}] + stack
+    #         else:
+    #             pass
+    #
+    #     return True
 
     def command_generate(self):
         """-----------------------------------------------------------------------------------------
