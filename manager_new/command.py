@@ -49,7 +49,7 @@ class Command:
         -----------------------------------------------------------------------------------------"""
         pass
 
-    def expand(self):
+        def expand(self):
         """-----------------------------------------------------------------------------------------
         recursively substitute symbols in defs with their values. Definitions to expand are in
         self.parsed['definitions']

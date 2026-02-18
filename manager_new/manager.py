@@ -232,7 +232,7 @@ class Workflow:
         # expand global symbols (definitions in yaml) and store in yaml
         self.yaml = Command(filename=self.option['workflow'])
         self.yaml.read()
-        self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
+        self.yaml.def_main = self.yaml.expand_all()
         self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
                              f'{len(self.yaml.parsed["stage"])} stages')
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
@@ -287,7 +287,6 @@ class Workflow:
         1) mark as finished by creating stage, {base}/{stage}/{stage}.complete
         2) report stage finished in log_main
         3) close stage_log, command, and complete files
-
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -384,18 +383,49 @@ class Workflow:
 # end of class Workflow
 ####################################################################################################
 
+class Stage():
+    """#############################################################################################
+    keeps track of the real time status of execution of a stage
+
+    #############################################################################################"""
+
+    def __init__(self):
+        """-----------------------------------------------------------------------------------------
+        command - expanded command with static symbols ($ symbols) expanded
+        realtime - symbols in the process of expansion and execution (formerly called "late"
+                   symbols)
+        status - 'not started', 'running', 'finished'
+        -----------------------------------------------------------------------------------------"""
+        self.command = ''
+        self.realtime = {}
+        self.status = 'not started'
+
+
 class Command:
     """#############################################################################################
-    convert the yaml file describing the workflow to a list of executable commands
+    convert the yaml workflow file describing the workflow to a list of executable commands
+
+    each stage can add/replace symbols in the global definitions, and can have tokens that can only
+    be expanded at run time (see class Stage())
+
+    TODO add description of workflow syntax
     #############################################################################################"""
 
     def __init__(self, filename='workflow1.yaml'):
         """-----------------------------------------------------------------------------------------
         file        path to yaml file containing the workflow
-        plan        python structure version of the plan
-        stage       current stage
-        def_main    dict, global definitions
+        parsed      yaml parsed to python dictionary
+        command     list of stage commands with realtime symbols (class stage)
+        stage       current stage (stages can execute concurrently so probably not needed)
+        stage_dir   maybe not needed if input and output is expanded completely
+
+
+        needed during expansion, then no longer necessary - do not need to be instance variables
+        def_main    dict, global definitions => dict with keys as $symbol
         def_stage   dict, definitions for current stage
+        mult        commands that expand to multiple values (usually input or output files)
+        late        symbols that can only be expanded at runtion (realtime)
+        defs        i think this was the same as def main
         -----------------------------------------------------------------------------------------"""
         self.file = filename
         self.parsed = None
@@ -463,6 +493,26 @@ class Command:
 
         return defs
 
+    def expand_all(self):
+        """-----------------------------------------------------------------------------------------
+        Expand all $ symbols in the parsed yaml workflow description
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        stack = [self.parsed]
+        while stack:
+            item = stack.pop()
+            if type(item) == dict:
+                for each in item:
+                    if each == dict:
+                        stack = [each] + stack
+                    else:
+                        stack = [{item:each}] + stack
+            else:
+                pass
+
+        return True
+
+
     def command_generate(self):
         """-----------------------------------------------------------------------------------------
         generate a list of commands from the workflow for a specific stage
@@ -497,7 +547,9 @@ class Command:
             else:
                 self.def_stage[item] = current[item]
 
-        self.def_stage = self.expand(self.def_stage)
+        # TODO check that stage symbols are expanded after removing self.def_stage
+        # self.def_stage = self.expand(self.def_stage)
+        self.def_stage = self.expand()
         for d in self.def_stage:
             self.command = self.command.replace(f'${d}', self.def_stage[d])
 
@@ -782,8 +834,9 @@ class Log(dict):
         try:
             fp = self[log]
         except IndexError:
-            sys.stderr.write(f'Log:add - unknown_logfile {log}\n')
-            return
+            log_message = f'Log:add - unknown_logfile {log}\n'
+            sys.stderr.write(log_message)
+            return log_message
 
         # log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
         log_message = f'{self.logtime()}\t{message}\n'
