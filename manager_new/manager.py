@@ -4,6 +4,8 @@ import shutil
 import sys
 import time
 import argparse
+from os import name
+
 import yaml
 import glob
 from copy import deepcopy
@@ -234,7 +236,7 @@ class Workflow:
         self.yaml = Command(filename=self.option['workflow'])
         self.yaml.read()
         # global static symbols
-        self.yaml.def_main = self.yaml.expand(self.yaml.parsed['definitions'])
+        self.yaml.static_symbols = self.yaml.expand(self.yaml.parsed['definitions'])
         self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
                              f'{len(self.yaml.parsed["stage"])} stages')
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
@@ -391,16 +393,25 @@ class Stage():
 
     #############################################################################################"""
 
-    def __init__(self):
+    def __init__(self, name='', command=''):
         """-----------------------------------------------------------------------------------------
         command - expanded command with static symbols ($ symbols) expanded
         realtime - symbols in the process of expansion and execution (formerly called "late"
                    symbols)
         status - 'not started', 'running', 'finished'
         -----------------------------------------------------------------------------------------"""
-        self.command = ''
+        self.name = name
+        self.command = command
         self.realtime = {}
         self.status = 'not started'
+
+    def setup_rt(self):
+        """-----------------------------------------------------------------------------------------
+        Prepare the expanded command for execution with runtime lists of files
+        for each filename with wildcard, create list of matching files
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        return None
 
 
 class Command:
@@ -517,6 +528,8 @@ class Command:
 
     def command_generate(self):
         """-----------------------------------------------------------------------------------------
+        updating to generate commands for all stages
+
         generate a list of commands from the workflow for a specific stage
         1. split the command into tokens
         2. for each token, match to the keywords in plan['stage'][stage] and replace
@@ -533,25 +546,30 @@ class Command:
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        current = self.parsed['stage'][stage]
+        current = self.parsed
+
+        for stagename in self.parsed['stage']:
+            print(stagename)
+            stage_symbol = self.expand(self.parsed['stage'][stagename])
+            # all symbols have been expanded so the only thing we need is the final command for the stage
+            this_stage = Stage(name=stagename, command=stage_symbol['$command'])
+            this_stage.setup_rt()
+            self.command.append(this_stage)
 
         # merge stage definitions with global definitions and expand the command
         # separate the definitions into the command, simple symbols, mutltiple processing
         # symbols, and late symbols
-        self.def_stage = {k: self.def_main[k] for k in self.def_main}
-        for item in current:
-            if item == 'command':
-                self.command = current[item]
-            elif current[item].find('*') > -1:
-                self.mult[item] = current[item]
-            elif current[item].find(':') == 0:
-                self.late[item] = current[item]
-            else:
-                self.def_stage[item] = current[item]
+        # self.def_stage = {k: self.def_main[k] for k in self.def_main}
+        # for item in current:
+        #     if item == 'command':
+        #         self.command = current[item]
+        #     elif current[item].find('*') > -1:
+        #         self.mult[item] = current[item]
+        #     elif current[item].find(':') == 0:
+        #         self.late[item] = current[item]
+        #     else:
+        #         self.def_stage[item] = current[item]
 
-        # TODO check that stage symbols are expanded after removing self.def_stage
-        # self.def_stage = self.expand(self.def_stage)
-        self.def_stage = self.expand()
         for d in self.def_stage:
             self.command = self.command.replace(f'${d}', self.def_stage[d])
 
