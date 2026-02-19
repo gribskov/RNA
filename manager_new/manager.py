@@ -1,4 +1,6 @@
 import os.path
+import glob
+import re
 import subprocess as sub
 import shutil
 import sys
@@ -403,6 +405,7 @@ class Stage():
         self.name = name
         self.command = command
         self.realtime = {}
+        self.created = {}
         self.status = 'not started'
 
     def setup_rt(self):
@@ -410,13 +413,47 @@ class Stage():
         Prepare the expanded command for execution with runtime lists of files
         for each filename with wildcard, create list of matching files
 
-        :%in.set(str) defines a glob that matches str
+        :%in.set(str) defines a glob that matches symbol %in and str
         :%in.replace(from,to) creates a new filename from glob %in
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        setre = '(:%in.set\((\w+)\)'
+        setre = '(?P<expression>:%(?P<symbol>[^.]+)\.set\((?P<value>[^)]+)\))'
+        replacere = '(?P<expression>:%(?P<symbol>[^.]+)\.replace\((?P<value>[^,]+),([^)]+)\))'
+
+        command = self.command
+        action = {}
+        target = {}
+        for m in re.finditer(setre, command):
+            # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
+            target = self.glob_update(m.group('value'))
+
+        for t in target:
+            # replace set expression with targets
+            # check to see this target has not been previously  processed
+            # add to processed list
+            result = re.sub(setre, t, command)
+            print(f'result:{result}')
+
+            # get basename and process replace expressions
+
+        for m in re.finditer(replacere, command):
+            # find replace expressions
+            print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} value:{m.group("value")}')
+
+        # save completed commands to command list
+
+
         return None
+
+    def glob_update(self, pattern):
+        """-----------------------------------------------------------------------------------------
+        match the glob pattern and return a list of matching filenames
+
+        :param pattern: str     a globbing pattern corresponding to a filepath
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        return glob.glob(pattern)
 
 
 class Command:
@@ -508,8 +545,8 @@ class Command:
                     # wildcard replace with % expression, escape * and ? to prevent duplicating
                     # escape replaces c with &ord(c);
                     print(dval)
-                    d = dkey.replace('$','')
-                    dval = dval.replace('*',f'&{ord("*")};')
+                    d = dkey.replace('$', '')
+                    dval = dval.replace('*', f'&{ord("*")};')
                     dval = dval.replace('?', f'&{ord("?")};')
                     dval = f':%{d}.set({dval})'
                 else:
