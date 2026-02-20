@@ -389,7 +389,7 @@ class Workflow:
 # end of class Workflow
 ####################################################################################################
 
-class Stage():
+class Stage:
     """#############################################################################################
     keeps track of the real time status of execution of a stage
 
@@ -427,7 +427,7 @@ class Stage():
         for m in re.finditer(setre, command):
             # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
             print(f'globbing:{m.group("value")}')
-            target = self.glob_update(m.group('value'))
+            target = Stage.glob_update(m.group('value'))
 
         for t in target:
             # replace set expression with targets
@@ -455,12 +455,13 @@ class Stage():
 
         return None
 
-    def glob_update(self, pattern):
+    @staticmethod
+    def glob_update(pattern):
         """-----------------------------------------------------------------------------------------
         match the glob pattern and return a list of matching filenames
 
         :param pattern: str     a globbing pattern corresponding to a filepath
-        :return:
+        :return: list           matching files
         -----------------------------------------------------------------------------------------"""
         # re engine does not like \\ so convert to /
         return [m.replace('\\', '/') for m in glob.glob(pattern)]
@@ -613,8 +614,6 @@ class Command:
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        current = self.parsed
-
         for stagename in self.parsed['stage']:
             print(stagename)
             stage_symbol = self.expand(self.parsed['stage'][stagename])
@@ -637,8 +636,8 @@ class Command:
         #     else:
         #         self.def_stage[item] = current[item]
 
-        for d in self.def_stage:
-            self.command = self.command.replace(f'${d}', self.def_stage[d])
+        # for d in self.def_stage:
+        #     self.command = self.command.replace(f'${d}', self.def_stage[d])
 
         for m in self.mult:
             for d in self.def_stage:
@@ -653,6 +652,8 @@ class Command:
         """-----------------------------------------------------------------------------------------
         based on the entries in self.mult, that is, symbols that contain wildcards, generate
         lists of matching file names to be used in individual commands
+
+        TODO review, may no longer be used
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -700,6 +701,7 @@ class Command:
     def multiple_gen(self, filelist):
         """-----------------------------------------------------------------------------------------
         generator to create all combinations of multiple values
+        TODO review, may no longer be used
 
         :return: dict   value for each entry in self.mult
         -----------------------------------------------------------------------------------------"""
