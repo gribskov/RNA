@@ -418,8 +418,8 @@ class Stage():
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        setre = '(?P<expression>:%(?P<symbol>[^.]+)\.set\((?P<value>[^)]+)\))'
-        replacere = '(?P<expression>:%(?P<symbol>[^.]+)\.replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
+        setre = '(?P<expression>%(?P<symbol>[^.]+)\.set\((?P<value>[^)]+)\))'
+        replacere = '(?P<expression>%(?P<symbol>[^.]+)\.replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
 
         command = self.command
         command_list = []
@@ -442,7 +442,7 @@ class Stage():
             for m in re.finditer(replacere, command):
                 # find replace expressions, there may be more than one
                 print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} '
-                      'replacement:{m.group("old")} => {m.group("new")}')
+                      f'replacement:{m.group("old")} => {m.group("new")}')
                 old = m.group('old').replace('"', '').replace("'", "")
                 new = m.group('new').replace('"', '').replace("'", "")
                 renamed = basetarget.replace(old, new)
@@ -558,7 +558,7 @@ class Command:
                     d = dkey.replace('$', '')
                     dval = dval.replace('*', f'&{ord("*")};')
                     dval = dval.replace('?', f'&{ord("?")};')
-                    dval = f':%{d}.set({dval})'
+                    dval = f'%{d}.set({dval})'
                 else:
                     dval = dval.replace(s, symbol[s])
 
