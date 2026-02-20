@@ -405,7 +405,7 @@ class Stage():
         self.name = name
         self.command = command
         self.realtime = {}
-        self.created = {}
+        self.created = set()
         self.status = 'not started'
 
     def setup_rt(self):
@@ -419,13 +419,14 @@ class Stage():
         :return:
         -----------------------------------------------------------------------------------------"""
         setre = '(?P<expression>:%(?P<symbol>[^.]+)\.set\((?P<value>[^)]+)\))'
-        replacere = '(?P<expression>:%(?P<symbol>[^.]+)\.replace\((?P<value>[^,]+),([^)]+)\))'
+        replacere = '(?P<expression>:%(?P<symbol>[^.]+)\.replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
 
         command = self.command
-        action = {}
-        target = {}
+        command_list = []
+        target = []
         for m in re.finditer(setre, command):
             # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
+            print(f'globbing:{m.group("value")}')
             target = self.glob_update(m.group('value'))
 
         for t in target:
@@ -434,15 +435,23 @@ class Stage():
             # add to processed list
             result = re.sub(setre, t, command)
             print(f'result:{result}')
+            basetarget = os.path.basename(t)
 
             # get basename and process replace expressions
 
-        for m in re.finditer(replacere, command):
-            # find replace expressions
-            print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} value:{m.group("value")}')
+            for m in re.finditer(replacere, command):
+                # find replace expressions, there may be more than one
+                print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} '
+                      'replacement:{m.group("old")} => {m.group("new")}')
+                old = m.group('old').replace('"', '').replace("'", "")
+                new = m.group('new').replace('"', '').replace("'", "")
+                renamed = basetarget.replace(old, new)
+                print(f'before:{basetarget}\t\tafter:{renamed}')
+                result = result.replace(m.group('expression'), renamed)
+                print(f'before:{basetarget}\t\tafter:{result}')
+                command_list.append({'stage': self.name, 'command': result})
 
-        # save completed commands to command list
-
+            self.created.add(t)
 
         return None
 
@@ -453,7 +462,8 @@ class Stage():
         :param pattern: str     a globbing pattern corresponding to a filepath
         :return:
         -----------------------------------------------------------------------------------------"""
-        return glob.glob(pattern)
+        # re engine does not like \\ so convert to /
+        return [m.replace('\\', '/') for m in glob.glob(pattern)]
 
 
 class Command:
