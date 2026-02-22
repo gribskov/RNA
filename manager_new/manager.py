@@ -1,12 +1,12 @@
 import os.path
-import glob
+# import glob
 import re
 import subprocess as sub
 import shutil
 import sys
 import time
 import argparse
-from os import name
+# from os import name
 
 import yaml
 import glob
@@ -134,8 +134,10 @@ class Workflow:
     def __init__(self):
         """-----------------------------------------------------------------------------------------
         option:         dict of options set on command line
-        plan:           python object created from plan xml
-        log             Log object - all logs
+        command:        Command object, parsed commands and stage information
+        project:        str - name of project
+        log:            Log object - all logs
+
         stage:          name of the current stage, from yaml
         command:        filehandle - list of commands to run in this stage
         complete:       filehandle - list of commands completed in this stage
@@ -223,11 +225,13 @@ class Workflow:
         # directory is defined in the workflow so this must be done first
         workflow = self.option['workflow']
         command = Command(filename=workflow)
+        self.command = command
         command.read()
         # global static symbols
         command.static_symbols = command.expand(command.parsed['definitions'])
-        self.command = command
+
         project = command.static_symbols['$project']
+        self.project = project
 
         if self.option['restart']:
             # in restart mode, delete existing directory if present and create the project directory
@@ -253,7 +257,7 @@ class Workflow:
         self.log = log
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n\n')
 
-        return
+        return True
 
     def stage_setup(self, stage):
         """-----------------------------------------------------------------------------------------
@@ -323,6 +327,7 @@ class Workflow:
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
+        TODO defer fast_forward until after main command loop is updated
         When stage_fast_forward() returns False it means that commands must be generated and stored
         in the command file (done by command_generate)
 
@@ -960,7 +965,7 @@ if __name__ == '__main__':
     # main set up: read workflow, create project directory, start main log file
     w.main_setup()
 
-    sys.stdout.write(f'Project: {w.option["project"]}\n')
+    sys.stdout.write(f'Project: {w.project}\n')
     if w.option['restart']:
         sys.stdout.write(f'Restart mode (all previous files removed)\n')
     else:
