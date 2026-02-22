@@ -1,11 +1,11 @@
 ---
   definitions:
-    project: testproject
+    project: human
     python: python
-    source: ../data
+    fasta: $base/fasta
     base: $project
     ct: $base/ct
-    xios: ../RNA
+    xios: ../data
     RNAstructure: ../RNAstructure
   stage:
     xios:
@@ -14,9 +14,9 @@
         -c $fasta 
         -x $ct 
         -r $RNAstructure
-      in: $source/*.xios
-      out: :$xios/%in.replace('.xios', '.ct')
-      another: :$ct/%in.replace('.xios', '.fasta')
+      in: $xios/*.xios
+      out: $ct/%in.replace('.xios', '.ct')
+      another: ./%in.replace('.xios', '.fasta')
     two:
       command: $python $xios/xios_dummy.py $option
       option:

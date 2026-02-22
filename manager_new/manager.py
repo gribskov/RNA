@@ -35,18 +35,21 @@ def getoptions():
     j, jobs         number of concurrent jobs to run
     l, log          directory for log files
 
-    :return: command line namespace
+    :return: command line namespace converted to dict
     -----------------------------------------------------------------------------------------"""
     project_default = './'
     commandline = argparse.ArgumentParser(
         description='Run workflow', formatter_class=arg_formatter)
 
-    commandline.add_argument('project', type=str,
-                             help='project directory for project (%(default)s)',
-                             default=project_default)
+    # commandline.add_argument('project', type=str,
+    #                          help='project directory for project (%(default)s)',
+    #                          default=project_default)
+    commandline.add_argument('workflow', type=str,
+                             help='YAML workflow plan for project (%(default)s)',
+                             default='workflow.yaml')
 
     commandline.add_argument('-r', '--restart',
-                             help='Erase directories/files and restart denovo (%(default)s)',
+                             help='Erase current directories/files and restart denovo (%(default)s)',
                              default=False, action='store_true')
 
     commandline.add_argument('-w', '--workflow', type=str,
@@ -70,8 +73,8 @@ def getoptions():
     args = commandline.parse_args()
 
     # project directory must not end in /
-    if not args.project.endswith('/'):
-        args.project = args.project.rstrip('/')
+    # if not args.project.endswith('/'):
+    #     args.project = args.project.rstrip('/')
 
     return vars(args)  # convert namespace to dict
 
@@ -138,8 +141,8 @@ class Workflow:
         complete:       filehandle - list of commands completed in this stage
         log:            filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
-        self.option = getoptions()
-        self.yaml = None
+        self.option = None
+        self.command = None
         self.log_main = None
         self.stage = ''
         self.stage_dir = ''
@@ -203,45 +206,48 @@ class Workflow:
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
         set up for the overall run
-        1) restart==True: create project directory, deleting current data
-           restart==False: create directory if not present, otherwise reuse current project
-        2) create main log
-        3) read workflow from yaml plan description
+        1) read workflow and expand static symbols
+        2) if  restart==True:
+            create project directory, deleting current data
+            create main log
 
-        :return:
+            elif restart==False:
+            create directory if not already present, otherwise reuse current directory
+            create main log if not present
+
+        :return:??
         -----------------------------------------------------------------------------------------"""
-        projdir = self.option["project"]
-        self.option['base'] = os.path.basename(projdir)
+        # expand global symbols (definitions in workflow yaml) and store in command. The project
+        # directory is defined in the workflow so this must be done first
+        workflow = self.option['workflow']
+        command = Command(filename=workflow)
+        command.read()
+        # global static symbols
+        command.static_symbols = command.expand(self.command.parsed['definitions'])
+        self.command = command
+        project = command.static_symbols['project']
+
         if self.option['restart']:
             # in restart mode, delete existing directory if present and create the project directory
             # and main log
-            if os.path.isdir(projdir):
+            if os.path.isdir(project):
                 # project directory exists
-                shutil.rmtree(projdir, ignore_errors=False, onerror=None)
-            os.mkdir(projdir)
+                shutil.rmtree(project, ignore_errors=False, onerror=None)
+            os.mkdir(project)
 
-        else:
-            # fastforward mode keeps the current directory without changing, if the project
-            # directory and log file exist, proceed, otherwise create new ones
-
-            if not os.path.isdir(projdir):
-                # project directory does not exist, this is a new project, create logfile below
-                os.mkdir(projdir)
+        elif not os.path.isdir(project):
+            # project directory does not exist, this is a new project, create logfile below
+            os.mkdir(project)
 
         # start the main log
-        log = f'{projdir}/{self.option["base"]}.log'
-        self.log.start('main', log)
-        self.log['main'].write('\n')
+        # log.start will not delete existing file, log.start will not delete log if it already
+        # exists. The main log has the same name as the project
+        mainlogfile = f'{project}/{os.path.basename(project)}.log'
+        self.log.start('main', mainlogfile)
         self.log.add('main', f'Project {self.option["project"]}: started')
-
-        # expand global symbols (definitions in yaml) and store in yaml
-        self.yaml = Command(filename=self.option['workflow'])
-        self.yaml.read()
-        # global static symbols
-        self.yaml.static_symbols = self.yaml.expand(self.yaml.parsed['definitions'])
-        self.log.add('main', f'{self.option["project"]}: workflow {self.option["workflow"]} read '
-                             f'{len(self.yaml.parsed["stage"])} stages')
-        sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n')
+        self.log.add('main', f'{project}: workflow {workflow} read '
+                             f'{len(command.parsed["stage"])} stages')
+        sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n\n')
 
         return
 
@@ -323,8 +329,8 @@ class Workflow:
 
         :return: bool   True if commands need to be generated (restart())
         -----------------------------------------------------------------------------------------"""
-        self.yaml.stage = self.stage
-        self.yaml.stage_dir = self.stage_dir
+        self.command.stage = self.stage
+        self.command.stage_dir = self.stage_dir
         # try to open and read completed commands, if file is absent the complete list will be
         # empty
         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
@@ -350,7 +356,7 @@ class Workflow:
         new_commands = False
         if not self.command:
             new_commands = True
-            commands = self.yaml.command_generate()
+            commands = self.command.command_generate()
             self.log.add('stage', f'Commands generated: {len(commands)}')
 
             self.command = self.open_exist(commandfile, 'w')
@@ -389,7 +395,7 @@ class Workflow:
 # end of class Workflow
 ####################################################################################################
 
-class Stage():
+class Template:
     """#############################################################################################
     keeps track of the real time status of execution of a stage
 
@@ -405,7 +411,7 @@ class Stage():
         self.name = name
         self.command = command
         self.realtime = {}
-        self.created = {}
+        self.created = set()
         self.status = 'not started'
 
     def setup_rt(self):
@@ -418,15 +424,16 @@ class Stage():
 
         :return:
         -----------------------------------------------------------------------------------------"""
-        setre = '(?P<expression>:%(?P<symbol>[^.]+)\.set\((?P<value>[^)]+)\))'
-        replacere = '(?P<expression>:%(?P<symbol>[^.]+)\.replace\((?P<value>[^,]+),([^)]+)\))'
+        setre = r'(?P<expression>%(?P<symbol>[^.]+).set\((?P<value>[^)]+)\))'
+        replacere = r'(?P<expression>%(?P<symbol>[^.]+).replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
 
         command = self.command
-        action = {}
-        target = {}
+        command_list = []
+        target = []
         for m in re.finditer(setre, command):
             # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
-            target = self.glob_update(m.group('value'))
+            print(f'globbing:{m.group("value")}')
+            target = Stage.glob_update(m.group('value'))
 
         for t in target:
             # replace set expression with targets
@@ -434,26 +441,36 @@ class Stage():
             # add to processed list
             result = re.sub(setre, t, command)
             print(f'result:{result}')
+            basetarget = os.path.basename(t)
 
             # get basename and process replace expressions
 
-        for m in re.finditer(replacere, command):
-            # find replace expressions
-            print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} value:{m.group("value")}')
+            for m in re.finditer(replacere, command):
+                # find replace expressions, there may be more than one
+                print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} '
+                      f'replacement:{m.group("old")} => {m.group("new")}')
+                old = m.group('old').replace('"', '').replace("'", "")
+                new = m.group('new').replace('"', '').replace("'", "")
+                renamed = basetarget.replace(old, new)
+                print(f'before:{basetarget}\t\tafter:{renamed}')
+                result = result.replace(m.group('expression'), renamed)
+                print(f'before:{basetarget}\t\tafter:{result}')
+                command_list.append({'stage': self.name, 'command': result})
 
-        # save completed commands to command list
-
+            self.created.add(t)
 
         return None
 
-    def glob_update(self, pattern):
+    @staticmethod
+    def glob_update(pattern):
         """-----------------------------------------------------------------------------------------
         match the glob pattern and return a list of matching filenames
 
         :param pattern: str     a globbing pattern corresponding to a filepath
-        :return:
+        :return: list           matching files
         -----------------------------------------------------------------------------------------"""
-        return glob.glob(pattern)
+        # re engine does not like \\ so convert to /
+        return [m.replace('\\', '/') for m in glob.glob(pattern)]
 
 
 class Command:
@@ -461,7 +478,7 @@ class Command:
     convert the yaml workflow file describing the workflow to a list of executable commands
 
     each stage can add/replace symbols in the global definitions, and can have tokens that can only
-    be expanded at run time (see class Stage())
+    be expanded at run time (see class Template())
 
     TODO add description of workflow syntax
     #############################################################################################"""
@@ -548,7 +565,7 @@ class Command:
                     d = dkey.replace('$', '')
                     dval = dval.replace('*', f'&{ord("*")};')
                     dval = dval.replace('?', f'&{ord("?")};')
-                    dval = f':%{d}.set({dval})'
+                    dval = f'%{d}.set({dval})'
                 else:
                     dval = dval.replace(s, symbol[s])
 
@@ -603,13 +620,11 @@ class Command:
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        current = self.parsed
-
         for stagename in self.parsed['stage']:
             print(stagename)
             stage_symbol = self.expand(self.parsed['stage'][stagename])
             # all symbols have been expanded so the only thing we need is the final command for the stage
-            this_stage = Stage(name=stagename, command=stage_symbol['$command'])
+            this_stage = Template(name=stagename, command=stage_symbol['$command'])
             this_stage.setup_rt()
             self.command.append(this_stage)
 
@@ -627,8 +642,8 @@ class Command:
         #     else:
         #         self.def_stage[item] = current[item]
 
-        for d in self.def_stage:
-            self.command = self.command.replace(f'${d}', self.def_stage[d])
+        # for d in self.def_stage:
+        #     self.command = self.command.replace(f'${d}', self.def_stage[d])
 
         for m in self.mult:
             for d in self.def_stage:
@@ -643,6 +658,8 @@ class Command:
         """-----------------------------------------------------------------------------------------
         based on the entries in self.mult, that is, symbols that contain wildcards, generate
         lists of matching file names to be used in individual commands
+
+        TODO review, may no longer be used
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -690,6 +707,7 @@ class Command:
     def multiple_gen(self, filelist):
         """-----------------------------------------------------------------------------------------
         generator to create all combinations of multiple values
+        TODO review, may no longer be used
 
         :return: dict   value for each entry in self.mult
         -----------------------------------------------------------------------------------------"""
@@ -934,6 +952,10 @@ if __name__ == '__main__':
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
     w = Workflow()
+    w.option = getoptions()
+    # main set up: read workflow, create project directory, start main log file
+    w.main_setup()
+
     sys.stdout.write(f'Project: {w.option["project"]}\n')
     if w.option['restart']:
         sys.stdout.write(f'Restart mode (all previous files removed)\n')
