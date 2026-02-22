@@ -226,9 +226,6 @@ class Workflow:
         workflow = self.option['workflow']
         command = Command(filename=workflow)
         self.command = command
-        command.read()
-        # global static symbols
-        command.static_symbols = command.expand(command.parsed['definitions'])
 
         project = command.static_symbols['$project']
         self.project = project
@@ -509,9 +506,13 @@ class Command:
         defs        i think this was the same as def main
         -----------------------------------------------------------------------------------------"""
         self.file = filename
-        self.parsed = None
         self.command = []
+        self.parsed = None
         self.static_symbols = {}
+
+        if filename:
+            # expand static commands and create templates if filename exists
+            self.stage_setup()
 
         # self.stage = ''
         # self.stage_dir = ''
@@ -522,15 +523,30 @@ class Command:
         # self.late = {}
         # self.defs = []
 
+    def stage_setup(self):
+        """-------------------------------------------------------------------------------------------------------------
+        read workflow from yaml file and parse global static symbols
+        expand static symbols
+        create stage templates
+        :return: int                number of stages
+        -------------------------------------------------------------------------------------------------------------"""
+        self.read()
+        parsed = self.parsed
+        self.static_symbols = self.expand(parsed['definitions'])
+
+        for stage in parsed['stage']:
+            print( stage)
+
     def read(self):
         """-----------------------------------------------------------------------------------------
         read the workflow description from the yaml file. File is stored in Command.file
-
+        TODO check error return for yaml.load()
         :return: dict               workflow as a python dictionary
         -----------------------------------------------------------------------------------------"""
         fp = open(self.file, 'r')
         self.parsed = yaml.load(fp, Loader=yaml.FullLoader)
         fp.close()
+
         return self.parsed
 
     def expand(self, definitions):
@@ -609,8 +625,10 @@ class Command:
     #
     #     return True
 
-    def command_generate(self):
+    def generate(self):
         """-----------------------------------------------------------------------------------------
+        generate executable commands from stage templates
+
         updating to generate commands for all stages
 
         generate a list of commands from the workflow for a specific stage
@@ -624,8 +642,8 @@ class Command:
         break command lines from workflow yaml into
         commands
         mult - symbols generated with wild cards
-        late - dependent symbols created from other symbols. they are late because they geneerally
-                can't be resolved unitl the previous stage finishes
+        late - dependent symbols created from other symbols. they are late because they generally
+                can't be resolved until the previous stage finishes
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
@@ -968,14 +986,19 @@ if __name__ == '__main__':
     sys.stdout.write(f'Project: {w.project}\n')
     if w.option['restart']:
         sys.stdout.write(f'Restart mode (all previous files removed)\n')
+        w.log.add('main', f'Project {w.project}: restart, directory reset')
     else:
         sys.stdout.write(f'Fast forward mode, continue previous run\n')
+        w.log.add('main', f'Project {w.project}: fastforward, skipping completed commands')
 
-    # main set up: create project directory, start main log file
-    w.main_setup()
+    # # main set up: create project directory, start main log file
+    # w.main_setup()
 
-    for stage in w.yaml.parsed['stage']:
+    for stage in w.command.parsed['stage']:
         sys.stdout.write(f'\t{stage}\n')
+    w.command.generate()
+
+
 
     # run each stage of the workflow plan (stage: in the yaml)
     for stage in w.yaml.parsed['stage']:
