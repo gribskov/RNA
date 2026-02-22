@@ -44,9 +44,9 @@ def getoptions():
     # commandline.add_argument('project', type=str,
     #                          help='project directory for project (%(default)s)',
     #                          default=project_default)
-    commandline.add_argument('workflow', type=str,
-                             help='YAML workflow plan for project (%(default)s)',
-                             default='workflow.yaml')
+    # commandline.add_argument('workflow', type=str,
+    #                          help='YAML workflow plan for project (%(default)s)',
+    #                          default='workflow.yaml')
 
     commandline.add_argument('-r', '--restart',
                              help='Erase current directories/files and restart denovo (%(default)s)',
@@ -135,7 +135,7 @@ class Workflow:
         """-----------------------------------------------------------------------------------------
         option:         dict of options set on command line
         plan:           python object created from plan xml
-        log_main        filehandle - overall logfile
+        log             Log object - all logs
         stage:          name of the current stage, from yaml
         command:        filehandle - list of commands to run in this stage
         complete:       filehandle - list of commands completed in this stage
@@ -143,7 +143,7 @@ class Workflow:
         -----------------------------------------------------------------------------------------"""
         self.option = None
         self.command = None
-        self.log_main = None
+        self.log = None
         self.stage = ''
         self.stage_dir = ''
         self.stage_finished = False
@@ -215,6 +215,8 @@ class Workflow:
             create directory if not already present, otherwise reuse current directory
             create main log if not present
 
+        3) initial entries in main log
+
         :return:??
         -----------------------------------------------------------------------------------------"""
         # expand global symbols (definitions in workflow yaml) and store in command. The project
@@ -223,9 +225,9 @@ class Workflow:
         command = Command(filename=workflow)
         command.read()
         # global static symbols
-        command.static_symbols = command.expand(self.command.parsed['definitions'])
+        command.static_symbols = command.expand(command.parsed['definitions'])
         self.command = command
-        project = command.static_symbols['project']
+        project = command.static_symbols['$project']
 
         if self.option['restart']:
             # in restart mode, delete existing directory if present and create the project directory
@@ -239,14 +241,16 @@ class Workflow:
             # project directory does not exist, this is a new project, create logfile below
             os.mkdir(project)
 
-        # start the main log
+        # create log object and add main
         # log.start will not delete existing file, log.start will not delete log if it already
         # exists. The main log has the same name as the project
         mainlogfile = f'{project}/{os.path.basename(project)}.log'
-        self.log.start('main', mainlogfile)
-        self.log.add('main', f'Project {self.option["project"]}: started')
-        self.log.add('main', f'{project}: workflow {workflow} read '
-                             f'{len(command.parsed["stage"])} stages')
+        log = Log()
+        log.start('main', mainlogfile)
+        log.add('main', f'Project {project}: started')
+        log.add('main', f'{project}: workflow {workflow} read '
+                        f'{len(command.parsed["stage"])} stages')
+        self.log = log
         sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n\n')
 
         return
@@ -504,14 +508,14 @@ class Command:
         self.command = []
         self.static_symbols = {}
 
-        self.stage = ''
-        self.stage_dir = ''
-        self.def_main = {}
-        self.def_stage = {}
-
-        self.mult = {}
-        self.late = {}
-        self.defs = []
+        # self.stage = ''
+        # self.stage_dir = ''
+        # self.def_main = {}
+        # self.def_stage = {}
+        #
+        # self.mult = {}
+        # self.late = {}
+        # self.defs = []
 
     def read(self):
         """-----------------------------------------------------------------------------------------
@@ -883,8 +887,8 @@ class Executor:
 
 class Log(dict):
     """=============================================================================================
-    Make standardized entries in log files. Only a class so it can be shared by Executor and
-    workflow
+    Make standardized entries in log files. A class so it can be shared by Workflow, Command, and
+    Executor
     ============================================================================================="""
 
     def __init__(self, *args, **kwargs):
