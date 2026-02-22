@@ -420,7 +420,7 @@ class Template:
         self.created = set()
         self.status = 'not started'
 
-    def setup_rt(self):
+    def fill(self):
         """-----------------------------------------------------------------------------------------
         Prepare the expanded command for execution with runtime lists of files
         for each filename with wildcard, create list of matching files
@@ -430,6 +430,7 @@ class Template:
 
         :return:
         -----------------------------------------------------------------------------------------"""
+        # TODO make these class variables and precompile
         setre = r'(?P<expression>%(?P<symbol>[^.]+).set\((?P<value>[^)]+)\))'
         replacere = r'(?P<expression>%(?P<symbol>[^.]+).replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
 
@@ -439,7 +440,7 @@ class Template:
         for m in re.finditer(setre, command):
             # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
             print(f'globbing:{m.group("value")}')
-            target = Stage.glob_update(m.group('value'))
+            target = Template.glob_update(m.group('value'))
 
         for t in target:
             # replace set expression with targets
@@ -465,7 +466,7 @@ class Template:
 
             self.created.add(t)
 
-        return None
+        return command_list
 
     @staticmethod
     def glob_update(pattern):
@@ -480,20 +481,20 @@ class Template:
 
 
 class Command:
-    """#############################################################################################
+    """#################################################################################################################
     convert the yaml workflow file describing the workflow to a list of executable commands
 
     each stage can add/replace symbols in the global definitions, and can have tokens that can only
     be expanded at run time (see class Template())
 
     TODO add description of workflow syntax
-    #############################################################################################"""
+    #################################################################################################################"""
 
     def __init__(self, filename='workflow1.yaml'):
-        """-----------------------------------------------------------------------------------------
+        """-------------------------------------------------------------------------------------------------------------
         file        path to yaml file containing the workflow
         parsed      yaml parsed to python dictionary
-        command     list of stage commands with realtime symbols (class stage)
+        command     list of stage templates commands prepared for populating with realtime symbols (class stage)
         stage       current stage (stages can execute concurrently so probably not needed)
         stage_dir   maybe not needed if input and output is expanded completely
 
@@ -504,7 +505,7 @@ class Command:
         mult        commands that expand to multiple values (usually input or output files)
         late        symbols that can only be expanded at run time (realtime)
         defs        i think this was the same as def main
-        -----------------------------------------------------------------------------------------"""
+        -------------------------------------------------------------------------------------------------------------"""
         self.file = filename
         self.command = []
         self.parsed = None
@@ -534,8 +535,14 @@ class Command:
         parsed = self.parsed
         self.static_symbols = self.expand(parsed['definitions'])
 
-        for stage in parsed['stage']:
-            print( stage)
+        stagelist = parsed['stage']
+        for stage in stagelist:
+            stagecommand = self.expand(stagelist[stage])
+            template = Template(stage, stagecommand['$command'])
+            # self.command.append(template.fill()) fills in commandlist, if you do it here the stages will interleavw
+            print(stage)
+
+        return len(self.command)
 
     def read(self):
         """-----------------------------------------------------------------------------------------
@@ -565,7 +572,7 @@ class Command:
         for d in definitions:
             # add $ to the definition keys and push definitions all definitions on stack
             stack.append(['$' + d, definitions[d]])
-
+        # TODO need to process already defined symbols first so they override global symbols
         while stack:
             # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
             dkey, dval = stack.pop()
@@ -652,7 +659,7 @@ class Command:
             stage_symbol = self.expand(self.parsed['stage'][stagename])
             # all symbols have been expanded so the only thing we need is the final command for the stage
             this_stage = Template(name=stagename, command=stage_symbol['$command'])
-            this_stage.setup_rt()
+            this_stage.fill()
             self.command.append(this_stage)
 
         # merge stage definitions with global definitions and expand the command
@@ -997,8 +1004,6 @@ if __name__ == '__main__':
     for stage in w.command.parsed['stage']:
         sys.stdout.write(f'\t{stage}\n')
     w.command.generate()
-
-
 
     # run each stage of the workflow plan (stage: in the yaml)
     for stage in w.yaml.parsed['stage']:
