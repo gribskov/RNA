@@ -42,14 +42,8 @@ class Command:
         fp.close()
         return self.parsed
 
-    def main(self):
-        """-----------------------------------------------------------------------------------------
-        Set up the main definitions for the plan
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        pass
 
-        def expand(self):
+    def expand(self):
         """-----------------------------------------------------------------------------------------
         recursively substitute symbols in defs with their values. Definitions to expand are in
         self.parsed['definitions']

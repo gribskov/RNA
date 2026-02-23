@@ -509,7 +509,8 @@ class Command:
         defs        i think this was the same as def main
         -------------------------------------------------------------------------------------------------------------"""
         self.file = filename
-        self.command = []
+        self.templates = []
+        self.commands = []
         self.parsed = None
         self.static_symbols = {}
 
@@ -548,11 +549,11 @@ class Command:
             # expand stage-specific symbols
             expanded_stage_defs = self.expand(stagelist[stage])
             template = Template(stage, priority, expanded_stage_defs['$command'])
-            self.command.append(template)
+            self.templates.append(template)
             priority += 1
             # print(stage)
 
-        return len(self.command)
+        return len(self.templates)
 
     def read(self):
         """-----------------------------------------------------------------------------------------
@@ -664,39 +665,16 @@ class Command:
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        for stage in self.command:
+        for stage in self.templates:
             # stage is a Template object
             print(stage.name)
             # stage_symbol = self.expand(self.parsed['stage'][stagename])
             # all symbols have been expanded so the only thing we need is the final command for the stage
             # this_stage = Template(name=stagename, command=stage_symbol['$command'])
-            self.command.append(stage.fill())
+            self.commands += stage.fill()
+            # print(stage)
 
-        # merge stage definitions with global definitions and expand the command
-        # separate the definitions into the command, simple symbols, mutltiple processing
-        # symbols, and late symbols
-        # self.def_stage = {k: self.def_main[k] for k in self.def_main}
-        # for item in current:
-        #     if item == 'command':
-        #         self.command = current[item]
-        #     elif current[item].find('*') > -1:
-        #         self.mult[item] = current[item]
-        #     elif current[item].find(':') == 0:
-        #         self.late[item] = current[item]
-        #     else:
-        #         self.def_stage[item] = current[item]
-
-        # for d in self.def_stage:
-        #     self.command = self.command.replace(f'${d}', self.def_stage[d])
-
-        # for m in self.mult:
-        #     for d in self.def_stage:
-        #         self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
-        # for litem in self.late:
-        #     for d in self.def_stage:
-        #         self.late[litem] = self.late[litem].replace(f'${d}', self.def_stage[d])
-
-        return self.multiple()
+        return len(self.commands)
 
     def multiple(self):
         """-----------------------------------------------------------------------------------------
@@ -779,15 +757,16 @@ class Command:
 
 class Executor:
     """#############################################################################################
-    command executor, runs a set of command lines in a directory. Executor is the main part of
-    the original rna_manager
+    command executor, runs a set of command lines from Command.commands. each item in the command
+    list is created in command.generate() using Template.fill()
+    {'stage': stage.name, 'priority': priority, 'command': full command}
     #############################################################################################"""
 
-    def __init__(self, commandfile='stage.command', completefile='stage.complete',
+    def __init__(self, commandlist=None, completefile='stage.complete',
                  log=None, stage='', jobs=20, delay=5):
         """-----------------------------------------------------------------------------------------
-        commandfile     file of commands to open (readable)
-        completefile    file of completed commands (writable)
+        commandlist     Command.commands - list of commands to execute
+        # completefile    file of completed commands (writable)
         command         fh, list of command lines to run
         complete        fh, list of completed commands
         log             Log object, set up in Workflow
@@ -796,9 +775,9 @@ class Executor:
         delay           number of seconds to wait between polling
         running         number of jobs currently running
         -----------------------------------------------------------------------------------------"""
-        self.commandfile = commandfile
-        self.command = None
-        self.commandlist = []
+        # self.commandfile = commandfile
+        # self.command = None
+        self.commandlist = commandlist
         self.completefile = completefile
         self.complete = None
         self.log = log
@@ -838,6 +817,14 @@ class Executor:
         self.complete = Workflow.open_exist(self.completefile, 'w')
 
         return True
+
+    def prioritize(self):
+        """-----------------------------------------------------------------------------------------
+        sort command list by stage priority
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        commandlist = self.commandlist
+        self.commandlist = sorted(commandlist, key)
 
     def startjobs(self):
         """-----------------------------------------------------------------------------------------
@@ -1021,8 +1008,11 @@ if __name__ == '__main__':
     # main loop over all complete commands
     #
     w.command.generate()
-    while w.command.command:
+    exec = Executor(w.command, completefile, w.log, w.stage, jobs=w.option["jobs"],
+                            delay=4)
+    while exec.commandlist:
         # continue as long as there are commands in the command list
+        exec.prioritize()
 
         # generate more commands if possible
         w.command.generate()
