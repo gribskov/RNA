@@ -403,19 +403,21 @@ class Workflow:
 
 class Template:
     """#############################################################################################
-    keeps track of the real time status of execution of a stage
-
+    A template is the command for a specific stage with all static variables completed and wildcards
+    converted to symbols (marked by %) that can be filled in during the run (see Template.fill())
     #############################################################################################"""
 
-    def __init__(self, name='', command=''):
+    def __init__(self, name='', priority=0, command=''):
         """-----------------------------------------------------------------------------------------
         command - expanded command with static symbols ($ symbols) expanded
+        priority - integer giving a priority to this template, 0 is first
         realtime - symbols in the process of expansion and execution (formerly called "late"
                    symbols)
         status - 'not started', 'running', 'finished'
         -----------------------------------------------------------------------------------------"""
         self.name = name
         self.command = command
+        self.priority = priority
         self.realtime = {}
         self.created = set()
         self.status = 'not started'
@@ -462,7 +464,7 @@ class Template:
                 print(f'before:{basetarget}\t\tafter:{renamed}')
                 result = result.replace(m.group('expression'), renamed)
                 print(f'before:{basetarget}\t\tafter:{result}')
-                command_list.append({'stage': self.name, 'command': result})
+                command_list.append({'stage': self.name, 'priority': self.priority, 'command': result})
 
             self.created.add(t)
 
@@ -531,16 +533,24 @@ class Command:
         create stage templates
         :return: int                number of stages
         -------------------------------------------------------------------------------------------------------------"""
+        # read the workflow yaml file
         self.read()
         parsed = self.parsed
+        # expand global static symbols, do not process stage commands at this point
         self.static_symbols = self.expand(parsed['definitions'])
 
+        # build the stage command templates. These have all symbols expanded and any symbolse to be
+        # determined at run time replaced with % symbols. stagelist is a dict with the stagenames as keys, directly from
+        # the parsed workflow yaml
         stagelist = parsed['stage']
+        priority = 0
         for stage in stagelist:
-            stagecommand = self.expand(stagelist[stage])
-            template = Template(stage, stagecommand['$command'])
-            # self.command.append(template.fill()) fills in commandlist, if you do it here the stages will interleavw
-            print(stage)
+            # expand stage-specific symbols
+            expanded_stage_defs = self.expand(stagelist[stage])
+            template = Template(stage, priority, expanded_stage_defs['$command'])
+            self.command.append(template)
+            priority += 1
+            # print(stage)
 
         return len(self.command)
 
@@ -654,13 +664,13 @@ class Command:
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        for stagename in self.parsed['stage']:
-            print(stagename)
-            stage_symbol = self.expand(self.parsed['stage'][stagename])
+        for stage in self.command:
+            # stage is a Template object
+            print(stage.name)
+            # stage_symbol = self.expand(self.parsed['stage'][stagename])
             # all symbols have been expanded so the only thing we need is the final command for the stage
-            this_stage = Template(name=stagename, command=stage_symbol['$command'])
-            this_stage.fill()
-            self.command.append(this_stage)
+            # this_stage = Template(name=stagename, command=stage_symbol['$command'])
+            self.command.append(stage.fill())
 
         # merge stage definitions with global definitions and expand the command
         # separate the definitions into the command, simple symbols, mutltiple processing
@@ -679,12 +689,12 @@ class Command:
         # for d in self.def_stage:
         #     self.command = self.command.replace(f'${d}', self.def_stage[d])
 
-        for m in self.mult:
-            for d in self.def_stage:
-                self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
-        for litem in self.late:
-            for d in self.def_stage:
-                self.late[litem] = self.late[litem].replace(f'${d}', self.def_stage[d])
+        # for m in self.mult:
+        #     for d in self.def_stage:
+        #         self.mult[m] = self.mult[m].replace(f'${d}', self.def_stage[d])
+        # for litem in self.late:
+        #     for d in self.def_stage:
+        #         self.late[litem] = self.late[litem].replace(f'${d}', self.def_stage[d])
 
         return self.multiple()
 
@@ -842,7 +852,7 @@ class Executor:
 
         self.commandlist: list   list of input files to process
         self.stage: string       name of current stage in workflow
-        :return: boolean                True indicates there are more files to process
+        :return: boolean         True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
         while self.commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
@@ -985,6 +995,7 @@ if __name__ == '__main__':
 
     now = time.localtime()
     sys.stdout.write(f'manager.py {time.asctime(now)}\n\n')
+
     w = Workflow()
     w.option = getoptions()
     # main set up: read workflow, create project directory, start main log file
@@ -1001,28 +1012,39 @@ if __name__ == '__main__':
     # # main set up: create project directory, start main log file
     # w.main_setup()
 
+    priority = 0
     for stage in w.command.parsed['stage']:
-        sys.stdout.write(f'\t{stage}\n')
+        sys.stdout.write(f'\t{stage} \t priority: {priority}\n')
+        priority += 1
+
+    #
+    # main loop over all complete commands
+    #
     w.command.generate()
+    while w.command.command:
+        # continue as long as there are commands in the command list
+
+        # generate more commands if possible
+        w.command.generate()
 
     # run each stage of the workflow plan (stage: in the yaml)
-    for stage in w.yaml.parsed['stage']:
-        # create a list of commands to execute, and a file to store the list of completed commands
-        run_this_stage = w.stage_setup(stage)
-        if run_this_stage:
-            w.stage_fast_forward()
-            # fast_forward returns false for restart mode, or if the command file does
-
-            commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-            completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-            exec = Executor(commandfile, completefile, w.log, w.stage, jobs=w.option["jobs"],
-                            delay=4)
-            exec.setup()
-            # TODO job execution turned off
-            # while exec.startjobs():
-            #     exec.polljobs()
-
-            w.stage_finish()
+    # for stage in w.yaml.parsed['stage']:
+    #     # create a list of commands to execute, and a file to store the list of completed commands
+    #     run_this_stage = w.stage_setup(stage)
+    #     if run_this_stage:
+    #         w.stage_fast_forward()
+    #         # fast_forward returns false for restart mode, or if the command file does
+    #
+    #         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
+    #         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+    #         exec = Executor(commandfile, completefile, w.log, w.stage, jobs=w.option["jobs"],
+    #                         delay=4)
+    #         exec.setup()
+    #         # TODO job execution turned off
+    #         # while exec.startjobs():
+    #         #     exec.polljobs()
+    #
+    #         w.stage_finish()
 
     w.log.add('main', f'Project {w.option["project"]}: finished')
 
