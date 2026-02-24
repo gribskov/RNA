@@ -178,6 +178,7 @@ class Workflow:
                 # fh = open(filename, 'w')
                 # fh = open(filename, 'r')
                 # return False to indicate there's nothing in the file
+                # TODO error message
                 fh = False
 
         return fh
@@ -247,12 +248,23 @@ class Workflow:
         # exists. The main log has the same name as the project
         mainlogfile = f'{project}/{os.path.basename(project)}.log'
         log = Log()
+        self.log = log
         log.start('main', mainlogfile)
         log.add('main', f'Project {project}: started')
         log.add('main', f'{project}: workflow {workflow} read '
                         f'{len(command.parsed["stage"])} stages')
-        self.log = log
-        sys.stdout.write(f'Stages read from {self.option["workflow"]}:\n\n')
+
+        # create stage directories and logs
+        for template in self.command.templates:
+            template.dir = f'{project}/{template.name}'.
+            logname = f'{template.name}log'
+            errname = f'{template.name}err'
+            if not os.path.isdir(template.dir):
+                os.mkdir(template.dir)
+            template.log = log.start(logname, f'{template.dir}/{template.name}.log')
+            template.err = log.start(errname, f'{template.dir}/{template.name}.err))
+
+        sys.stdout.write(f'{len(command.parsed["stage"])} stages read from {self.option["workflow"]}:\n\n')
 
         return True
 
@@ -421,6 +433,9 @@ class Template:
         self.realtime = {}
         self.created = set()
         self.status = 'not started'
+        self.dir = ''
+        self.error = ''
+        self.log = ''
 
     def fill(self):
         """-----------------------------------------------------------------------------------------
@@ -762,8 +777,7 @@ class Executor:
     {'stage': stage.name, 'priority': priority, 'command': full command}
     #############################################################################################"""
 
-    def __init__(self, commandlist=None, completefile='stage.complete',
-                 log=None, stage='', jobs=20, delay=5):
+    def __init__(self, commandlist=None, log=None, stage='', jobs=20, delay=5):
         """-----------------------------------------------------------------------------------------
         commandlist     Command.commands - list of commands to execute
         # completefile    file of completed commands (writable)
@@ -778,7 +792,7 @@ class Executor:
         # self.commandfile = commandfile
         # self.command = None
         self.commandlist = commandlist
-        self.completefile = completefile
+        # self.completefile = completefile
         self.complete = None
         self.log = log
         if not log:
@@ -823,31 +837,28 @@ class Executor:
         sort command list by stage priority
         :return:
         -----------------------------------------------------------------------------------------"""
-        commandlist = self.commandlist
-        self.commandlist = sorted(commandlist, key)
+        commandlist = self.commandlist.commands
+        self.commandlist.commands = sorted(commandlist, key=lambda c: c['priority'])
+
+        return
 
     def startjobs(self):
         """-----------------------------------------------------------------------------------------
-        process all commands in self.commandlist. All commands should already be complete so no
+        start self.jobs commands in self.commandlist. All commands should already be complete so no
         expansion of wildcards or globs is needed
 
-        run up to self.jobs at a time
-
-        usage:
-            while self.manager_startjobs(filelist, stage):
-                self.manager_polljobs(stage)
-
-        self.commandlist: list   list of input files to process
-        self.stage: string       name of current stage in workflow
+        self.commandlist: list   list of input commands to process
         :return: boolean         True indicates there are more files to process
         -----------------------------------------------------------------------------------------"""
-        while self.commandlist and self.running < self.jobs:
+        commandlist = self.commandlist.commands
+        while commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
             # completed commands have already been removed by fast forward, so you don't
             # have to check
-            thiscommand = self.commandlist.pop()
+            entry = commandlist.pop()
+            thiscommand = entry['command']
             self.jobid += 1
-            self.log.add('stage', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
+            self.log.add(entry['stage'], f'Executor: starting {thiscommand}, job ID: {self.jobid}')
 
             job = sub.Popen(thiscommand, shell=True,
                             stdout=self.log['raw_error'], stderr=self.log['raw_error'])
@@ -996,9 +1007,6 @@ if __name__ == '__main__':
         sys.stdout.write(f'Fast forward mode, continue previous run\n')
         w.log.add('main', f'Project {w.project}: fastforward, skipping completed commands')
 
-    # # main set up: create project directory, start main log file
-    # w.main_setup()
-
     priority = 0
     for stage in w.command.parsed['stage']:
         sys.stdout.write(f'\t{stage} \t priority: {priority}\n')
@@ -1008,11 +1016,11 @@ if __name__ == '__main__':
     # main loop over all complete commands
     #
     w.command.generate()
-    exec = Executor(w.command, completefile, w.log, w.stage, jobs=w.option["jobs"],
-                            delay=4)
+    exec = Executor(w.command, w.log, w.stage, jobs=w.option["jobs"], delay=4)
     while exec.commandlist:
         # continue as long as there are commands in the command list
         exec.prioritize()
+        exec.startjobs()
 
         # generate more commands if possible
         w.command.generate()
