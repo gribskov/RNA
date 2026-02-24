@@ -264,7 +264,7 @@ class Workflow:
             template.log = log.start(logname, f'{template.dir}/{template.name}.log')
             template.err = log.start(errname, f'{template.dir}/{template.name}.err))
 
-        sys.stdout.write(f'{len(command.parsed["stage"])} stages read from {self.option["workflow"]}:\n\n')
+            sys.stdout.write(f'{len(command.parsed["stage"])} stages read from {self.option["workflow"]}:\n\n')
 
         return True
 
@@ -638,25 +638,6 @@ class Command:
             symbol[s] = symbol[s].replace(r1, '*').replace(r2, '?')
 
         return symbol
-
-    # def expand_all(self):
-    #     """-----------------------------------------------------------------------------------------
-    #     Expand all $ symbols in the parsed yaml workflow description
-    #     :return:
-    #     -----------------------------------------------------------------------------------------"""
-    #     stack = [self.parsed]
-    #     while stack:
-    #         item = stack.pop()
-    #         if type(item) == dict:
-    #             for each in item:
-    #                 if each == dict:
-    #                     stack = [each] + stack
-    #                 else:
-    #                     stack = [{item:each}] + stack
-    #         else:
-    #             pass
-    #
-    #     return True
 
     def generate(self):
         """-----------------------------------------------------------------------------------------
