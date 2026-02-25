@@ -246,23 +246,25 @@ class Workflow:
         # create log object and add main
         # log.start will not delete existing file, log.start will not delete log if it already
         # exists. The main log has the same name as the project
-        mainlogfile = f'{project}/{os.path.basename(project)}.log'
+        mainlogfile = f'{project}/{os.path.basename(project)}'
         log = Log()
         self.log = log
-        log.start('main', mainlogfile)
+        log.start('main', mainlogfile+'.log')
+        log.start('stdout', mainlogfile+'.out')
+        log.start('stderr', mainlogfile + '.err')
         log.add('main', f'Project {project}: started')
         log.add('main', f'{project}: workflow {workflow} read '
                         f'{len(command.parsed["stage"])} stages')
 
         # create stage directories and logs
         for template in self.command.templates:
-            template.dir = f'{project}/{template.name}'.
+            template.dir = f'{project}/{template.name}'
             logname = f'{template.name}log'
             errname = f'{template.name}err'
             if not os.path.isdir(template.dir):
                 os.mkdir(template.dir)
             template.log = log.start(logname, f'{template.dir}/{template.name}.log')
-            template.err = log.start(errname, f'{template.dir}/{template.name}.err))
+            template.err = log.start(errname, f'{template.dir}/{template.name}.err')
 
             sys.stdout.write(f'{len(command.parsed["stage"])} stages read from {self.option["workflow"]}:\n\n')
 
@@ -839,10 +841,10 @@ class Executor:
             entry = commandlist.pop()
             thiscommand = entry['command']
             self.jobid += 1
-            self.log.add(entry['stage'], f'Executor: starting {thiscommand}, job ID: {self.jobid}')
+            self.log.add(entry['stage']+'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
 
             job = sub.Popen(thiscommand, shell=True,
-                            stdout=self.log['raw_error'], stderr=self.log['raw_error'])
+                            stdout=self.log['raw_error']+'err', stderr=self.log['raw_error'])
             self.log.add('stage', f'Executor: {thiscommand}')
             # job += 1
             self.joblist.append([self.jobid, job])
