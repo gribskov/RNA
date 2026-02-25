@@ -263,6 +263,7 @@ class Workflow:
             logname = f'{template.name}log'
             errname = f'{template.name}err'
             if not os.path.isdir(template.dir):
+                # TODO doesn't seem to skip when directory exists
                 os.mkdir(template.dir)
             template.log = log.start(logname, f'{template.dir}/{template.name}.log')
             template.err = log.start(errname, f'{template.dir}/{template.name}.err')
@@ -296,6 +297,7 @@ class Workflow:
         stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
         self.log.start('stage', stage_log)
         self.log.add('main', f'Stage {self.stage}: starting')
+        # TODO change detection of stage start
         self.log.add('stage', f'Stage started')
 
         # when a stage is finished a marker file {stage}/{stage}.finished is created,
@@ -460,6 +462,7 @@ class Template:
         for m in re.finditer(setre, command):
             # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
             print(f'globbing:{m.group("value")}')
+            * TODO need to catch errors when globbing fails
             target = Template.glob_update(m.group('value'))
 
         for t in target:
@@ -604,6 +607,7 @@ class Command:
         # TODO need to process already defined symbols first so they override global symbols
         while stack:
             # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
+            # TODO should check for unexpandable symols, maybe stack not changing in size for multiple rounds?
             dkey, dval = stack.pop()
             if dval.find('$') == -1:
                 # no expandable symbol, save to symbol dict. this is the only place definitions are
@@ -880,12 +884,12 @@ class Executor:
                 self.finished += 1
                 if result == 0:
                     # success
-                    self.log.add(stage+'log', f'Executor: complete, stage:{stage}, jobid:{jid}')
+                    self.log.add(stage+'log', f'Executor: complete, jobid:{jid} stage:{stage}, ')
                     self.succeeded += 1
 
                 else:
                     # error
-                    self.log.add(stage+'err', f'Executor: fail, stage:{stage}, jobid:{jid}')
+                    self.log.add(stage+'err', f'Executor: fail, jobid:{jid} stage:{stage}, ')
                     self.failed += 1
 
                 # include the result in the remove list, it can't be removed here because it
@@ -896,8 +900,13 @@ class Executor:
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
-            message = f'{j[1].args}\tstatus={j[1].returncode}'
-            self.log.add('complete', message)
+            message = f'status={j[1].returncode}\t{j[1].args}'
+            if j[1].returncode==0:
+                self.log.add('complete', message)
+            else:
+                # returned error status != 0
+                self.log.add('main', 'failed'+'\t'+message)
+
             # self.complete.write(f'{j[1].args}\n')
 
         return True
@@ -942,7 +951,7 @@ class Log(dict):
 
         :return: str - YYYYMoDyHrMnSc
         -----------------------------------------------------------------------------------------"""
-        return time.strftime('%Y%m%d%H%M%S', time.localtime(time.time()))
+        return time.strftime('%Y.%m.%d.%H%M%S', time.localtime(time.time()))
 
     def add(self, log, message):
         """-----------------------------------------------------------------------------------------
@@ -1001,7 +1010,7 @@ if __name__ == '__main__':
     #
     w.command.generate()
     exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=4)
-    while exec.commandlist:
+    while exec.commandlist.commands:
         # continue as long as there are commands in the command list
         exec.prioritize()
         exec.startjobs()
