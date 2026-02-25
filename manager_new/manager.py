@@ -252,6 +252,7 @@ class Workflow:
         log.start('main', mainlogfile+'.log')
         log.start('stdout', mainlogfile+'.out')
         log.start('stderr', mainlogfile + '.err')
+        log.start('complete', mainlogfile + '.completed')
         log.add('main', f'Project {project}: started')
         log.add('main', f'{project}: workflow {workflow} read '
                         f'{len(command.parsed["stage"])} stages')
@@ -760,7 +761,7 @@ class Executor:
     {'stage': stage.name, 'priority': priority, 'command': full command}
     #############################################################################################"""
 
-    def __init__(self, commandlist=None, log=None, stage='', jobs=20, delay=5):
+    def __init__(self, commandlist=None, log=None, jobs=20, delay=5):
         """-----------------------------------------------------------------------------------------
         commandlist     Command.commands - list of commands to execute
         # completefile    file of completed commands (writable)
@@ -810,8 +811,8 @@ class Executor:
         total = len(self.commandlist)
         self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
         self.log.start('raw_error', self.log['stage'].name + '.err')
-
-        self.complete = Workflow.open_exist(self.completefile, 'w')
+        # the complete commands are now stored in a log called projectname.complete
+        # self.complete = Workflow.open_exist(self.completefile, 'w')
 
         return True
 
@@ -842,15 +843,13 @@ class Executor:
             thiscommand = entry['command']
             self.jobid += 1
             self.log.add(entry['stage']+'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
-
-            job = sub.Popen(thiscommand, shell=True,
-                            stdout=self.log['raw_error']+'err', stderr=self.log['raw_error'])
-            self.log.add('stage', f'Executor: {thiscommand}')
+            job = sub.Popen(thiscommand, shell=True, stdout=self.log['stdout'], stderr=self.log['stderr'])
+            self.log.add(entry['stage']+'log', f'Executor: {thiscommand}')
             # job += 1
-            self.joblist.append([self.jobid, job])
+            self.joblist.append([self.jobid, job,entry['stage']])
             self.running += 1
 
-        if self.commandlist or self.running:
+        if self.joblist or self.running:
             # files remain to be processed or are still running, make sure polling continues
             return True
         else:
@@ -866,7 +865,7 @@ class Executor:
         time.sleep(self.delay)
         to_remove = []
         for j in self.joblist:
-            jid, job = j
+            jid, job, stage = j
             # print(f'\tjob {jid} ...', end='')
             result = job.poll()
             if result is None:
@@ -881,12 +880,12 @@ class Executor:
                 self.finished += 1
                 if result == 0:
                     # success
-                    self.log.add('stage', f'Executor: complete, stage:{self.stage}, jobid:{jid}')
+                    self.log.add(stage+'log', f'Executor: complete, stage:{stage}, jobid:{jid}')
                     self.succeeded += 1
 
                 else:
                     # error
-                    self.log.add('stage', f'Executor: fail, stage:{self.stage}, jobid:{jid}')
+                    self.log.add(stage+'err', f'Executor: fail, stage:{stage}, jobid:{jid}')
                     self.failed += 1
 
                 # include the result in the remove list, it can't be removed here because it
@@ -897,7 +896,9 @@ class Executor:
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
-            self.complete.write(f'{j[1].args}\n')
+            message = f'{j[1].args}\tstatus={j[1].returncode}'
+            self.log.add('complete', message)
+            # self.complete.write(f'{j[1].args}\n')
 
         return True
 
@@ -999,11 +1000,12 @@ if __name__ == '__main__':
     # main loop over all complete commands
     #
     w.command.generate()
-    exec = Executor(w.command, w.log, w.stage, jobs=w.option["jobs"], delay=4)
+    exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=4)
     while exec.commandlist:
         # continue as long as there are commands in the command list
         exec.prioritize()
         exec.startjobs()
+        exec.polljobs()
 
         # generate more commands if possible
         w.command.generate()
