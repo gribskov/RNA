@@ -35,6 +35,7 @@ def getoptions():
     j, jobs         number of concurrent jobs to run
     l, log          directory for log files
 
+    TODO add mechanism to set environment
     :return: command line namespace converted to dict
     -----------------------------------------------------------------------------------------"""
     project_default = './'
@@ -459,25 +460,35 @@ class Template:
         command = self.command
         command_list = []
         target = []
+        if command.find('%') == -1:
+            # command has no % expressions to process, just add to the commandlist and return
+            if command not in self.create:
+                command_list.append(command)
+                self.created.add(command)
+
+            return command_list
+
         for m in re.finditer(setre, command):
-            # find set expressions, target are the files that match the glob in the set expression, e.g. *.xios
+            # find % set expressions, target are the files that match the glob in the set expression, e.g. *.xios
             print(f'globbing:{m.group("value")}')
-            * TODO need to catch errors when globbing fails
             target = Template.glob_update(m.group('value'))
 
         for t in target:
-            # replace set expression with targets
+            # replace % set expression with targets using % replace expression
             # check to see this target has not been previously  processed
             # add to processed list
             result = re.sub(setre, t, command)
             print(f'result:{result}')
+            # get basename of globbed filename
             basetarget = os.path.basename(t)
+            if basetarget in self.create:
+                # skip globbed names that have already been processed
+                continue
 
-            # get basename and process replace expressions
-
+            # process % replace expression
             for m in re.finditer(replacere, command):
-                # find replace expressions, there may be more than one
-                print(f'expression"{m.group('expression')} symbol:{m.group('symbol')} '
+                # find % replace expressions, there may be more than one
+                print(f'expression"{m.group("expression")} symbol:{m.group("symbol")} '
                       f'replacement:{m.group("old")} => {m.group("new")}')
                 old = m.group('old').replace('"', '').replace("'", "")
                 new = m.group('new').replace('"', '').replace("'", "")
@@ -487,7 +498,8 @@ class Template:
                 print(f'before:{basetarget}\t\tafter:{result}')
                 command_list.append({'stage': self.name, 'priority': self.priority, 'command': result})
 
-            self.created.add(t)
+            # mark the target as processed
+            self.created.add(basetarget)
 
         return command_list
 
@@ -843,11 +855,13 @@ class Executor:
             # check number of jobs running and start more if necessary
             # completed commands have already been removed by fast forward, so you don't
             # have to check
-            entry = commandlist.pop()
+            entry = commandlist[0]
+            commandlist = commandlist[1:]
             thiscommand = entry['command']
             self.jobid += 1
             self.log.add(entry['stage']+'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
-            job = sub.Popen(thiscommand, shell=True, stdout=self.log['stdout'], stderr=self.log['stderr'])
+            job = sub.Popen(thiscommand, shell=True, env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
+                            stdout=self.log['stdout'], stderr=self.log['stderr'])
             self.log.add(entry['stage']+'log', f'Executor: {thiscommand}')
             # job += 1
             self.joblist.append([self.jobid, job,entry['stage']])
