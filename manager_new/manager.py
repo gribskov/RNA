@@ -462,8 +462,8 @@ class Template:
         target = []
         if command.find('%') == -1:
             # command has no % expressions to process, just add to the commandlist and return
-            if command not in self.create:
-                command_list.append(command)
+            if command not in self.created:
+                command_list.append({'command':command, 'priority':self.priority, 'stage':self.name})
                 self.created.add(command)
 
             return command_list
@@ -481,7 +481,7 @@ class Template:
             print(f'result:{result}')
             # get basename of globbed filename
             basetarget = os.path.basename(t)
-            if basetarget in self.create:
+            if basetarget in self.created:
                 # skip globbed names that have already been processed
                 continue
 
