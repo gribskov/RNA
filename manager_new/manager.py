@@ -134,25 +134,12 @@ class Workflow:
 
     def __init__(self):
         """-----------------------------------------------------------------------------------------
-        option:         dict of options set on command line
-        command:        Command object, parsed commands and stage information
-        project:        str - name of project
+        option:         dict of options set on command line (from argparse())
+        command:        Command object, parsed commands and stage information and command templates
         log:            Log object - all logs
-
-        stage:          name of the current stage, from yaml
-        command:        filehandle - list of commands to run in this stage
-        complete:       filehandle - list of commands completed in this stage
-        log:            filehandle - current stage log
         -----------------------------------------------------------------------------------------"""
         self.option = None
         self.command = None
-        self.log = None
-        self.stage = ''
-        self.stage_dir = ''
-        self.stage_finished = False
-        # file pointers for commands, complete commands, and the stage log
-        self.command = None
-        self.complete = None
         self.log = Log()
 
     @staticmethod
@@ -207,6 +194,25 @@ class Workflow:
 
         return uniquename
 
+    def prepare_project(self):
+        """-------------------------------------------------------------------------------------------------------------
+        1) read the workflow yaml file
+        2) check if this is a restart run
+            if  restart==True:
+            create project directory, deleting current data
+
+            elif restart==False:
+            create directory if not already present, otherwise reuse current directory
+
+        3) if necessary, create directories specified in directories: section of workflow
+        4) create/open stdin, stdout, completed_commands, and log files
+        5) resolve symbols in commands in commands: section of workflow
+           store command templates
+
+        :return:
+        -------------------------------------------------------------------------------------------------------------"""
+        self.command = Command(filename=self.option['workflow'])
+
     def main_setup(self):
         """-----------------------------------------------------------------------------------------
         set up for the overall run
@@ -250,8 +256,8 @@ class Workflow:
         mainlogfile = f'{project}/{os.path.basename(project)}'
         log = Log()
         self.log = log
-        log.start('main', mainlogfile+'.log')
-        log.start('stdout', mainlogfile+'.out')
+        log.start('main', mainlogfile + '.log')
+        log.start('stdout', mainlogfile + '.out')
         log.start('stderr', mainlogfile + '.err')
         log.start('complete', mainlogfile + '.completed')
         log.add('main', f'Project {project}: started')
@@ -463,7 +469,7 @@ class Template:
         if command.find('%') == -1:
             # command has no % expressions to process, just add to the commandlist and return
             if command not in self.created:
-                command_list.append({'command':command, 'priority':self.priority, 'stage':self.name})
+                command_list.append({'command': command, 'priority': self.priority, 'stage': self.name})
                 self.created.add(command)
 
             return command_list
@@ -527,75 +533,79 @@ class Command:
 
     def __init__(self, filename='workflow1.yaml'):
         """-------------------------------------------------------------------------------------------------------------
-        file        path to yaml file containing the workflow
-        parsed      yaml parsed to python dictionary
-        command     list of stage templates commands prepared for populating with realtime symbols (class stage)
-        stage       current stage (stages can execute concurrently so probably not needed)
-        stage_dir   maybe not needed if input and output is expanded completely
-
-
-        needed during expansion, then no longer necessary - do not need to be instance variables
-        def_main    dict, global definitions => dict with keys as $symbol
-        def_stage   dict, definitions for current stage
-        mult        commands that expand to multiple values (usually input or output files)
-        late        symbols that can only be expanded at run time (realtime)
-        defs        i think this was the same as def main
+        filename        path to yaml file containing the workflow
+        parsed          yaml parsed to python dictionary
+        template        list Template
+                        command templates commands prepared for populating with filenames at run time
+        static_symbols  symbols defined in workflow and referenced as $symbol.
+                        symbols can be expanded before the run starts and do not change during the run
+                        TODO not exactly true, they can differ in different commands
         -------------------------------------------------------------------------------------------------------------"""
         self.file = filename
-        self.templates = []
-        self.commands = []
         self.parsed = None
+        self.templates = []
         self.static_symbols = {}
-
+        self.commands = []
         if filename:
             # expand static commands and create templates if filename exists
-            self.stage_setup()
-
-        # self.stage = ''
-        # self.stage_dir = ''
-        # self.def_main = {}
-        # self.def_stage = {}
-        #
-        # self.mult = {}
-        # self.late = {}
-        # self.defs = []
-
-    def stage_setup(self):
-        """-------------------------------------------------------------------------------------------------------------
-        read workflow from yaml file and parse global static symbols
-        expand static symbols
-        create stage templates
-        :return: int                number of stages
-        -------------------------------------------------------------------------------------------------------------"""
-        # read the workflow yaml file
-        self.read()
-        parsed = self.parsed
-        # expand global static symbols, do not process stage commands at this point
-        self.static_symbols = self.expand(parsed['definitions'])
-
-        # build the stage command templates. These have all symbols expanded and any symbolse to be
-        # determined at run time replaced with % symbols. stagelist is a dict with the stagenames as keys, directly from
-        # the parsed workflow yaml
-        stagelist = parsed['stage']
-        priority = 0
-        for stage in stagelist:
-            # expand stage-specific symbols
-            expanded_stage_defs = self.expand(stagelist[stage])
-            template = Template(stage, priority, expanded_stage_defs['$command'])
-            self.templates.append(template)
-            priority += 1
-            # print(stage)
+            self.parse_workflow()
 
         return len(self.templates)
 
-    def read(self):
+    def make_templates(self):
+        """-------------------------------------------------------------------------------------------------------------
+        build the command templates. Templates have all static symbols expanded and any symbols to be
+        determined at run time replaced with % symbols. template is a dict with the command names as keys, directly from
+        the parsed workflow yaml
+
+        The workflow yaml must have been read and parsed and stored in self.parsed
+        :return:
+        -------------------------------------------------------------------------------------------------------------"""
+        priority = 0
+        if not self.parsed:
+            # error yaml not parsed
+            pass
+            # TODO complete this error to error log
+
+        for com in self.parsed['commands']:
+            # expand stage-specific symbols
+            expanded_stage_defs = self.expand(com)
+            template = Template(com, priority, expanded_stage_defs['$command'])
+            self.templates.append(template)
+            priority += 1
+
+            return len(self.templates)
+
+    def parse_workflow(self):
+        """-------------------------------------------------------------------------------------------------------------
+        read workflow from yaml file and expand global static symbols
+        expand static symbols
+
+        keep this as a separate method in case it is not convenient to parse the workflow file when creating the Command
+        object.
+
+        :return: dict   parsed yaml as python dictionary
+        -------------------------------------------------------------------------------------------------------------"""
+        # read the workflow yaml file
+        self.read_parse()
+        # expand global static symbols, do not process stage commands at this point
+        self.static_symbols = self.expand(self.parsed['definitions'])
+
+        return self.parsed
+
+    def read_parse(self):
         """-----------------------------------------------------------------------------------------
-        read the workflow description from the yaml file. File is stored in Command.file
-        TODO check error return for yaml.load()
+        read the workflow description from the yaml file.
+
         :return: dict               workflow as a python dictionary
         -----------------------------------------------------------------------------------------"""
-        fp = open(self.file, 'r')
-        self.parsed = yaml.load(fp, Loader=yaml.FullLoader)
+        fp = open(self.filename, 'r')
+        try:
+            self.parsed = yaml.load(fp, Loader=yaml.FullLoader)
+        except yaml.YAMLError:
+            pass
+            # TODO complete this error to error log
+
         fp.close()
 
         return self.parsed
@@ -859,12 +869,13 @@ class Executor:
             commandlist = commandlist[1:]
             thiscommand = entry['command']
             self.jobid += 1
-            self.log.add(entry['stage']+'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
-            job = sub.Popen(thiscommand, shell=True, env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
+            self.log.add(entry['stage'] + 'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
+            job = sub.Popen(thiscommand, shell=True,
+                            env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
                             stdout=self.log['stdout'], stderr=self.log['stderr'])
-            self.log.add(entry['stage']+'log', f'Executor: {thiscommand}')
+            self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
             # job += 1
-            self.joblist.append([self.jobid, job,entry['stage']])
+            self.joblist.append([self.jobid, job, entry['stage']])
             self.running += 1
 
         if self.joblist or self.running:
@@ -898,12 +909,12 @@ class Executor:
                 self.finished += 1
                 if result == 0:
                     # success
-                    self.log.add(stage+'log', f'Executor: complete, jobid:{jid} stage:{stage}, ')
+                    self.log.add(stage + 'log', f'Executor: complete, jobid:{jid} stage:{stage}, ')
                     self.succeeded += 1
 
                 else:
                     # error
-                    self.log.add(stage+'err', f'Executor: fail, jobid:{jid} stage:{stage}, ')
+                    self.log.add(stage + 'err', f'Executor: fail, jobid:{jid} stage:{stage}, ')
                     self.failed += 1
 
                 # include the result in the remove list, it can't be removed here because it
@@ -915,11 +926,11 @@ class Executor:
         for j in to_remove:
             self.joblist.remove(j)
             message = f'status={j[1].returncode}\t{j[1].args}'
-            if j[1].returncode==0:
+            if j[1].returncode == 0:
                 self.log.add('complete', message)
             else:
                 # returned error status != 0
-                self.log.add('main', 'failed'+'\t'+message)
+                self.log.add('main', 'failed' + '\t' + message)
 
             # self.complete.write(f'{j[1].args}\n')
 
@@ -1006,18 +1017,13 @@ if __name__ == '__main__':
     # main set up: read workflow, create project directory, start main log file
     w.main_setup()
 
-    sys.stdout.write(f'Project: {w.project}\n')
-    if w.option['restart']:
-        sys.stdout.write(f'Restart mode (all previous files removed)\n')
-        w.log.add('main', f'Project {w.project}: restart, directory reset')
-    else:
-        sys.stdout.write(f'Fast forward mode, continue previous run\n')
-        w.log.add('main', f'Project {w.project}: fastforward, skipping completed commands')
-
-    priority = 0
-    for stage in w.command.parsed['stage']:
-        sys.stdout.write(f'\t{stage} \t priority: {priority}\n')
-        priority += 1
+    # sys.stdout.write(f'Project: {w.project}\n')
+    # if w.option['restart']:
+    #     sys.stdout.write(f'Restart mode (all previous files removed)\n')
+    #     w.log.add('main', f'Project {w.project}: restart, directory reset')
+    # else:
+    #     sys.stdout.write(f'Fast forward mode, continue previous run\n')
+    #     w.log.add('main', f'Project {w.project}: fastforward, skipping completed commands')
 
     #
     # main loop over all complete commands
