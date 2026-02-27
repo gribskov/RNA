@@ -443,10 +443,12 @@ class Template:
         Prepare the expanded command for execution with runtime lists of files
         for each filename with wildcard, create list of matching files
 
-        :%in.set(str) defines a glob that matches symbol %in and str
-        :%in.replace(from,to) creates a new filename from glob %in
+        %in.set(pathglob) defines a glob that replaces symbol %in and glob(pathglob), e.g.,
+            %in.set(/scratch/bell/mgribsko/rna/data/curated/fasta/rnasep*.fa)
+        %in.replace(from,to) creates a new filename from glob %in, e.g.,
+            %in.replace('.fa', '.pfs')
 
-        :return:
+        :return: list       completed commands (ready to execute)
         -----------------------------------------------------------------------------------------"""
         # TODO make these class variables and precompile
         setre = r'(?P<expression>%(?P<symbol>[^.]+).set\((?P<value>[^)]+)\))'
@@ -456,7 +458,7 @@ class Template:
         command_list = []
         target = []
         if command.find('%') == -1:
-            # command has no % expressions to process, just add to the commandlist and return
+            # command has no % expressions to process, just add to the command_list and return
             if command not in self.created:
                 command_list.append({'command': command, 'priority': self.priority, 'stage': self.name})
                 self.created.add(command)
@@ -469,32 +471,31 @@ class Template:
             target = Template.glob_update(m.group('value'))
 
         for t in target:
-            # replace % set expression with targets using % replace expression
-            # check to see this target has not been previously  processed
-            # add to processed list
+            # replace % set expression with targets
             result = re.sub(setre, t, command)
             print(f'result:{result}')
             # get basename of globbed filename
             basetarget = os.path.basename(t)
-            if basetarget in self.created:
-                # skip globbed names that have already been processed
-                continue
+            # if basetarget in self.created:
+            #     # skip globbed names that have already been processed
+            #     continue
 
             # process % replace expression
             for m in re.finditer(replacere, command):
                 # find % replace expressions, there may be more than one
                 print(f'expression"{m.group("expression")} symbol:{m.group("symbol")} '
                       f'replacement:{m.group("old")} => {m.group("new")}')
+                # remove quotes in re matches
                 old = m.group('old').replace('"', '').replace("'", "")
                 new = m.group('new').replace('"', '').replace("'", "")
                 renamed = basetarget.replace(old, new)
                 print(f'before:{basetarget}\t\tafter:{renamed}')
                 result = result.replace(m.group('expression'), renamed)
                 print(f'before:{basetarget}\t\tafter:{result}')
-                command_list.append({'stage': self.name, 'priority': self.priority, 'command': result})
-
-            # mark the target as processed
-            self.created.add(basetarget)
+                if result not in self.created:
+                    # prevent completing commands more than once
+                    command_list.append({'commandname': self.name, 'priority': self.priority, 'command': result})
+                    self.created.add(result)
 
         return command_list
 
@@ -662,110 +663,19 @@ class Command:
 
     def generate(self):
         """-----------------------------------------------------------------------------------------
-        generate executable commands from stage templates
-
-        updating to generate commands for all stages
-
-        generate a list of commands from the workflow for a specific stage
-        1. split the command into tokens
-        2. for each token, match to the keywords in plan['stage'][stage] and replace
-           $keyword with the value from the yaml.
-        3. for each token, match to keywords in plan['definitions'] and replace $keyword with the
-           value from th yaml
-        4. options in <> are processed using plan['stage'][stage]['rule'] at runtime
-
-        break command lines from workflow yaml into
-        commands
-        mult - symbols generated with wild cards
-        late - dependent symbols created from other symbols. they are late because they generally
-                can't be resolved until the previous stage finishes
+        generate executable commands from command templates
+        for each command template in Command.templates, complete the template by adding in files that are available
+        only at runtime. These are indicated by %variable_name
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
-        for stage in self.templates:
-            # stage is a Template object
-            print(stage.name)
-            # stage_symbol = self.expand(self.parsed['stage'][stagename])
-            # all symbols have been expanded so the only thing we need is the final command for the stage
-            # this_stage = Template(name=stagename, command=stage_symbol['$command'])
-            self.commands += stage.fill()
+        for template in self.templates:
+            # template is a Template object
+            # print(template.name)
+            self.commands += template.fill()
             # print(stage)
 
         return len(self.commands)
-
-    def multiple(self):
-        """-----------------------------------------------------------------------------------------
-        based on the entries in self.mult, that is, symbols that contain wildcards, generate
-        lists of matching file names to be used in individual commands
-
-        TODO review, may no longer be used
-
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        filelist = {}
-        for symbol in self.mult:
-            filelist[symbol] = glob.glob(self.mult[symbol])
-            # sys.stderr.write(f'filelist:{filelist}\tsymbol[{symbol}]:{self.mult[symbol]}\n')
-            if not filelist[symbol]:
-                # symbol expansion  produced an empty list
-                # self.log.add('stage', f'Error: expansion of symbol ${symbol} produced and empty file list')
-                sys.stderr.write(f'Error: expansion of symbol ${symbol} produced and empty file list\n')
-
-        commandlist = []
-        expand = self.command
-        # sys.stderr.write(f'command:{self.command}\n')
-        for m in self.multiple_gen(filelist):
-            # m is a dict with a value for every multiple symbol
-            # sys.stderr.write(f'm:{m}\n')
-            expand = self.command
-            for symbol in m:
-                expand = expand.replace(f'${symbol}', m[symbol])
-                for litem in self.late:
-                    lcom = self.late[litem][1:]
-                    for symbol in m:
-                        # TODO not sure why the for symbol in m loop is doubly nested, it think its so that symbols get
-                        # expanded both before and after a late function runs. may not be necessary but currently works
-                        # so i'm leaving as is
-                        file = os.path.basename(m[symbol])
-                        # sys.stderr.write(f'base:{file}\tsymbol:{symbol}\tlcom:{lcom}\n')
-                        lcom = lcom.replace(f'%{symbol}', f'{file}"')
-                        lcom = f'"{lcom}'
-                        # sys.stderr.write(f'lcom:{lcom}\n')
-                        t = eval(lcom)
-                        # sys.stderr.write(f't:{t}\tl:{l}\n\n')
-                        expand = expand.replace(f'${litem}', t)
-
-            commandlist.append(expand)
-
-        if not commandlist:
-            # in case there were no symbols in command
-            commandlist.append(expand)
-
-        return commandlist
-
-    def multiple_gen(self, filelist):
-        """-----------------------------------------------------------------------------------------
-        generator to create all combinations of multiple values
-        TODO review, may no longer be used
-
-        :return: dict   value for each entry in self.mult
-        -----------------------------------------------------------------------------------------"""
-        pos = {symbol: 0 for symbol in filelist}
-        while True:
-            combo = {symbol: filelist[symbol][pos[symbol]] for symbol in filelist}
-            yield combo
-            carry = 1
-            for symbol in pos:
-                pos[symbol] += carry
-                carry = 0
-                if pos[symbol] >= len(filelist[symbol]):
-                    carry = 1
-                    pos[symbol] = 0
-
-            if carry:
-                break
-
-        return
 
 
 ####################################################################################################
