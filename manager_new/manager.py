@@ -141,6 +141,7 @@ class Workflow:
         self.option = None
         self.command = None
         self.log = Log()
+        self.project = ''
 
     @staticmethod
     def open_exist(filename, mode='w'):
@@ -215,7 +216,7 @@ class Workflow:
         -------------------------------------------------------------------------------------------------------------"""
         # read and parse workflow yaml, expand static symbols
         self.command = Command(filename=self.option['workflow'])
-        project = self.command.parsed['project']
+        project = self.project = self.command.parsed['project']
 
         # check for restart mode, project directory must be created or identified before starting logs
         restart_comment = f'Project directory ({project}) created'
@@ -673,6 +674,7 @@ class Command:
             # template is a Template object
             # print(template.name)
             self.commands += template.fill()
+            # TODO log this
             # print(stage)
 
         return len(self.commands)
@@ -689,7 +691,7 @@ class Executor:
     {'stage': stage.name, 'priority': priority, 'command': full command}
     #############################################################################################"""
 
-    def __init__(self, commandlist=None, log=None, jobs=20, delay=5):
+    def __init__(self, commandlist=None, log=None, jobs=20, delay=0):
         """-----------------------------------------------------------------------------------------
         commandlist     Command.commands - list of commands to execute
         # completefile    file of completed commands (writable)
@@ -750,7 +752,7 @@ class Executor:
         :return:
         -----------------------------------------------------------------------------------------"""
         commandlist = self.commandlist.commands
-        self.commandlist.commands = sorted(commandlist, key=lambda c: c['priority'])
+        self.commandlist.commands = sorted(commandlist, key=lambda c: c['priority'], reverse=True)
 
         return
 
@@ -765,19 +767,18 @@ class Executor:
         commandlist = self.commandlist.commands
         while commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
-            # completed commands have already been removed by fast forward, so you don't
-            # have to check
-            entry = commandlist[0]
-            commandlist = commandlist[1:]
+            # completed commands have already been removed by fast forward, so you don't have to check
+            entry = commandlist.pop()
             thiscommand = entry['command']
             self.jobid += 1
-            self.log.add(entry['stage'] + 'log', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
+            self.log.add('main', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
             job = sub.Popen(thiscommand, shell=True,
                             env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
                             stdout=self.log['stdout'], stderr=self.log['stderr'])
-            self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
+            # self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
             # job += 1
-            self.joblist.append([self.jobid, job, entry['stage']])
+            self.joblist.append([self.jobid, job, entry['commandname']])
+            # commandlist.remove(entry)
             self.running += 1
 
         if self.joblist or self.running:
@@ -795,46 +796,40 @@ class Executor:
         # poll all jobs in joblist
         time.sleep(self.delay)
         to_remove = []
-        for j in self.joblist:
-            jid, job, stage = j
-            # print(f'\tjob {jid} ...', end='')
-            result = job.poll()
-            if result is None:
-                # None indicates job is still running
-                # print(f'job {jid} still running')
-                pass
-
-            else:
-                # job finished
-                # print(f'job {jid} finished')
-                self.running -= 1
-                self.finished += 1
-                if result == 0:
-                    # success
-                    self.log.add(stage + 'log', f'Executor: complete, jobid:{jid} stage:{stage}, ')
-                    self.succeeded += 1
+        while len(to_remove) == 0:
+            print(f'polling: {len(self.joblist)} jobs')
+            for j in self.joblist:
+                jid, job, stage = j
+                # print(f'\tjob {jid} ...', end='')
+                result = job.poll()
+                if result is None:
+                    # None indicates job is still running
+                    # print(f'job {jid} still running')
+                    pass
 
                 else:
-                    # error
-                    self.log.add(stage + 'err', f'Executor: fail, jobid:{jid} stage:{stage}, ')
-                    self.failed += 1
+                    # job finished
+                    # print(f'job {jid} finished')
+                    self.running -= 1
+                    self.finished += 1
+                    if result == 0:
+                        # success
+                        self.log.add('main', f'Executor: complete jobid:{jid} stage:{stage} command:{job.args}')
+                        self.succeeded += 1
 
-                # include the result in the remove list, it can't be removed here because it
-                # changes the list (self.joblist) that is iterating
-                to_remove.append(j)
+                    else:
+                        # error
+                        self.log.add('stderr', f'Executor: fail, jobid:{jid} stage:{stage}, ')
+                        self.failed += 1
+
+                    # include the result in the remove list, it can't be removed here because it
+                    # changes the list (self.joblist) that is iterating
+                    to_remove.append(j)
 
         # remove all finished jobs. Couldn't do it above because it shortens the joblist and
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
-            message = f'status={j[1].returncode}\t{j[1].args}'
-            if j[1].returncode == 0:
-                self.log.add('complete', message)
-            else:
-                # returned error status != 0
-                self.log.add('main', 'failed' + '\t' + message)
-
-            # self.complete.write(f'{j[1].args}\n')
 
         return True
 
@@ -919,7 +914,7 @@ if __name__ == '__main__':
     w.prepare_project()
 
     w.command.generate()
-    exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=4)
+    exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=0)
     while exec.commandlist.commands:
         # continue as long as there are commands in the command list
         exec.prioritize()
@@ -929,25 +924,6 @@ if __name__ == '__main__':
         # generate more commands if possible
         w.command.generate()
 
-    # run each stage of the workflow plan (stage: in the yaml)
-    # for stage in w.yaml.parsed['stage']:
-    #     # create a list of commands to execute, and a file to store the list of completed commands
-    #     run_this_stage = w.stage_setup(stage)
-    #     if run_this_stage:
-    #         w.stage_fast_forward()
-    #         # fast_forward returns false for restart mode, or if the command file does
-    #
-    #         commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-    #         completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-    #         exec = Executor(commandfile, completefile, w.log, w.stage, jobs=w.option["jobs"],
-    #                         delay=4)
-    #         exec.setup()
-    #         # TODO job execution turned off
-    #         # while exec.startjobs():
-    #         #     exec.polljobs()
-    #
-    #         w.stage_finish()
-
-    w.log.add('main', f'Project {w.option["project"]}: finished')
+    w.log.add('main', f'Project: finished {w.project}')
 
     exit(0)
