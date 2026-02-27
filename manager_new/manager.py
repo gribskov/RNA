@@ -213,22 +213,29 @@ class Workflow:
 
         :return:
         -------------------------------------------------------------------------------------------------------------"""
+        # read and parse workflow yaml
         self.command = Command(filename=self.option['workflow'])
-        # create log files
-        # create log object and add main
-        # log.start will not delete existing file, log.start will not delete log if it already
-        # exists. The main log has the same name as the project
+        project = self.command.parsed['project']
+
+        # create directories
+        self.dir_exist(project)
+        for d in self.command.parsed['directories']:
+            dir = f'{project}/{d}'
+            self.dir_exist(dir)
+
+        # create log object and add main, stderr, and stdout logs. all have the same basename as the project
+        # log.start will not delete log if it already exists.
+        project = self.command.parsed['project']
         log_base_name = f'{project}/{os.path.basename(project)}'
         log = self.log = Log()
         log.start('main', log_base_name + '.log')
         log.start('stdout', log_base_name + '.out')
         log.start('stderr', log_base_name + '.err')
         log.add('main', f'Project {project}: started')
-        log.add('main', f'{project}: workflow {workflow} read '
-                        f'{len(command.parsed["commands"])} commands')
+        log.add('main', f'{project}: workflow {self.option["workflow"]} read '
+                        f'{len(self.command.parsed["commands"])} commands')
 
-        # check for restart mode
-        project = self.command.parsed['project']
+        # check for restart mode, project directory must be created or identified before starting logs
         if self.option['restart']:
             # in restart mode, delete the existing directory tree, if present ,and create the project directory
             log.add('main', f'Restart mode. Project directory ({project}) will be replaced')
@@ -244,9 +251,6 @@ class Workflow:
             log.add('main', f'Project directory ({project}) created')
             os.mkdir(project)
 
-        # create directories
-        self.dir_exist()
-
         # expand static symbols
         # setup templates
 
@@ -257,9 +261,14 @@ class Workflow:
         """-------------------------------------------------------------------------------------------------------------
         checks if directory path exists, and if it does not, creates it
 
-        :return:
+        :param dirpath: string      path to directory
+        :return: None
         -------------------------------------------------------------------------------------------------------------"""
-        return
+        if not os.path.isdir(dirpath):
+            # create directory if absent
+            os.mkdir(dirpath)
+
+        return None
 
     def stage_setup(self, stage):
         """-----------------------------------------------------------------------------------------
@@ -523,7 +532,7 @@ class Command:
                         symbols can be expanded before the run starts and do not change during the run
                         TODO not exactly true, they can differ in different commands
         -------------------------------------------------------------------------------------------------------------"""
-        self.file = filename
+        self.filename = filename
         self.parsed = None
         self.templates = []
         self.static_symbols = {}
@@ -531,8 +540,6 @@ class Command:
         if filename:
             # expand static commands and create templates if filename exists
             self.parse_workflow()
-
-        return len(self.templates)
 
     def make_templates(self):
         """-------------------------------------------------------------------------------------------------------------
@@ -997,7 +1004,7 @@ if __name__ == '__main__':
     w = Workflow()
     w.option = getoptions()
     # main set up: read workflow, create project directory, start main log file
-    w.main_setup()
+    w.prepare_project()
 
     # sys.stdout.write(f'Project: {w.project}\n')
     # if w.option['restart']:
