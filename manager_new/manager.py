@@ -198,7 +198,7 @@ class Workflow:
 
     def prepare_project(self):
         """-------------------------------------------------------------------------------------------------------------
-        1) read the workflow yaml file
+        1) read the workflow yaml file and expand symbols
         2) check if this is a restart run
             if  restart==True:
             create project directory, deleting current data
@@ -213,11 +213,25 @@ class Workflow:
 
         :return:
         -------------------------------------------------------------------------------------------------------------"""
-        # read and parse workflow yaml
+        # read and parse workflow yaml, expand static symbols
         self.command = Command(filename=self.option['workflow'])
         project = self.command.parsed['project']
 
-        # create directories
+        # check for restart mode, project directory must be created or identified before starting logs
+        restart_comment = f'Project directory ({project}) created'
+        if self.option['restart']:
+            # in restart mode, delete the existing directory tree, if present
+            # log.add('main',
+            if os.path.isdir(project):
+                # project directory exists, remove the entire directory tree
+                shutil.rmtree(project, ignore_errors=False, onerror=None)
+                restart_comment = f'Restart mode. Project directory ({project}) will be replaced'
+
+        elif os.path.isdir(project):
+            # directory already exists and will be used
+            restart_comment = f'Project directory ({project}) exists and will be reused'
+
+            # create directories, dir_exist will not create a directory if it already  exists
         self.dir_exist(project)
         for d in self.command.parsed['directories']:
             dir = f'{project}/{d}'
@@ -225,34 +239,18 @@ class Workflow:
 
         # create log object and add main, stderr, and stdout logs. all have the same basename as the project
         # log.start will not delete log if it already exists.
-        project = self.command.parsed['project']
         log_base_name = f'{project}/{os.path.basename(project)}'
         log = self.log = Log()
         log.start('main', log_base_name + '.log')
         log.start('stdout', log_base_name + '.out')
         log.start('stderr', log_base_name + '.err')
         log.add('main', f'Project {project}: started')
+        log.add('main', restart_comment)
         log.add('main', f'{project}: workflow {self.option["workflow"]} read '
                         f'{len(self.command.parsed["commands"])} commands')
 
-        # check for restart mode, project directory must be created or identified before starting logs
-        if self.option['restart']:
-            # in restart mode, delete the existing directory tree, if present ,and create the project directory
-            log.add('main', f'Restart mode. Project directory ({project}) will be replaced')
-            if os.path.isdir(project):
-                # project directory exists, remove the entire directory tree
-                shutil.rmtree(project, ignore_errors=False, onerror=None)
-            os.mkdir(project)
-        elif os.path.isdir(project):
-            # project directory exists and will be added to
-            log.add('main', f'Project directory ({project}) exists and will be reused')
-        else:
-            # project directory does not exist, this is a new project
-            log.add('main', f'Project directory ({project}) created')
-            os.mkdir(project)
-
-        # expand static symbols
         # setup templates
+        template_n = self.command.make_templates()
 
         return None
 
@@ -436,9 +434,9 @@ class Template:
         self.realtime = {}
         self.created = set()
         self.status = 'not started'
-        self.dir = ''
-        self.error = ''
-        self.log = ''
+        # self.dir = ''
+        # self.error = ''
+        # self.log = ''
 
     def fill(self):
         """-----------------------------------------------------------------------------------------
@@ -556,14 +554,16 @@ class Command:
             pass
             # TODO complete this error to error log
 
-        for com in self.parsed['commands']:
-            # expand stage-specific symbols
-            expanded_stage_defs = self.expand(com)
-            template = Template(com, priority, expanded_stage_defs['$command'])
+        commands = self.parsed['commands']
+        for com in commands:
+            # symbols can occur in the command section, expand these too
+            local_defs = self.expand(commands[com])
+            template = Template(com, priority, local_defs['$command'])
             self.templates.append(template)
+            # TODO allow commands to override default priority
             priority += 1
 
-            return len(self.templates)
+        return len(self.templates)
 
     def parse_workflow(self):
         """-------------------------------------------------------------------------------------------------------------
@@ -577,8 +577,11 @@ class Command:
         -------------------------------------------------------------------------------------------------------------"""
         # read the workflow yaml file
         self.read_parse()
-        # expand global static symbols, do not process stage commands at this point
-        self.static_symbols = self.expand(self.parsed['definitions'])
+        # expand global static symbols, do not process commands at this point
+        # process directories, then definitions
+        self.static_symbols = {'$project': self.parsed['project']}
+        self.static_symbols.update(self.expand(self.parsed['directories']))
+        self.static_symbols.update(self.expand(self.parsed['definitions']))
 
         return self.parsed
 
@@ -615,10 +618,10 @@ class Command:
         for d in definitions:
             # add $ to the definition keys and push definitions all definitions on stack
             stack.append(['$' + d, definitions[d]])
-        # TODO need to process already defined symbols first so they override global symbols
+        # TODO need to process global symbols first so they are overridden by local symbols defined in a command
         while stack:
             # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
-            # TODO should check for unexpandable symols, maybe stack not changing in size for multiple rounds?
+            # TODO should check for unexpandable symbols, maybe stack not changing in size for multiple rounds?
             dkey, dval = stack.pop()
             if dval.find('$') == -1:
                 # no expandable symbol, save to symbol dict. this is the only place definitions are
@@ -796,7 +799,7 @@ class Executor:
         self.log = log
         if not log:
             self.log = Log()
-        self.stage = stage
+        # self.stage = stage
         self.jobs = jobs
         self.delay = delay
         self.jobid = 0
@@ -1003,20 +1006,8 @@ if __name__ == '__main__':
 
     w = Workflow()
     w.option = getoptions()
-    # main set up: read workflow, create project directory, start main log file
     w.prepare_project()
 
-    # sys.stdout.write(f'Project: {w.project}\n')
-    # if w.option['restart']:
-    #     sys.stdout.write(f'Restart mode (all previous files removed)\n')
-    #     w.log.add('main', f'Project {w.project}: restart, directory reset')
-    # else:
-    #     sys.stdout.write(f'Fast forward mode, continue previous run\n')
-    #     w.log.add('main', f'Project {w.project}: fastforward, skipping completed commands')
-
-    #
-    # main loop over all complete commands
-    #
     w.command.generate()
     exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=4)
     while exec.commandlist.commands:

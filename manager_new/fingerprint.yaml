@@ -3,16 +3,17 @@
   definitions:
 #   code locations
     python: python
-    RNAstructure: ../RNAstructure/exe
-    xiosexe: ../RNA
-#   project input/output directories
-#    fasta: ../data/curated/fasta/
-    fasta: /scratch/bell/mgribsko/rna/data/curated/fasta
-    project: testmanager
+    base: /scratch/scholar/mgribsko
+    xiosexe: $base/RNA
+    RNAstructure: $base/RNAstructure/exe
+    fasta: $base/standards/fasta_fixed
+    project: $base/testmanager
     partition: $project/partition
     stochastic: $project/stochastic
     xios: $project/xios
   stage:
+    start:
+      command: ls; export DATAPATH=$base/RNAstructure/data_tables
     partition:
       command: $RNAstructure/partition  $in $out $option
       option:
