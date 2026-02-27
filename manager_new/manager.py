@@ -177,6 +177,8 @@ class Workflow:
         found. rename the existing file to the unique name.  this allows filename to be used without
         wiping out a previous result
 
+        # TODO make static
+
         :param filename: string
         :return: string             unique name for existing file
         -----------------------------------------------------------------------------------------"""
@@ -212,72 +214,53 @@ class Workflow:
         :return:
         -------------------------------------------------------------------------------------------------------------"""
         self.command = Command(filename=self.option['workflow'])
-
-    def main_setup(self):
-        """-----------------------------------------------------------------------------------------
-        set up for the overall run
-        1) read workflow and expand static symbols
-        2) if  restart==True:
-            create project directory, deleting current data
-            create main log
-
-            elif restart==False:
-            create directory if not already present, otherwise reuse current directory
-            create main log if not present
-
-        3) initial entries in main log
-
-        :return:??
-        -----------------------------------------------------------------------------------------"""
-        # expand global symbols (definitions in workflow yaml) and store in command. The project
-        # directory is defined in the workflow so this must be done first
-        workflow = self.option['workflow']
-        command = Command(filename=workflow)
-        self.command = command
-
-        project = command.static_symbols['$project']
-        self.project = project
-
-        if self.option['restart']:
-            # in restart mode, delete existing directory if present and create the project directory
-            # and main log
-            if os.path.isdir(project):
-                # project directory exists
-                shutil.rmtree(project, ignore_errors=False, onerror=None)
-            os.mkdir(project)
-
-        elif not os.path.isdir(project):
-            # project directory does not exist, this is a new project, create logfile below
-            os.mkdir(project)
-
+        # create log files
         # create log object and add main
         # log.start will not delete existing file, log.start will not delete log if it already
         # exists. The main log has the same name as the project
-        mainlogfile = f'{project}/{os.path.basename(project)}'
-        log = Log()
-        self.log = log
-        log.start('main', mainlogfile + '.log')
-        log.start('stdout', mainlogfile + '.out')
-        log.start('stderr', mainlogfile + '.err')
-        log.start('complete', mainlogfile + '.completed')
+        log_base_name = f'{project}/{os.path.basename(project)}'
+        log = self.log = Log()
+        log.start('main', log_base_name + '.log')
+        log.start('stdout', log_base_name + '.out')
+        log.start('stderr', log_base_name + '.err')
+        log.start('complete', log_base_name + '.completed')
         log.add('main', f'Project {project}: started')
         log.add('main', f'{project}: workflow {workflow} read '
-                        f'{len(command.parsed["stage"])} stages')
+                        f'{len(command.parsed["commands"])} commands')
 
-        # create stage directories and logs
-        for template in self.command.templates:
-            template.dir = f'{project}/{template.name}'
-            logname = f'{template.name}log'
-            errname = f'{template.name}err'
-            if not os.path.isdir(template.dir):
-                # TODO doesn't seem to skip when directory exists
-                os.mkdir(template.dir)
-            template.log = log.start(logname, f'{template.dir}/{template.name}.log')
-            template.err = log.start(errname, f'{template.dir}/{template.name}.err')
+        # check for restart mode
+        project = self.command.parsed['project']
+        if self.option['restart']:
+            # in restart mode, delete the existing directory tree, if present ,and create the project directory
+            log.add('main', f'Restart mode. Project directory ({project}) will be replaced')
+            if os.path.isdir(project):
+                # project directory exists, remove the entire directory tree
+                shutil.rmtree(project, ignore_errors=False, onerror=None)
+            os.mkdir(project)
+        elif os.path.isdir(project):
+            # project directory exists and will be added to
+            log.add('main', f'Project directory ({project}) exists and will be reused')
+        else:
+            # project directory does not exist, this is a new project
+            log.add('main', f'Project directory ({project}) created')
+            os.mkdir(project)
 
-            sys.stdout.write(f'{len(command.parsed["stage"])} stages read from {self.option["workflow"]}:\n\n')
+        # create directories
+        self.dir_exist()
 
-        return True
+        # expand static symbols
+        # setup templates
+
+        return None
+
+    @staticmethod
+    def dir_exist(dirpath):
+        """-------------------------------------------------------------------------------------------------------------
+        checks if directory path exists, and if it does not, creates it
+
+        :return:
+        -------------------------------------------------------------------------------------------------------------"""
+        return
 
     def stage_setup(self, stage):
         """-----------------------------------------------------------------------------------------
@@ -322,29 +305,29 @@ class Workflow:
         # occur
         return status
 
-    def stage_finish(self):
-        """-----------------------------------------------------------------------------------------
-        clean up at the end of a stage
-        1) mark as finished by creating stage, {base}/{stage}/{stage}.complete
-        2) report stage finished in log_main
-        3) close stage_log, command, and complete files
-
-        :return:
-        -----------------------------------------------------------------------------------------"""
-        # mark stage finished
-        finished = f'{w.option["base"]}/{stage}/{stage}.finished'
-        marker = open(finished, 'w')
-        marker.close()
-
-        self.log.add('stage', f'Finished marker created')
-        self.log.add('main', f'Stage: {self.stage}: finished\n')
-        self.log.add('stage', f'Stage finished\n')
-
-        # close all stage files
-        for f in (self.log['stage'], self.command, self.complete):
-            f.close()
-
-        return
+    # def stage_finish(self):
+    #     """-----------------------------------------------------------------------------------------
+    #     clean up at the end of a stage
+    #     1) mark as finished by creating stage, {base}/{stage}/{stage}.complete
+    #     2) report stage finished in log_main
+    #     3) close stage_log, command, and complete files
+    #
+    #     :return:
+    #     -----------------------------------------------------------------------------------------"""
+    #     # mark stage finished
+    #     finished = f'{w.option["base"]}/{stage}/{stage}.finished'
+    #     marker = open(finished, 'w')
+    #     marker.close()
+    #
+    #     self.log.add('stage', f'Finished marker created')
+    #     self.log.add('main', f'Stage: {self.stage}: finished\n')
+    #     self.log.add('stage', f'Stage finished\n')
+    #
+    #     # close all stage files
+    #     for f in (self.log['stage'], self.command, self.complete):
+    #         f.close()
+    #
+    #     return
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
