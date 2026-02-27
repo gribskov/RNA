@@ -223,7 +223,6 @@ class Workflow:
         log.start('main', log_base_name + '.log')
         log.start('stdout', log_base_name + '.out')
         log.start('stderr', log_base_name + '.err')
-        log.start('complete', log_base_name + '.completed')
         log.add('main', f'Project {project}: started')
         log.add('main', f'{project}: workflow {workflow} read '
                         f'{len(command.parsed["commands"])} commands')
