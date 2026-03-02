@@ -3,7 +3,6 @@ import os.path
 import subprocess
 # import glob
 import re
-import subprocess as sub
 import shutil
 import sys
 import time
@@ -272,48 +271,47 @@ class Workflow:
 
         return None
 
-    def stage_setup(self, stage):
-        """-----------------------------------------------------------------------------------------
-        Prepare to execute commands for this stage
-        1. check/create stage directory, if necessary
-        2. open log file and store in object
-        3. if stage is marked finished, return False, otherwise True
-
-        if this is a restart run, main_setup already created a new project directory, so we don't have to check
-
-        : param stage: string       name of stage to initiate
-        :return: bool               False if stage is finished and should be skipped, else True
-        -----------------------------------------------------------------------------------------"""
-        status = True
-        self.stage = stage
-        self.stage_finished = False
-        stagedir = self.stage_dir = f'{self.option["project"]}/{stage}'
-
-        if not os.path.isdir(stagedir):
-            # create directory if absent
-            os.mkdir(stagedir)
-
-        # open stage log
-        stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
-        self.log.start('stage', stage_log)
-        self.log.add('main', f'Stage {self.stage}: starting')
-        # TODO change detection of stage start
-        self.log.add('stage', f'Stage started')
-
-        # when a stage is finished a marker file {stage}/{stage}.finished is created,
-        # if this file is present, the stage will be skipped,
-        # return false without opening files: log.
-        finished = f'{w.option["project"]}/{stage}/{stage}.finished'
-        if os.path.isfile(finished):
-            self.log.add('main', f'Stage:{self.stage}: skipped (finished detected)\n')
-            self.log.add('stage', f'Finished marker detected\n')
-            self.stage_finished = True
-            self.log['stage'].close()
-            status = False
-
-        # False indicates the stage will not be run, and no processing of command/complete will
-        # occur
-        return status
+    # def stage_setup(self, stage):
+    #     """-----------------------------------------------------------------------------------------
+    #     Prepare to execute commands for this stage
+    #     1. check/create stage directory, if necessary
+    #     2. open log file and store in object
+    #     3. if stage is marked finished, return False, otherwise True
+    #
+    #     if this is a restart run, main_setup already created a new project directory, so we don't have to check
+    #
+    #     : param stage: string       name of stage to initiate
+    #     :return: bool               False if stage is finished and should be skipped, else True
+    #     -----------------------------------------------------------------------------------------"""
+    #     status = True
+    #     self.stage = stage
+    #     self.stage_finished = False
+    #     stagedir = self.stage_dir = f'{self.option["project"]}/{stage}'
+    #
+    #     if not os.path.isdir(stagedir):
+    #         # create directory if absent
+    #         os.mkdir(stagedir)
+    #
+    #     # open stage log
+    #     stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
+    #     self.log.start('stage', stage_log)
+    #     self.log.add('main', f'Stage {self.stage}: starting')
+    #     self.log.add('stage', f'Stage started')
+    #
+    #     # when a stage is finished a marker file {stage}/{stage}.finished is created,
+    #     # if this file is present, the stage will be skipped,
+    #     # return false without opening files: log.
+    #     finished = f'{w.option["project"]}/{stage}/{stage}.finished'
+    #     if os.path.isfile(finished):
+    #         self.log.add('main', f'Stage:{self.stage}: skipped (finished detected)\n')
+    #         self.log.add('stage', f'Finished marker detected\n')
+    #         self.stage_finished = True
+    #         self.log['stage'].close()
+    #         status = False
+    #
+    #     # False indicates the stage will not be run, and no processing of command/complete will
+    #     # occur
+    #     return status
 
     # def stage_finish(self):
     #     """-----------------------------------------------------------------------------------------
@@ -423,6 +421,9 @@ class Template:
     A template is the command for a specific stage with all static variables completed and wildcards
     converted to symbols (marked by %) that can be filled in during the run (see Template.fill())
     #############################################################################################"""
+    # regular expressions for parsing workflow
+    setre = re.compile(r'(?P<expression>%(?P<symbol>[^.]+).set\((?P<value>[^)]+)\))')
+    replacere = re.compile(r'(?P<expression>%(?P<symbol>[^.]+).replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))')
 
     def __init__(self, name='', priority=0, command=''):
         """-----------------------------------------------------------------------------------------
@@ -455,8 +456,7 @@ class Template:
         :return: list       completed commands (ready to execute)
         -----------------------------------------------------------------------------------------"""
         # TODO make these class variables and precompile
-        setre = r'(?P<expression>%(?P<symbol>[^.]+).set\((?P<value>[^)]+)\))'
-        replacere = r'(?P<expression>%(?P<symbol>[^.]+).replace\((?P<old>[^,]+),\s*(?P<new>[^)]+)\))'
+
 
         command = self.command
         command_list = []
@@ -469,14 +469,14 @@ class Template:
 
             return command_list
 
-        for m in re.finditer(setre, command):
+        for m in Template.setre.finditer(command):
             # find % set expressions, target are the files that match the glob in the set expression, e.g. *.xios
             print(f'globbing:{m.group("value")}')
             target = Template.glob_update(m.group('value'))
 
         for t in target:
             # replace % set expression with targets
-            result = re.sub(setre, t, command)
+            result = Template.setre.sub(t, command)
             print(f'result:{result}')
             # get basename of globbed filename
             basetarget = os.path.basename(t)
@@ -485,7 +485,7 @@ class Template:
             #     continue
 
             # process % replace expression
-            for m in re.finditer(replacere, command):
+            for m in Template.replacere.finditer(command):
                 # find % replace expressions, there may be more than one
                 print(f'expression"{m.group("expression")} symbol:{m.group("symbol")} '
                       f'replacement:{m.group("old")} => {m.group("new")}')
