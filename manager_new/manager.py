@@ -143,7 +143,7 @@ class Workflow:
         self.command = None
         self.log = Log()
         self.project = ''
-        print(f'python version: {sys.version}')
+        # print(f'python version: {sys.version}')
 
     @staticmethod
     def open_exist(filename, mode='w'):
@@ -237,8 +237,8 @@ class Workflow:
             # create directories, dir_exist will not create a directory if it already  exists
         self.dir_exist(project)
         for d in self.command.parsed['directories']:
-            dir = f'{project}/{d}'
-            self.dir_exist(dir)
+            thisdir = f'{project}/{d}'
+            self.dir_exist(thisdir)
 
         # create log object and add main, stderr, and stdout logs. all have the same basename as the project
         # log.start will not delete log if it already exists.
@@ -255,7 +255,7 @@ class Workflow:
         # setup templates
         template_n = self.command.make_templates()
 
-        return None
+        return template_n
 
     @staticmethod
     def dir_exist(dirpath):
@@ -350,13 +350,14 @@ class Workflow:
 
         :return: bool   True if commands need to be generated (restart())
         -----------------------------------------------------------------------------------------"""
-        self.command.stage = self.stage
-        self.command.stage_dir = self.stage_dir
+        # self.command.stage = self.stage
+        # self.command.stage_dir = self.stage_dir
         # try to open and read completed commands, if file is absent the complete list will be
         # empty
-        completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
+        # completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
         done = []
-        self.complete = self.open_exist(completefile, 'r')
+        # self.complete = self.open_exist(completefile, 'r')
+        # TODO use the project log
         if self.complete:
             # read the completed job list; when run on multiple processors the complete list may not
             # be in the same order as the job list
@@ -370,8 +371,8 @@ class Workflow:
         # complete file exists and is closed
 
         # try to open and read commands, skip any commands in the done list
-        commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-        self.command = self.open_exist(commandfile, 'r')
+        # commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
+        # self.command = self.open_exist(commandfile, 'r')
         todo = []
         # if the command file is not present, commands must be generated from the workflow
         new_commands = False
@@ -455,9 +456,6 @@ class Template:
 
         :return: list       completed commands (ready to execute)
         -----------------------------------------------------------------------------------------"""
-        # TODO make these class variables and precompile
-
-
         command = self.command
         command_list = []
         target = []
@@ -471,13 +469,13 @@ class Template:
 
         for m in Template.setre.finditer(command):
             # find % set expressions, target are the files that match the glob in the set expression, e.g. *.xios
-            print(f'globbing:{m.group("value")}')
+            # print(f'globbing:{m.group("value")}')
             target = Template.glob_update(m.group('value'))
 
         for t in target:
             # replace % set expression with targets
             result = Template.setre.sub(t, command)
-            print(f'result:{result}')
+            # print(f'result:{result}')
             # get basename of globbed filename
             basetarget = os.path.basename(t)
             # if basetarget in self.created:
@@ -487,15 +485,15 @@ class Template:
             # process % replace expression
             for m in Template.replacere.finditer(command):
                 # find % replace expressions, there may be more than one
-                print(f'expression"{m.group("expression")} symbol:{m.group("symbol")} '
-                      f'replacement:{m.group("old")} => {m.group("new")}')
+                # print(f'expression"{m.group("expression")} symbol:{m.group("symbol")} '
+                #       f'replacement:{m.group("old")} => {m.group("new")}')
                 # remove quotes in re matches
                 old = m.group('old').replace('"', '').replace("'", "")
                 new = m.group('new').replace('"', '').replace("'", "")
                 renamed = basetarget.replace(old, new)
-                print(f'before:{basetarget}\t\tafter:{renamed}')
+                # print(f'before:{basetarget}\t\tafter:{renamed}')
                 result = result.replace(m.group('expression'), renamed)
-                print(f'before:{basetarget}\t\tafter:{result}')
+                # print(f'before:{basetarget}\t\tafter:{result}')
                 if result not in self.created:
                     # prevent completing commands more than once
                     command_list.append({'commandname': self.name, 'priority': self.priority, 'command': result})
@@ -645,7 +643,7 @@ class Command:
                 if any(c in dval for c in '*?'):
                     # wildcard replace with % expression, escape * and ? to prevent duplicating
                     # escape replaces c with &ord(c);
-                    print(dval)
+                    # print(dval)
                     d = dkey.replace('$', '')
                     dval = dval.replace('*', f'&{ord("*")};')
                     dval = dval.replace('?', f'&{ord("?")};')
@@ -694,7 +692,7 @@ class Executor:
     {'stage': stage.name, 'priority': priority, 'command': full command}
     #############################################################################################"""
 
-    def __init__(self, commandlist=None, log=None, jobs=20, delay=0):
+    def __init__(self, commandlist=None, log=None, jobs=20, delay=5):
         """-----------------------------------------------------------------------------------------
         commandlist     Command.commands - list of commands to execute
         # completefile    file of completed commands (writable)
@@ -734,20 +732,21 @@ class Executor:
         3. loop over manager_startjobs and manager_polljobs to run all jobs in commandlist
         -----------------------------------------------------------------------------------------"""
         # read in commands
+        # TODO should this be commandlist?
         self.command = []
-        self.command = Workflow.open_exist(self.commandfile, 'r')
+        # self.command = Workflow.open_exist(self.commandfile, 'r')
         if self.command:
             for line in self.command:
                 self.commandlist.append(line.rstrip())
-            self.command.close()
+            # self.command.close()
 
         total = len(self.commandlist)
-        self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
-        self.log.start('raw_error', self.log['stage'].name + '.err')
+        # self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
+        # self.log.start('raw_error', self.log['stage'].name + '.err')
         # the complete commands are now stored in a log called projectname.complete
         # self.complete = Workflow.open_exist(self.completefile, 'w')
 
-        return True
+        return total
 
     def prioritize(self):
         """-----------------------------------------------------------------------------------------
@@ -759,7 +758,7 @@ class Executor:
 
         return
 
-    def conda_run(self, cmd, **kwds):
+    def conda_run(self, cmd):
         """-----------------------------------------------------------------------------------------
         Run a command as a subprocess in a conda environment
         For a python script, the command could be 'python your_script.py'
@@ -775,15 +774,8 @@ class Executor:
         # cmd = 'ls'
         if conda_prefix:
             # Build the command using 'conda run -p <path_to_env>'
-            cmd = ["conda", "run", "-n", conda_prefix] + cmd.split(' ')
-        # result = subprocess.run(
-        #     ["conda", "run", "-n", env_name] + command_to_run,
-        #     capture_output=True,
-        #     text=True,
-        #     check=True
-        # )
-        # Run the command
-        # return subprocess.run(cmd, shell=True, check=True)
+            cmd = ["conda", "run", "-n", conda_prefix] + cmd.split()
+
         result = subprocess.Popen(cmd,
                                   env=env,
                                   stdout=self.log['stdout'], stderr=self.log['stderr'])
@@ -834,7 +826,7 @@ class Executor:
         # poll all jobs in joblist
         time.sleep(self.delay)
         to_remove = []
-        print(f'polling: {len(self.joblist)} jobs')
+        print(f'polling: {len(self.joblist)} jobs {Log.logtime()}')
         while len(to_remove) == 0:
             for j in self.joblist:
                 jid, job, stage = j
@@ -904,10 +896,10 @@ class Log(dict):
         self[logname] = Workflow.open_exist(filename, 'w')
         return self[logname]
 
-    def logtime(self):
+    @staticmethod
+    def logtime():
         """-----------------------------------------------------------------------------------------
         Create a time string for use in logs year month day hour min sec concatenated
-        TODO could make this static
 
         :return: str - YYYYMoDyHrMnSc
         -----------------------------------------------------------------------------------------"""
@@ -929,7 +921,7 @@ class Log(dict):
             return log_message
 
         # log_message = f'{tag}\t{stage}\t{message}\t{self.logtime()}\n'
-        log_message = f'{self.logtime()}\t{message}\n'
+        log_message = f'{Log.logtime()}\t{message}\n'
         fp.write(log_message)
         fp.flush()
 
@@ -952,7 +944,7 @@ if __name__ == '__main__':
     w.prepare_project()
 
     w.command.generate()
-    exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=0)
+    exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=5)
     while exec.commandlist.commands:
         # continue as long as there are commands in the command list
         exec.prioritize()
