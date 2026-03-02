@@ -146,23 +146,6 @@ class Workflow:
         self.project = ''
         print(f'python version: {sys.version}')
 
-    def conda_run(self, cmd):
-        """-----------------------------------------------------------------------------------------
-        Run a command as a subprocess in a conda environment
-        For a python script, the command could be 'python your_script.py'
-
-        :param cmd: string      command to run
-        :return: int            job id
-        -----------------------------------------------------------------------------------------"""
-        # Use the CONDA_PREFIX environment variable to target the current environment
-        conda_prefix = os.environ.get("CONDA_PREFIX")
-        if conda_prefix:
-            # Build the command using 'conda run -p <path_to_env>'
-            cmd = ["conda", "run", "-p", conda_prefix, cmd]
-
-        # Run the command
-        return subprocess.run(cmd, shell=True, check=True)
-
     @staticmethod
     def open_exist(filename, mode='w'):
         """-----------------------------------------------------------------------------------------
@@ -776,6 +759,37 @@ class Executor:
 
         return
 
+    def conda_run(self, cmd, **kwds):
+        """-----------------------------------------------------------------------------------------
+        Run a command as a subprocess in a conda environment
+        For a python script, the command could be 'python your_script.py'
+
+        :param cmd: string      command to run
+        :return: int            job id
+        -----------------------------------------------------------------------------------------"""
+        # Use the CONDA_PREFIX environment variable to target the current environment
+        # TODO this works but it needs to not have the data tables hardwired
+        env = os.environ.copy()
+        env["DATAPATH"] = '/scratch/scholar/mgribsko/RNAstructure/data_tables'
+        conda_prefix = os.path.basename(os.environ.get("CONDA_PREFIX"))
+        # cmd = 'ls'
+        if conda_prefix:
+            # Build the command using 'conda run -p <path_to_env>'
+            cmd = ["conda", "run", "-n", conda_prefix] + cmd.split(' ')
+        # result = subprocess.run(
+        #     ["conda", "run", "-n", env_name] + command_to_run,
+        #     capture_output=True,
+        #     text=True,
+        #     check=True
+        # )
+        # Run the command
+        # return subprocess.run(cmd, shell=True, check=True)
+        result = subprocess.Popen(cmd,
+                                  env=env,
+                                  stdout=self.log['stdout'], stderr=self.log['stderr'])
+
+        return result
+
     def startjobs(self):
         """-----------------------------------------------------------------------------------------
         start self.jobs commands in self.commandlist. All commands should already be complete so no
@@ -795,9 +809,10 @@ class Executor:
             # job = sub.Popen(thiscommand, shell=True,
             #                 env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
             #                 stdout=self.log['stdout'], stderr=self.log['stderr'])
-            job = sub.run(thiscommand, shell=True,
-                          env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
-                          stdout=self.log['stdout'], stderr=self.log['stderr'])
+            job = (self.conda_run(thiscommand))
+            # ,)
+            #           env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'})
+            # stdout=self.log['stdout'], stderr=self.log['stderr'])
             # self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
             # job += 1
             self.joblist.append([self.jobid, job, entry['commandname']])
@@ -819,8 +834,8 @@ class Executor:
         # poll all jobs in joblist
         time.sleep(self.delay)
         to_remove = []
+        print(f'polling: {len(self.joblist)} jobs')
         while len(to_remove) == 0:
-            print(f'polling: {len(self.joblist)} jobs')
             for j in self.joblist:
                 jid, job, stage = j
                 # print(f'\tjob {jid} ...', end='')
