@@ -358,13 +358,29 @@ class Workflow:
         started = []
         finished = []
         for line in main:
-            if 'Executor: starting' in line:
-                started.append(line)
-            if 'Executor: complete' in line:
-                finished.append(line)
+            if 'Executor\tstarted' in line:
+                started.append(line.rstrip())
+            if 'Executor\tfinished' in line:
+                # need the command to check against jobs started
+                time, msgsource, msg, template, command, jobid = line.rstrip().split('\t')
+                finished.append(command)
 
+        # make a dictionary of the created list for each template
+        tidx = {}
+        for t in self.command.templates:
+            tidx[t.name] = t
 
-        return
+        command_list = []
+        for command in started:
+            time, msgsource, msg, template, command, jobid = command.split('\t')
+            # print(time, msgsource, msg, template, command, jobid)
+            tidx[template].created.add(command)
+            if command not in finished:
+                # the command list format has to follow Template.fill()
+                command_list.append({'command': command, 'priority': tidx[template].priority, 'commandname': template})
+
+        self.command.commands = command_list
+        return command_list
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
@@ -823,7 +839,7 @@ class Executor:
             thiscommand = entry['command']
             self.jobid += 1
             self.log.add('main', f'Executor\tstarted\t'
-                                 f'{entry['commandname']}\t{thiscommand}, job ID: {self.jobid}')
+                                 f'{entry['commandname']}\t{thiscommand}\tjobid: {self.jobid}')
             # job = sub.Popen(thiscommand, shell=True,
             #                 env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
             #                 stdout=self.log['stdout'], stderr=self.log['stderr'])
