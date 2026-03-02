@@ -27,16 +27,15 @@ def arg_formatter(prog):
 def getoptions():
     """-----------------------------------------------------------------------------------------
     Command line arguments:
-    project: project directory, all stages will be in subdirectories
-
-    r, restart      remove previous results and perform all stages
-    c, continue     continue existing run, skipping commands that are marked as complete
+        required positional argument: workflow file
 
     options:
     j, jobs         number of concurrent jobs to run
     l, log          directory for log files
+    q, quiet        minimal output to terminal
+    r, restart      remove previous results and perform all stages
 
-    TODO add mechanism to set environment
+    TODO add mechanism to set environment variables
     :return: command line namespace converted to dict
     -----------------------------------------------------------------------------------------"""
     project_default = './'
@@ -46,17 +45,17 @@ def getoptions():
     # commandline.add_argument('project', type=str,
     #                          help='project directory for project (%(default)s)',
     #                          default=project_default)
-    # commandline.add_argument('workflow', type=str,
-    #                          help='YAML workflow plan for project (%(default)s)',
-    #                          default='workflow.yaml')
+    commandline.add_argument('workflow', type=str,
+                             help='YAML workflow plan for project (%(default)s)',
+                             default='workflow.yaml')
 
     commandline.add_argument('-r', '--restart',
                              help='Erase current directories/files and restart denovo (%(default)s)',
                              default=False, action='store_true')
 
-    commandline.add_argument('-w', '--workflow', type=str,
-                             help='YAML workflow plan for project (%(default)s)',
-                             default=f'workflow.yaml')
+    # commandline.add_argument('-w', '--workflow', type=str,
+    #                          help='YAML workflow plan for project (%(default)s)',
+    #                          default=f'workflow.yaml')
 
     commandline.add_argument('-j', '--jobs',
                              help='number of concurrent jobs to run',
@@ -219,12 +218,14 @@ class Workflow:
         # read and parse workflow yaml, expand static symbols
         self.command = Command(filename=self.option['workflow'])
         project = self.project = self.command.parsed['project']
+        use_fast_forward = True
 
         # check for restart mode, project directory must be created or identified before starting logs
         restart_comment = f'Project directory ({project}) created'
         if self.option['restart']:
             # in restart mode, delete the existing directory tree, if present
             # log.add('main',
+            use_fast_forward = False
             if os.path.isdir(project):
                 # project directory exists, remove the entire directory tree
                 shutil.rmtree(project, ignore_errors=False, onerror=None)
@@ -234,7 +235,7 @@ class Workflow:
             # directory already exists and will be used
             restart_comment = f'Project directory ({project}) exists and will be reused'
 
-            # create directories, dir_exist will not create a directory if it already  exists
+        # create directories, dir_exist will not create a directory if it already  exists
         self.dir_exist(project)
         for d in self.command.parsed['directories']:
             thisdir = f'{project}/{d}'
@@ -254,6 +255,10 @@ class Workflow:
 
         # setup templates
         template_n = self.command.make_templates()
+
+        # fast forward
+        if use_fast_forward:
+            self.fast_forward()
 
         return template_n
 
@@ -321,7 +326,7 @@ class Workflow:
     #     3) close stage_log, command, and complete files
     #
     #     :return:
-    #     -----------------------------------------------------------------------------------------"""
+    #     ---------------------------------------------------------------------------------------"""
     #     # mark stage finished
     #     finished = f'{w.option["base"]}/{stage}/{stage}.finished'
     #     marker = open(finished, 'w')
@@ -336,6 +341,30 @@ class Workflow:
     #         f.close()
     #
     #     return
+
+    def fast_forward(self):
+        """-----------------------------------------------------------------------------------------
+        If using an existing project, fast_forward skips previously completed commands and begins
+        at the following commands.
+        1) look up started and finished commands in project.log
+        2) generate the template.created lists for the completed commands (all started commands)
+        3) add commands that were started but not finished to the current list
+
+        :return:
+        -----------------------------------------------------------------------------------------"""
+        mainlog = self.log['main'].name
+        main = open(mainlog, 'r')
+
+        started = []
+        finished = []
+        for line in main:
+            if 'Executor: starting' in line:
+                started.append(line)
+            if 'Executor: complete' in line:
+                finished.append(line)
+
+
+        return
 
     def stage_fast_forward(self):
         """-----------------------------------------------------------------------------------------
@@ -741,10 +770,6 @@ class Executor:
             # self.command.close()
 
         total = len(self.commandlist)
-        # self.log.add('stage', f'Executor: {total} commands to execute for stage {self.stage}')
-        # self.log.start('raw_error', self.log['stage'].name + '.err')
-        # the complete commands are now stored in a log called projectname.complete
-        # self.complete = Workflow.open_exist(self.completefile, 'w')
 
         return total
 
@@ -797,7 +822,8 @@ class Executor:
             entry = commandlist.pop()
             thiscommand = entry['command']
             self.jobid += 1
-            self.log.add('main', f'Executor: starting {thiscommand}, job ID: {self.jobid}')
+            self.log.add('main', f'Executor\tstarted\t'
+                                 f'{entry['commandname']}\t{thiscommand}, job ID: {self.jobid}')
             # job = sub.Popen(thiscommand, shell=True,
             #                 env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
             #                 stdout=self.log['stdout'], stderr=self.log['stderr'])
@@ -807,7 +833,7 @@ class Executor:
             # stdout=self.log['stdout'], stderr=self.log['stderr'])
             # self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
             # job += 1
-            self.joblist.append([self.jobid, job, entry['commandname']])
+            self.joblist.append([self.jobid, job, entry['commandname'], thiscommand])
             # commandlist.remove(entry)
             self.running += 1
 
@@ -829,7 +855,7 @@ class Executor:
         print(f'polling: {len(self.joblist)} jobs {Log.logtime()}')
         while len(to_remove) == 0:
             for j in self.joblist:
-                jid, job, stage = j
+                jid, job, stage, command = j
                 # print(f'\tjob {jid} ...', end='')
                 result = job.poll()
                 if result is None:
@@ -844,12 +870,13 @@ class Executor:
                     self.finished += 1
                     if result == 0:
                         # success
-                        self.log.add('main', f'Executor: complete jobid:{jid} stage:{stage} command:{job.args}')
+                        self.log.add('main', f'Executor\tfinished\t{stage}\t{command}\tjobid:{jid}')
                         self.succeeded += 1
 
                     else:
                         # error
                         self.log.add('stderr', f'Executor: fail, jobid:{jid} stage:{stage}, ')
+                        self.log.add('main', f'Executor\tfail\t{stage}\t{command}\tjobid:{jid}\texit:{result}')
                         self.failed += 1
 
                     # include the result in the remove list, it can't be removed here because it
