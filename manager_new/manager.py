@@ -146,24 +146,22 @@ class Workflow:
         self.project = ''
         print(f'python version: {sys.version}')
 
-    def activate_conda(self):
+    def conda_run(self, cmd):
         """-----------------------------------------------------------------------------------------
+        Run a command as a subprocess in a conda environment
+        For a python script, the command could be 'python your_script.py'
 
+        :param cmd: string      command to run
+        :return: int            job id
         -----------------------------------------------------------------------------------------"""
-        command_to_run = "your_command --flags"
-
         # Use the CONDA_PREFIX environment variable to target the current environment
         conda_prefix = os.environ.get("CONDA_PREFIX")
         if conda_prefix:
             # Build the command using 'conda run -p <path_to_env>'
-            cmd = ["conda", "run", "-p", conda_prefix, command_to_run]
-            # For a python script, the command_to_run part could be 'python your_script.py'
+            cmd = ["conda", "run", "-p", conda_prefix, cmd]
 
-            # Run the command
-            subprocess.run(cmd, check=True)
-        else:
-            print("CONDA_PREFIX not set. Are you in a conda environment?")
-
+        # Run the command
+        return subprocess.run(cmd, shell=True, check=True)
 
     @staticmethod
     def open_exist(filename, mode='w'):
@@ -798,8 +796,8 @@ class Executor:
             #                 env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
             #                 stdout=self.log['stdout'], stderr=self.log['stderr'])
             job = sub.run(thiscommand, shell=True,
-                            env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
-                            stdout=self.log['stdout'], stderr=self.log['stderr'])
+                          env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
+                          stdout=self.log['stdout'], stderr=self.log['stderr'])
             # self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
             # job += 1
             self.joblist.append([self.jobid, job, entry['commandname']])
