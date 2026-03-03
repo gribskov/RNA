@@ -1,17 +1,14 @@
+import argparse
+import glob
 import os.path
-# import os
-import subprocess
-# import glob
 import re
 import shutil
+import subprocess
 import sys
 import time
-import argparse
-# from os import name
+from copy import deepcopy
 
 import yaml
-import glob
-from copy import deepcopy
 
 
 def arg_formatter(prog):
@@ -164,11 +161,8 @@ class Workflow:
             try:
                 fh = open(filename, mode)
             except OSError:
-                # make sure the file exists by opening it for writing then reopening it for reading
-                # fh = open(filename, 'w')
-                # fh = open(filename, 'r')
-                # return False to indicate there's nothing in the file
-                # TODO error message
+                # this error likely occurs when opening log files so write error to STDERR
+                sys.stderr.write(f'Workflow:open_exist - unable to open ({filename})')
                 fh = False
 
         return fh
@@ -179,9 +173,7 @@ class Workflow:
         found. rename the existing file to the unique name.  this allows filename to be used without
         wiping out a previous result
 
-        # TODO make static
-
-        :param filename: string
+        :param filename: string     path to file
         :return: string             unique name for existing file
         -----------------------------------------------------------------------------------------"""
         # add a numeric suffix to the current file and change its name
@@ -245,6 +237,7 @@ class Workflow:
         # log.start will not delete log if it already exists.
         log_base_name = f'{project}/{os.path.basename(project)}'
         log = self.log = Log()
+        self.command.log = log
         log.start('main', log_base_name + '.log')
         log.start('stdout', log_base_name + '.out')
         log.start('stderr', log_base_name + '.err')
@@ -275,72 +268,6 @@ class Workflow:
             os.mkdir(dirpath)
 
         return None
-
-    # def stage_setup(self, stage):
-    #     """-----------------------------------------------------------------------------------------
-    #     Prepare to execute commands for this stage
-    #     1. check/create stage directory, if necessary
-    #     2. open log file and store in object
-    #     3. if stage is marked finished, return False, otherwise True
-    #
-    #     if this is a restart run, main_setup already created a new project directory, so we don't have to check
-    #
-    #     : param stage: string       name of stage to initiate
-    #     :return: bool               False if stage is finished and should be skipped, else True
-    #     -----------------------------------------------------------------------------------------"""
-    #     status = True
-    #     self.stage = stage
-    #     self.stage_finished = False
-    #     stagedir = self.stage_dir = f'{self.option["project"]}/{stage}'
-    #
-    #     if not os.path.isdir(stagedir):
-    #         # create directory if absent
-    #         os.mkdir(stagedir)
-    #
-    #     # open stage log
-    #     stage_log = f'{w.option["project"]}/{stage}/{stage}.log'
-    #     self.log.start('stage', stage_log)
-    #     self.log.add('main', f'Stage {self.stage}: starting')
-    #     self.log.add('stage', f'Stage started')
-    #
-    #     # when a stage is finished a marker file {stage}/{stage}.finished is created,
-    #     # if this file is present, the stage will be skipped,
-    #     # return false without opening files: log.
-    #     finished = f'{w.option["project"]}/{stage}/{stage}.finished'
-    #     if os.path.isfile(finished):
-    #         self.log.add('main', f'Stage:{self.stage}: skipped (finished detected)\n')
-    #         self.log.add('stage', f'Finished marker detected\n')
-    #         self.stage_finished = True
-    #         self.log['stage'].close()
-    #         status = False
-    #
-    #     # False indicates the stage will not be run, and no processing of command/complete will
-    #     # occur
-    #     return status
-
-    # def stage_finish(self):
-    #     """-----------------------------------------------------------------------------------------
-    #     clean up at the end of a stage
-    #     1) mark as finished by creating stage, {base}/{stage}/{stage}.complete
-    #     2) report stage finished in log_main
-    #     3) close stage_log, command, and complete files
-    #
-    #     :return:
-    #     ---------------------------------------------------------------------------------------"""
-    #     # mark stage finished
-    #     finished = f'{w.option["base"]}/{stage}/{stage}.finished'
-    #     marker = open(finished, 'w')
-    #     marker.close()
-    #
-    #     self.log.add('stage', f'Finished marker created')
-    #     self.log.add('main', f'Stage: {self.stage}: finished\n')
-    #     self.log.add('stage', f'Stage finished\n')
-    #
-    #     # close all stage files
-    #     for f in (self.log['stage'], self.command, self.complete):
-    #         f.close()
-    #
-    #     return
 
     def fast_forward(self):
         """-----------------------------------------------------------------------------------------
@@ -377,85 +304,12 @@ class Workflow:
             tidx[template].created.add(command)
             if command not in finished:
                 # the command list format has to follow Template.fill()
-                command_list.append({'command': command, 'priority': tidx[template].priority, 'commandname': template})
+                command_list.append({'command': command,
+                                     'priority': tidx[template].priority,
+                                     'commandname': template})
 
         self.command.commands = command_list
         return command_list
-
-    def stage_fast_forward(self):
-        """-----------------------------------------------------------------------------------------
-        TODO defer fast_forward until after main command loop is updated
-        When stage_fast_forward() returns False it means that commands must be generated and stored
-        in the command file (done by command_generate)
-
-        1. check if this is a --restart run, if yes return False
-        3. check if command and complete files are available, if not return False
-        4. examine the list of commands {stage}.commands and completed commands {stage}.complete and
-           create a new list of commands that still need to be run, return True
-
-        :return: bool   True if commands need to be generated (restart())
-        -----------------------------------------------------------------------------------------"""
-        # self.command.stage = self.stage
-        # self.command.stage_dir = self.stage_dir
-        # try to open and read completed commands, if file is absent the complete list will be
-        # empty
-        # completefile = f'{w.option["base"]}/{stage}/{stage}.complete'
-        done = []
-        # self.complete = self.open_exist(completefile, 'r')
-        # TODO use the project log
-        if self.complete:
-            # read the completed job list; when run on multiple processors the complete list may not
-            # be in the same order as the job list
-            for line in self.complete:
-                done.append(line.rstrip())
-        else:
-            self.complete = open(completefile, 'w')
-
-        self.log.add('stage', f'Completed commands: {len(done)}')
-        self.complete.close()
-        # complete file exists and is closed
-
-        # try to open and read commands, skip any commands in the done list
-        # commandfile = f'{w.option["base"]}/{stage}/{stage}.command'
-        # self.command = self.open_exist(commandfile, 'r')
-        todo = []
-        # if the command file is not present, commands must be generated from the workflow
-        new_commands = False
-        if not self.command:
-            new_commands = True
-            commands = self.command.command_generate()
-            self.log.add('stage', f'Commands generated: {len(commands)}')
-
-            self.command = self.open_exist(commandfile, 'w')
-            for c in commands:
-                self.command.write(f'{c}\n')
-            self.command.close()
-            self.command = self.open_exist(commandfile, 'r')
-        # else:
-        # command file is open and readable
-        # remove any existing commands and save
-
-        command_n = 0
-        for line in self.command:
-            command_n += 1
-            line = line.rstrip()
-            if line in done:
-                continue
-            todo.append(line)
-
-        if not new_commands:
-            self.log.add('stage', f'Existing commands read: {command_n}')
-
-        self.save_exist(commandfile)
-        for c in todo:
-            self.command.write(f'{c}\n')
-
-        self.log.add('stage', f'Commands (completed removed): {len(todo)}')
-        self.command.close()
-
-        # command and complete files are closed so they can be reopened by the executor
-
-        return True
 
 
 ####################################################################################################
@@ -513,19 +367,15 @@ class Template:
             return command_list
 
         for m in Template.setre.finditer(command):
-            # find % set expressions, target are the files that match the glob in the set expression, e.g. *.xios
-            # print(f'globbing:{m.group("value")}')
+            # find % set expressions, targets are the files that match the glob in the
+            # set expression, e.g. *.xios
             target = Template.glob_update(m.group('value'))
 
         for t in target:
             # replace % set expression with targets
             result = Template.setre.sub(t, command)
-            # print(f'result:{result}')
             # get basename of globbed filename
             basetarget = os.path.basename(t)
-            # if basetarget in self.created:
-            #     # skip globbed names that have already been processed
-            #     continue
 
             # process % replace expression
             for m in Template.replacere.finditer(command):
@@ -536,9 +386,7 @@ class Template:
                 old = m.group('old').replace('"', '').replace("'", "")
                 new = m.group('new').replace('"', '').replace("'", "")
                 renamed = basetarget.replace(old, new)
-                # print(f'before:{basetarget}\t\tafter:{renamed}')
                 result = result.replace(m.group('expression'), renamed)
-                # print(f'before:{basetarget}\t\tafter:{result}')
                 if result not in self.created:
                     # prevent completing commands more than once
                     command_list.append({'commandname': self.name, 'priority': self.priority, 'command': result})
@@ -565,7 +413,50 @@ class Command:
     each stage can add/replace symbols in the global definitions, and can have tokens that can only
     be expanded at run time (see class Template())
 
-    TODO add description of workflow syntax
+    1) project: Project name (required) used as the name for the output directory
+       use -r to completely remove all existing content
+    2) definitions: Symbols used in directories: and commands sections
+       these can be paths or aliases for executables
+    3) directories: Directories to create under the project directory
+       usually used for output
+    4) commands: Named template commands to be run, in order of listing
+          command: (required)
+          wildcards are allowed as inputs
+          %replace(old,new) generates output filenames from inputs
+
+   example:
+    # workflow for calculating fingerprints from sequence using partition function
+   ---
+  project: testmanager
+  definitions:
+    #   code locations
+    python: python
+    RNAstructure: ../../RNAstructure/exe
+    XIOSexe: ..
+    fasta: /scratch/scholar/mgribsko/standards/fasta_fixed
+  directories:
+    # directories to create under project; also creates symbols
+    partition: $project/partition
+    stochastic: $project/stochastic
+    xios: $project/xios
+  commands:
+    partition:
+      command: $RNAstructure/partition $in $out $option
+      option:
+        -t 280
+        -q
+      in: $fasta/rnasep_ar*.fa
+      out: $partition/%in.replace('.fa', '.pfs')
+    stochastic:
+      command: $RNAstructure/stochastic $in $out $option
+      option: -s 3
+      in: $partition/*.pfs
+      out: $stochastic/%in.replace('.pfs', '.ct')
+    xios:
+      command: $python $XIOSexe/stochastic_to_xios.py $option $in $out
+      option: -m 3 -c 50
+      in: $stochastic/*.ct
+      out: $xios/%in.replace('.ct', '.xios')
     #################################################################################################################"""
 
     def __init__(self, filename='workflow1.yaml'):
@@ -575,14 +466,15 @@ class Command:
         template        list Template
                         command templates commands prepared for populating with filenames at run time
         static_symbols  symbols defined in workflow and referenced as $symbol.
-                        symbols can be expanded before the run starts and do not change during the run
-                        TODO not exactly true, they can differ in different commands
+                        symbols are expanded before the run starts and do not change during the run, unless overidden
+                           in one of the named commands
         -------------------------------------------------------------------------------------------------------------"""
         self.filename = filename
         self.parsed = None
         self.templates = []
         self.static_symbols = {}
         self.commands = []
+        self.log = None
         if filename:
             # expand static commands and create templates if filename exists
             self.parse_workflow()
@@ -599,8 +491,7 @@ class Command:
         priority = 0
         if not self.parsed:
             # error yaml not parsed
-            pass
-            # TODO complete this error to error log
+            self.log.add('main', f'Project\tError\tparsed yaml not found\t\t')
 
         commands = self.parsed['commands']
         for com in commands:
@@ -643,8 +534,7 @@ class Command:
         try:
             self.parsed = yaml.load(fp, Loader=yaml.FullLoader)
         except yaml.YAMLError:
-            pass
-            # TODO complete this error to error log
+            self.log.add('main', f'Project\tError\tyaml not loaded\t\t')
 
         fp.close()
 
@@ -666,7 +556,7 @@ class Command:
         for d in definitions:
             # add $ to the definition keys and push definitions all definitions on stack
             stack.append(['$' + d, definitions[d]])
-        # TODO need to process global symbols first so they are overridden by local symbols defined in a command
+
         while stack:
             # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
             # TODO should check for unexpandable symbols, maybe stack not changing in size for multiple rounds?
@@ -711,17 +601,17 @@ class Command:
     def generate(self):
         """-----------------------------------------------------------------------------------------
         generate executable commands from command templates
-        for each command template in Command.templates, complete the template by adding in files that are available
-        only at runtime. These are indicated by %variable_name
+        for each command template in Command.templates, complete the template by adding in files
+        that are available only at runtime. These are indicated by %variable_name
 
         :return: string                 command string
         -----------------------------------------------------------------------------------------"""
         for template in self.templates:
             # template is a Template object
-            # print(template.name)
-            self.commands += template.fill()
-            # TODO log this
-            # print(stage)
+            newcommands = template.fill()
+            self.commands += newcommands
+            self.log.add('main', f'Project\tGenerate commands\t{len(newcommands)} ' \
+                                 f'commands added\t{template.name}\t')
 
         return len(self.commands)
 
@@ -749,45 +639,21 @@ class Executor:
         delay           number of seconds to wait between polling
         running         number of jobs currently running
         -----------------------------------------------------------------------------------------"""
-        # self.commandfile = commandfile
-        # self.command = None
         self.commandlist = commandlist
-        # self.completefile = completefile
+        self.joblist = []
         self.complete = None
         self.log = log
         if not log:
             self.log = Log()
-        # self.stage = stage
         self.jobs = jobs
         self.delay = delay
         self.jobid = 0
-        self.running = 0
-        self.total = 0
-        self.started = 0
         self.finished = 0
         self.succeeded = 0
-        self.failed = 0
-        self.joblist = []
-
-    def setup(self):
-        """-----------------------------------------------------------------------------------------
-        main loop for executing commands in parallel.
-        1. read in commands from list of commands
-        2. report to log
-        3. loop over manager_startjobs and manager_polljobs to run all jobs in commandlist
-        -----------------------------------------------------------------------------------------"""
-        # read in commands
-        # TODO should this be commandlist?
-        self.command = []
-        # self.command = Workflow.open_exist(self.commandfile, 'r')
-        if self.command:
-            for line in self.command:
-                self.commandlist.append(line.rstrip())
-            # self.command.close()
-
-        total = len(self.commandlist)
-
-        return total
+        self.running = 0
+        # self.total = 0
+        # self.started = 0
+        # self.failed = 0
 
     def prioritize(self):
         """-----------------------------------------------------------------------------------------
@@ -834,21 +700,13 @@ class Executor:
         commandlist = self.commandlist.commands
         while commandlist and self.running < self.jobs:
             # check number of jobs running and start more if necessary
-            # completed commands have already been removed by fast forward, so you don't have to check
+            # completed commands have already been removed by fast forward, you don't have to check
             entry = commandlist.pop()
             thiscommand = entry['command']
             self.jobid += 1
             self.log.add('main', f'Executor\tstarted\t'
                                  f'{entry['commandname']}\t{thiscommand}\tjobid: {self.jobid}')
-            # job = sub.Popen(thiscommand, shell=True,
-            #                 env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'},
-            #                 stdout=self.log['stdout'], stderr=self.log['stderr'])
             job = (self.conda_run(thiscommand))
-            # ,)
-            #           env={'DATAPATH': '/scratch/scholar/mgribsko/RNAstructure/data_tables'})
-            # stdout=self.log['stdout'], stderr=self.log['stderr'])
-            # self.log.add(entry['stage'] + 'log', f'Executor: {thiscommand}')
-            # job += 1
             self.joblist.append([self.jobid, job, entry['commandname'], thiscommand])
             # commandlist.remove(entry)
             self.running += 1
@@ -881,7 +739,6 @@ class Executor:
 
                 else:
                     # job finished
-                    # print(f'job {jid} finished')
                     self.running -= 1
                     self.finished += 1
                     if result == 0:
