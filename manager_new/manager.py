@@ -988,7 +988,7 @@ if __name__ == '__main__':
 
     w.command.generate()
     exec = Executor(w.command, w.log, jobs=w.option["jobs"], delay=5)
-    while exec.commandlist.commands:
+    while exec.commandlist.commands or exec.joblist:
         # continue as long as there are commands in the command list
         exec.prioritize()
         exec.startjobs()
