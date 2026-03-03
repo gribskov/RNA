@@ -7,7 +7,6 @@ import subprocess
 import sys
 import time
 from copy import deepcopy
-
 import yaml
 
 
@@ -22,7 +21,7 @@ def arg_formatter(prog):
 
 
 def getoptions():
-    """-----------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     Command line arguments:
         required positional argument: workflow file
 
@@ -34,7 +33,7 @@ def getoptions():
 
     TODO add mechanism to set environment variables
     :return: command line namespace converted to dict
-    -----------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     project_default = './'
     commandline = argparse.ArgumentParser(
         description='Run workflow', formatter_class=arg_formatter)
@@ -191,7 +190,7 @@ class Workflow:
         return uniquename
 
     def prepare_project(self):
-        """-------------------------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         1) read the workflow yaml file and expand symbols
         2) check if this is a restart run
             if  restart==True:
@@ -206,13 +205,13 @@ class Workflow:
            store command templates
 
         :return:
-        -------------------------------------------------------------------------------------------------------------"""
+        -----------------------------------------------------------------------------------------"""
         # read and parse workflow yaml, expand static symbols
         self.command = Command(filename=self.option['workflow'])
         project = self.project = self.command.parsed['project']
         use_fast_forward = True
 
-        # check for restart mode, project directory must be created or identified before starting logs
+        # check for restart mode, project directory must be created/identified before starting logs
         restart_comment = f'Project directory ({project}) created'
         if self.option['restart']:
             # in restart mode, delete the existing directory tree, if present
@@ -233,7 +232,8 @@ class Workflow:
             thisdir = f'{project}/{d}'
             self.dir_exist(thisdir)
 
-        # create log object and add main, stderr, and stdout logs. all have the same basename as the project
+        # create log object and add main, stderr, and stdout logs. all have the same basename as
+        # the project
         # log.start will not delete log if it already exists.
         log_base_name = f'{project}/{os.path.basename(project)}'
         log = self.log = Log()
@@ -257,12 +257,12 @@ class Workflow:
 
     @staticmethod
     def dir_exist(dirpath):
-        """-------------------------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         checks if directory path exists, and if it does not, creates it
 
         :param dirpath: string      path to directory
         :return: None
-        -------------------------------------------------------------------------------------------------------------"""
+        -----------------------------------------------------------------------------------------"""
         if not os.path.isdir(dirpath):
             # create directory if absent
             os.mkdir(dirpath)
@@ -289,7 +289,7 @@ class Workflow:
                 started.append(line.rstrip())
             if 'Executor\tfinished' in line:
                 # need the command to check against jobs started
-                time, msgsource, msg, template, command, jobid = line.rstrip().split('\t')
+                logtime, msgsource, msg, template, command, jobid = line.rstrip().split('\t')
                 finished.append(command)
 
         # make a dictionary of the created list for each template
@@ -299,7 +299,7 @@ class Workflow:
 
         command_list = []
         for command in started:
-            time, msgsource, msg, template, command, jobid = command.split('\t')
+            logtime, msgsource, msg, template, command, jobid = command.split('\t')
             # print(time, msgsource, msg, template, command, jobid)
             tidx[template].created.add(command)
             if command not in finished:
@@ -361,7 +361,9 @@ class Template:
         if command.find('%') == -1:
             # command has no % expressions to process, just add to the command_list and return
             if command not in self.created:
-                command_list.append({'command': command, 'priority': self.priority, 'stage': self.name})
+                command_list.append({'command': command,
+                                     'priority': self.priority,
+                                     'stage': self.name})
                 self.created.add(command)
 
             return command_list
@@ -389,7 +391,9 @@ class Template:
                 result = result.replace(m.group('expression'), renamed)
                 if result not in self.created:
                     # prevent completing commands more than once
-                    command_list.append({'commandname': self.name, 'priority': self.priority, 'command': result})
+                    command_list.append({'commandname': self.name,
+                                         'priority': self.priority,
+                                         'command': result})
                     self.created.add(result)
 
         return command_list
@@ -407,7 +411,7 @@ class Template:
 
 
 class Command:
-    """#################################################################################################################
+    """#############################################################################################
     convert the yaml workflow file describing the workflow to a list of executable commands
 
     each stage can add/replace symbols in the global definitions, and can have tokens that can only
@@ -457,18 +461,18 @@ class Command:
       option: -m 3 -c 50
       in: $stochastic/*.ct
       out: $xios/%in.replace('.ct', '.xios')
-    #################################################################################################################"""
+    #############################################################################################"""
 
     def __init__(self, filename='workflow1.yaml'):
-        """-------------------------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         filename        path to yaml file containing the workflow
         parsed          yaml parsed to python dictionary
         template        list Template
-                        command templates commands prepared for populating with filenames at run time
+                        command templates prepared for populating with filenames at run time
         static_symbols  symbols defined in workflow and referenced as $symbol.
-                        symbols are expanded before the run starts and do not change during the run, unless overidden
-                           in one of the named commands
-        -------------------------------------------------------------------------------------------------------------"""
+                        symbols are expanded before the run starts and do not change during the run,
+                           unless overidden in one of the named commands
+        -----------------------------------------------------------------------------------------"""
         self.filename = filename
         self.parsed = None
         self.templates = []
@@ -480,14 +484,15 @@ class Command:
             self.parse_workflow()
 
     def make_templates(self):
-        """-------------------------------------------------------------------------------------------------------------
-        build the command templates. Templates have all static symbols expanded and any symbols to be
-        determined at run time replaced with % symbols. template is a dict with the command names as keys, directly from
-        the parsed workflow yaml
+        """-----------------------------------------------------------------------------------------
+        build the command templates. Templates have all static symbols expanded and any symbols to
+        be determined at run time replaced with % symbols. template is a dict with the command names
+        as keys, directly from the parsed workflow yaml
 
         The workflow yaml must have been read and parsed and stored in self.parsed
-        :return:
-        -------------------------------------------------------------------------------------------------------------"""
+
+        :return: int    number of templates read
+        -----------------------------------------------------------------------------------------"""
         priority = 0
         if not self.parsed:
             # error yaml not parsed
@@ -505,15 +510,15 @@ class Command:
         return len(self.templates)
 
     def parse_workflow(self):
-        """-------------------------------------------------------------------------------------------------------------
+        """-----------------------------------------------------------------------------------------
         read workflow from yaml file and expand global static symbols
         expand static symbols
 
-        keep this as a separate method in case it is not convenient to parse the workflow file when creating the Command
-        object.
+        keep this as a separate method in case it is not convenient to parse the workflow file when
+        creating the Command object.
 
         :return: dict   parsed yaml as python dictionary
-        -------------------------------------------------------------------------------------------------------------"""
+        -----------------------------------------------------------------------------------------"""
         # read the workflow yaml file
         self.read_parse()
         # expand global static symbols, do not process commands at this point
@@ -559,7 +564,8 @@ class Command:
 
         while stack:
             # recursively expand symbols, symbols whose values do not contain $ are moved to symbol
-            # TODO should check for unexpandable symbols, maybe stack not changing in size for multiple rounds?
+            # TODO should check for unexpandable symbols, maybe stack not changing in size for
+            #  multiple rounds?
             dkey, dval = stack.pop()
             if dval.find('$') == -1:
                 # no expandable symbol, save to symbol dict. this is the only place definitions are
@@ -610,7 +616,7 @@ class Command:
             # template is a Template object
             newcommands = template.fill()
             self.commands += newcommands
-            self.log.add('main', f'Project\tGenerate commands\t{len(newcommands)} ' \
+            self.log.add('main', f'Project\tGenerate commands\t{len(newcommands)} '
                                  f'commands added\t{template.name}\t')
 
         return len(self.commands)
@@ -653,7 +659,7 @@ class Executor:
         self.running = 0
         # self.total = 0
         # self.started = 0
-        # self.failed = 0
+        self.failed = 0
 
     def prioritize(self):
         """-----------------------------------------------------------------------------------------
@@ -749,7 +755,8 @@ class Executor:
                     else:
                         # error
                         self.log.add('stderr', f'Executor: fail, jobid:{jid} stage:{stage}, ')
-                        self.log.add('main', f'Executor\tfail\t{stage}\t{command}\tjobid:{jid}\texit:{result}')
+                        self.log.add('main',
+                                     f'Executor\tfail\t{stage}\t{command}\tjobid:{jid}\texit:{result}')
                         self.failed += 1
 
                     # include the result in the remove list, it can't be removed here because it
