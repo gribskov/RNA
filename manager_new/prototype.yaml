@@ -1,24 +1,26 @@
 # workflow for calculating fingerprints from sequence using partition function
 ---
-  project: testmanager
+  project: mtest_all
   definitions:
     #   code locations
     python: python
-    RNAstructure: ../../RNAstructure/exe
-    XIOSexe: ..
+    RNAstructure: ../../../RNAstructure/exe
+    XIOSexe: ../../../RNA
+    XIOSdata: ../../../RNA/data/
     fasta: /scratch/scholar/mgribsko/standards/fasta_fixed
   directories:
     # directories to create under project; also creates symbols
     partition: $project/partition
     stochastic: $project/stochastic
     xios: $project/xios
+    fpt: $project/fpt
   commands:
     partition:
       command: $RNAstructure/partition $in $out $option
       option:
-        -t 280 
+        -t 280
         -q
-      in: $fasta/rnasep_ar*.fa
+      in: $fasta/*.fa
       out: $partition/%in.replace('.fa', '.pfs')
     stochastic:
       command: $RNAstructure/stochastic $in $out $option
@@ -30,4 +32,11 @@
       option: -m 3 -c 50
       in: $stochastic/*.ct
       out: $xios/%in.replace('.ct', '.xios')
+    fingerprint:
+      command: $python $XIOSexe/fingerprint_random.py -m $XIOSdata/2to7stem.mdb.pkl $option -r $in -f $out
+      option: -l 500000 -c 3
+      in: $xios/*.xios
+      out: $fpt/%in.replace('.xios', 'fpt')
+
+
 
