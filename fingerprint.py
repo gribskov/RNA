@@ -67,7 +67,6 @@ class Fingerprint(dict):
             self.motif[string] += n
         else:
             self.motif[string] = n
-            self.count += n
 
         return self.count
 
