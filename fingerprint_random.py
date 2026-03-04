@@ -31,7 +31,6 @@ def process_command_line():
       -n, --noparent                        Exclude parent graphs from fingerprint (default=False)
       -q, --quiet                           Minimal output on stdout (default=False)
 
-
     :return:
     ---------------------------------------------------------------------------------------------"""
     default_subgraphsize = 6
@@ -149,7 +148,8 @@ while True:
     # minimum is expensive)
     xios = rna.sample_xios(opt.subgraphsize)
     if not xios:
-        print(f'graph could not be sampled, possibly too small')
+        # should never reach here, revised sample_xios will always return a graph
+        sys.stderr.write(f'fingerprint_random - graph could not be sampled, possibly too small')
         exit(2)
     gspan = Gspan(graph=xios)
     dfs = gspan.minDFS().human_encode()
