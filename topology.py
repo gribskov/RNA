@@ -963,7 +963,7 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int   size of graph to sample
+        :param n: int   maximum size of graph to sample
         :param n: int   minimum size for sampled graph
         :return: list   list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
@@ -971,6 +971,7 @@ class Topology:
         nvertex = len(adj)
         random.seed()
 
+        biggest = []
         vlist = []
         excluded = set()
         # initialize neighbor with a random vertex for the first vertex
@@ -989,9 +990,11 @@ class Topology:
             # update neighbor and exclude sets
             for a in range(nvertex):
                 if adj[v0][a] == 'x':
+                    # remove vertices that are x to any already in the sample
                     neighbor.discard(a)
                     excluded.add(a)
                 if adj[v0][a] in 'ijo':
+                    # add viable neighbors to current neighborhood
                     neighbor.add(a)
 
             # make sure no excluded are in the neighbor set
@@ -1005,6 +1008,9 @@ class Topology:
                 # there are no more neighbors but the graph is too small
                 # reinitialize vlist, neighbor, and excluded and try again
 
+                vs = sorted(vlist)
+                if vs not in biggest:
+                    biggest.append(vs)
                 vlist = []
                 neighbor = {random.randrange(nvertex)}
                 excluded.clear()
@@ -1012,6 +1018,10 @@ class Topology:
                     break
 
         # end of size < n loop
+
+        if not vlist:
+            biggest = sorted(biggest, key=lambda v:len(v), reverse=True)
+            vlist = biggest[0]
 
         return sorted(vlist)
 
@@ -1208,20 +1218,20 @@ class Topology:
 
         vlist = []
         tries = 0
-        while len(vlist) < n and tries < retry:
-            tries += 1
-            vlist = Topology.sample(self.adjacency, n)
+        # while len(vlist) < n and tries < retry:
+        tries += 1
+        vlist = Topology.sample(self.adjacency, n)
 
-            adj = self.adjacency
-            struct = []
+        adj = self.adjacency
+        struct = []
 
-            # identify all the edges between the vertices in vlist
-            for r in range(len(vlist) - 1):
-                row = vlist[r]
-                for c in range(r + 1, len(vlist)):
-                    col = vlist[c]
-                    if adj[row][col] in 'ijo':
-                        struct.append([row, col, edge[adj[row][col]]])
+        # identify all the edges between the vertices in vlist
+        for r in range(len(vlist) - 1):
+            row = vlist[r]
+            for c in range(r + 1, len(vlist)):
+                col = vlist[c]
+                if adj[row][col] in 'ijo':
+                    struct.append([row, col, edge[adj[row][col]]])
 
         # print(struct)
         return Xios(list=struct)
