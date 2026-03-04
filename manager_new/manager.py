@@ -711,7 +711,7 @@ class Executor:
             thiscommand = entry['command']
             self.jobid += 1
             self.log.add('main', f'Executor\tstarted\t'
-                                 f'{entry['commandname']}\t{thiscommand}\tjobid: {self.jobid}')
+                                 f'{entry["commandname"]}\t{thiscommand}\tjobid: {self.jobid}')
             job = (self.conda_run(thiscommand))
             self.joblist.append([self.jobid, job, entry['commandname'], thiscommand])
             # commandlist.remove(entry)
@@ -754,9 +754,10 @@ class Executor:
 
                     else:
                         # error
-                        self.log.add('stderr', f'Executor: fail, jobid:{jid} stage:{stage}, ')
+                        # self.log.add('stderr', f'Executor: fail jobid:{jid} stage:{stage}, ')
                         self.log.add('main',
-                                     f'Executor\tfail\t{stage}\t{command}\tjobid:{jid}\texit:{result}')
+                                     f'Executor\tjobid:{jid} failed with status={result}\t{stage}\t'
+                                     f'{command}')
                         self.failed += 1
 
                     # include the result in the remove list, it can't be removed here because it
