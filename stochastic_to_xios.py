@@ -89,6 +89,7 @@ class Struc:
         for pp in sorted(pairs):
             # examine all the paired positions for pos
             if pp < pos:
+                # only process basepairs when the position is less than the paired position
                 continue
             # matched = False
             thisbp = Bp(pos=pos, ppos=pp)
@@ -148,7 +149,8 @@ class Struc:
                     stem_set.append(s)
 
             if not stem_set:
-                break
+                # the stemgroups list can have empty groups, so continue instead of break
+                continue
             stems = sorted(stem_set,
                            key=lambda x: (min(x.lend - x.lbegin, x.rend - x.rbegin), -x.unp_n),
                            reverse=True)
@@ -233,6 +235,8 @@ class Struc:
             while ldif <= 0 or rdif <= 0:
                 # thisbp.ppos must be smaller than t.ppos to be added. If it's bigger, search
                 # backwards along the stem to find a position where thisbp.ppos is bigger
+                # to be added to a stem, both ldif and rdif must be > 0, if zero it means the
+                # base has mutliple possible base pairs very close together (treat as one stem)
 
                 if t.parent:
                     t = t.parent[0]
