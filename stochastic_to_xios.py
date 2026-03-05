@@ -168,7 +168,11 @@ class Struc:
         trace the path from each tip, assigning each basepair to the same group.
         if a trace encounters a basepair in a group, the entire trace from the beginning belongs to
         the older group
-        :return:
+
+        TODO find_groups can produce empty groups. final_stems now checks for this but it would
+        probably be better to fix it here
+
+        :return: int       number of basepair groups
         -----------------------------------------------------------------------------------------"""
         group = [[]]
         group_n = 0
