@@ -976,7 +976,10 @@ class Topology:
         excluded = set()
         # initialize neighbor with a random vertex for the first vertex
         # neighbor = set([random.randrange(nvertex)])
-        neighbor = {random.randrange(nvertex)}
+        try:
+            neighbor = {random.randrange(nvertex)}
+        except ValueError:
+            sys.stderr.write('Topology.sample() - graph too small\n')
         attempt = 0
         while len(vlist) < n:
             # print(attempt)
