@@ -70,6 +70,8 @@ subs['XPROJECT'] = name for output directory for this parameter set, currently f
 subs['XWORKFLOW'] = name for workflow file, currently f'{subs["XPROJECT"]}.workflow'
 ================================================================================================="""
 if __name__ == '__main__':
+    submit = False
+
     # Temperature, Fraction, Stem size
     T = [t for t in range(260, 360, 10)]
     F = [f for f in range(10, 225, 10)]
@@ -130,6 +132,12 @@ if __name__ == '__main__':
         slurmout.write(slurm)
         slurmout.close()
         print(slurm)
+
+        # write out files even if not submitting directly
+
+        if submit:
+            # submit directly to slurm
+            pass
 
         # Start a subprocess that reads from its standard input
         # process = subprocess.Popen(
