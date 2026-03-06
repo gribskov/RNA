@@ -88,8 +88,13 @@ def arc_plot(p1, p2, center, radius, ax, lw, color='green'):
 
     # Create the arc patch
     # arc = plt.matplotlib.patches.Arc(center, 3 * radius, 2 * radius, angle=0,
+    h = (color - 0.45) % 1
+    s = 0
+    v = (1 - color) ** 5
+    v=color ** 1.5
+    lw = 4 * color ** 0.25
     arc = plt.matplotlib.patches.Arc(center,2 * radius, radius, angle=0,
-                                     theta1=angle1, theta2=angle2, color=color,
+                                     theta1=angle1, theta2=angle2, color=[h,s,v,0.3],
                                      linewidth=lw, antialiased=True)
 
     ax.add_patch(arc)
@@ -105,8 +110,8 @@ def arc_plot(p1, p2, center, radius, ax, lw, color='green'):
 if __name__ == '__main__':
     # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/tRNA.1F7U.ct'
     # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/rnasep_a2.Nitrosomonas_europaea.ct'
-    # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/5S_a.Halorubrum_saccharovorum.ct'
-    ctfile = '../data/tRNA.1QTQ.ct'
+    ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/5S_a.Halorubrum_saccharovorum.ct'
+    # ctfile = '../data/tRNA.1QTQ.ct'
 
     structure, size = read_ct(ctfile)
     arc = []
@@ -120,6 +125,7 @@ if __name__ == '__main__':
     scale = 0.8 / size  # bases/unit
     offset = 0.1  # left margin
     # ax.set_aspect('equal')
+    plt.hsv()
     for a in arc:
         if a['right'] == 0 or a['left'] > a['right']:
             continue
@@ -131,12 +137,12 @@ if __name__ == '__main__':
         # x1 = (0.2 + a['right'] / size / 2, 0.2)
         x0 = (offset + scale * a['left'], 0.2)
         x1 = (offset + scale * a['right'], 0.2)
-        weight = a['weight'] / 250.0
+        weight = a['weight'] / 1000.0
         center = ((x0[0] + x1[0]) / 2.0, 0.2)
         radius = abs(x1[0] - x0[0]) / 2.0
-        arc_plot(x0, x1, center, radius, ax, weight)
+        arc_plot(x0, x1, center, radius, ax, 1.0,color=weight)
 
-    arc_plot((offset + 0.5, 0.2), (1.0, 0.2), (0.5, 0.2), 0.25, ax, 4.0, color='red')
+    arc_plot((offset, 0.2), (offset + size*scale, 0.2), (0.5, 0.2), 0.4, ax, 2.0, color=0)
     plt.axhline(0.2, offset + scale * 0, offset + scale * size, color='black', linewidth=6.0)
     plt.show()
     exit(0)
