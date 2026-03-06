@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Arc
 import math
 
+
 def read_ct(filename):
     """---------------------------------------------------------------------------------------------
     read ct structures
@@ -52,8 +53,8 @@ def read_ct(filename):
             base0 = field[0]
             base1 = field[4]
 
-        # if base0 < base1:
-            # only count pairs in low to high order, conver to zero based
+            # if base0 < base1:
+            # only count pairs in low to high order, convert to zero based
             pairs[base0][base1] += 1
 
     # convert to counts
@@ -62,7 +63,8 @@ def read_ct(filename):
 
     return pairs, seqlen
 
-def arc_plot(p1, p2, center, radius, ax, lw):
+
+def arc_plot(p1, p2, center, radius, ax, lw, color='green'):
     """---------------------------------------------------------------------------------------------
     Plots an arc between two points using a known center and radius in Matplotlib.
 
@@ -85,8 +87,9 @@ def arc_plot(p1, p2, center, radius, ax, lw):
         angle1, angle2 = angle2, angle1
 
     # Create the arc patch
-    arc = plt.matplotlib.patches.Arc(center, 3*radius, 2*radius, angle=0,
-                                     theta1=angle1, theta2=angle2, color='green',
+    # arc = plt.matplotlib.patches.Arc(center, 3 * radius, 2 * radius, angle=0,
+    arc = plt.matplotlib.patches.Arc(center,2 * radius, radius, angle=0,
+                                     theta1=angle1, theta2=angle2, color=color,
                                      linewidth=lw, antialiased=True)
 
     ax.add_patch(arc)
@@ -98,28 +101,42 @@ def arc_plot(p1, p2, center, radius, ax, lw):
     # ax.set_aspect('equal', adjustable='box')
     return
 
+
 if __name__ == '__main__':
-    ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/tRNA.1F7U.ct'
-    ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/rnasep_a2.Nitrosomonas_europaea.ct'
+    # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/tRNA.1F7U.ct'
+    # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/rnasep_a2.Nitrosomonas_europaea.ct'
     # ctfile = '../../work/2602_test_install/testmanager/mtest_260305bugfix/stochastic/5S_a.Halorubrum_saccharovorum.ct'
+    ctfile = '../data/tRNA.1QTQ.ct'
 
     structure, size = read_ct(ctfile)
     arc = []
     for s in sorted(structure, key=lambda s: int(s)):
         for pairedbase in structure[s]:
-            print(f'{s}\t{pairedbase}\t{structure[s][pairedbase]}')
-            arc.append({'left':s, 'right':pairedbase, 'weight':structure[s][pairedbase]})
+            # print(f'{s}\t{pairedbase}\t{structure[s][pairedbase]}')
+            arc.append({'left': int(s), 'right': int(pairedbase), 'weight': int(structure[s][pairedbase])})
 
     # plt.figure()
     fig, ax = plt.subplots(figsize=(14, 8))
+    scale = 0.8 / size  # bases/unit
+    offset = 0.1  # left margin
     # ax.set_aspect('equal')
     for a in arc:
-        x0 = (int(a['left'])/size/2,0.25)
-        x1 = (int(a['right'])/size/2,0.25)
-        weight = int(a['weight'])/500
-        center = ((x0[0] + x1[0]) / 2.0,0.25)
-        radius = center[0]/2
+        if a['right'] == 0 or a['left'] > a['right']:
+            continue
+        if a['right'] == 0:
+            print('how')
+
+        print(f"{a['left']}\t{a['right']}\t{a['weight']}")
+        # x0 = (0.2 + a['left'] / size / 2, 0.2)
+        # x1 = (0.2 + a['right'] / size / 2, 0.2)
+        x0 = (offset + scale * a['left'], 0.2)
+        x1 = (offset + scale * a['right'], 0.2)
+        weight = a['weight'] / 250.0
+        center = ((x0[0] + x1[0]) / 2.0, 0.2)
+        radius = abs(x1[0] - x0[0]) / 2.0
         arc_plot(x0, x1, center, radius, ax, weight)
 
+    arc_plot((offset + 0.5, 0.2), (1.0, 0.2), (0.5, 0.2), 0.25, ax, 4.0, color='red')
+    plt.axhline(0.2, offset + scale * 0, offset + scale * size, color='black', linewidth=6.0)
     plt.show()
     exit(0)
