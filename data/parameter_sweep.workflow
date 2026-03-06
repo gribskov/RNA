@@ -5,7 +5,7 @@
 #       minimum bases in stem (stochastic_to_xios)
 # THIS WORKFLOW WILL NOT RUN UNLESS THE VALUES IN < > ARE PROVIDED
 ---
-  project: <$base/project_name>
+  project: <XPROJECT>
   definitions:
     # paths
     python: python
@@ -24,24 +24,24 @@
   commands:
     partition:
       command: $RNAstructure/partition $in $out $temperature $option
-      temperature: <-t 280>
+      temperature: -t <XT>
       option: -q
       in: $fasta/*.fa
       out: $partition/%in.replace('.fa', '.pfs')
     stochastic:
       command: $RNAstructure/stochastic $in $out $seed
-      seed: <-s 3>
+      seed: -s <XSEED>
       in: $partition/*.pfs
       out: $stochastic/%in.replace('.pfs', '.ct')
     xios:
       command: $python $XIOSexe/stochastic_to_xios.py $stemsize $fraction $in $out
-      stemsize: <-m>
-      fraction: <-c>
+      stemsize: -m <XM>
+      fraction: -c <XF>
       in: $stochastic/*.ct
       out: $xios/%in.replace('.ct', '.xios')
     fingerprint:
       command: $python $XIOSexe/fingerprint_random.py -m $XIOSdata/2to7stem.mdb.pkl $option -r $in -f $out
-      option: -l 500000 -c 3
+      option: -l 500000 -c 5
       in: $xios/*.xios
       out: $fpt/%in.replace('.xios', 'fpt')
 
