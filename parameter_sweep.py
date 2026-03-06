@@ -32,12 +32,13 @@ XENVIRONMENT
 XRNASTRUCTUREDATA
 XMANAGER
 -------------------------------------------------------------------------------------------------"""
-slurm_template = """
-    #!/bin/bash
+slurm_template = """#!/bin/bash
     #SBATCH --job-name <XPROJECT>
     #SBATCH --output=%x_%j.out
     #SBATCH --error=%x_%j.err
     #SBATCH --account <XACCOUNT>
+    #SBATCH --partition=cpu
+    #SBATCH --qos=standby
     #SBATCH --nodes=1
     #SBATCH --ntasks=<XCPUS>
     #SBATCH --time=4:00:00
@@ -129,5 +130,14 @@ if __name__ == '__main__':
         slurmout.write(slurm)
         slurmout.close()
         print(slurm)
+
+        # Start a subprocess that reads from its standard input
+        # process = subprocess.Popen(
+        #     ['sbatch'],  # Command to run (word count with line count flag)
+        #     stdin=subprocess.PIPE,  # Redirect stdin to a pipe
+        #     stdout=subprocess.PIPE,  # Redirect stdout to a pipe (optional, if you need the output)
+        #     stderr=subprocess.PIPE,  # Redirect stderr to a pipe (optional)
+        #     text=True  # Handle input/output as text strings (Python 3.7+)
+        # )
 
         sleep(0.01)
