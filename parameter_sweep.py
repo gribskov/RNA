@@ -34,19 +34,19 @@ XMANAGER
 -------------------------------------------------------------------------------------------------"""
 slurm_template = """
     #!/bin/bash
-    #SBATCH --job-name XPROJECT
+    #SBATCH --job-name <XPROJECT>
     #SBATCH --output=%x_%j.out
     #SBATCH --error=%x_%j.err
-    #SBATCH --account XACCOUNT
+    #SBATCH --account <XACCOUNT>
     #SBATCH --nodes=1
-    #SBATCH --ntasks=XCPUS
+    #SBATCH --ntasks=<XCPUS>
     #SBATCH --time=4:00:00
     
     module load anaconda
-    conda activate XENVIRONMENT
+    conda activate <XENVIRONMENT>
     
-    export set DATAPATH=XRNASTRUCTURE_DATA
-    python XMANAGER XPROJECT.workflow -j XCPUS
+    export set DATAPATH=<XRNASTRUCTURE_DATA>
+    python <XMANAGER> <XPROJECT>.workflow -j <XCPUS>
 """
 
 """=================================================================================================
@@ -119,14 +119,15 @@ if __name__ == '__main__':
         wf.write(template)
         wf.close()
 
+        # fill in placeholders in slurm job templates
         slurm = slurm_template
+        for substitution in subs:
+            target = f'<{substitution}>'
+            slurm = slurm.replace(target, subs[substitution])
+
         slurmout = open(f'{subs["XPROJECT"]}.slurm', 'w')
         slurmout.write(slurm)
         slurmout.close()
         print(slurm)
 
-        workout = open(subs['XWORKFLOW'], 'w')
-        workout.write(workflow)
-        workout.close()
-        print(workflow)
         sleep(0.01)
