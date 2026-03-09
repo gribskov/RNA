@@ -682,12 +682,19 @@ class Executor:
         # Use the CONDA_PREFIX environment variable to target the current environment
         # TODO this works but it needs to not have the data tables hardwired
         env = os.environ.copy()
-        env["DATAPATH"] = '/scratch/scholar/mgribsko/RNAstructure/data_tables'
-        conda_prefix = os.path.basename(os.environ.get("CONDA_PREFIX"))
+        env["DATAPATH"] = ('/scratch/bell/mgribsko/rna/RNAstructure/data_tables')
+        # project_dir = os.getenv("PROJECT_DIR")
+        conda_prefix = os.environ.get("CONDA_PREFIX")
+        conda_env = os.path.basename(os.environ.get("CONDA_DEFAULT_ENV"))
+        # print(f'project:{project_dir}\tprefix:{conda_prefix}\tenv:{conda_env}')
         # cmd = 'ls'
         if conda_prefix:
+            conda = f'{conda_prefix}/bin/conda'
+            conda_exe = '/apps/external/anaconda/2025.12/bin/conda'
+            print(f'conda:{conda}')
             # Build the command using 'conda run -p <path_to_env>'
-            cmd = ["conda", "run", "-n", conda_prefix] + cmd.split()
+            cmd = [conda_exe, "run", "-n", conda_env] + cmd.split()
+            print(f'cmd:{cmd}')
 
         result = subprocess.Popen(cmd,
                                   env=env,
