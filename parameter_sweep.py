@@ -18,9 +18,10 @@ RNAstructure:stochastic requires a random seed. this is set based on current tim
 produce exactly the same result
 TODO mechanism to exactly replicate by providing a defined seed
 ================================================================================================="""
+import subprocess
+import sys
 from itertools import product
 from time import time, sleep
-import yaml
 from manager_new.manager import Command
 
 """-------------------------------------------------------------------------------------------------
@@ -33,21 +34,21 @@ XRNASTRUCTUREDATA
 XMANAGER
 -------------------------------------------------------------------------------------------------"""
 slurm_template = """#!/bin/bash
-    #SBATCH --job-name <XPROJECT>
-    #SBATCH --output=%x_%j.out
-    #SBATCH --error=%x_%j.err
-    #SBATCH --account <XACCOUNT>
-    #SBATCH --partition=cpu
-    #SBATCH --qos=standby
-    #SBATCH --nodes=1
-    #SBATCH --ntasks=<XCPUS>
-    #SBATCH --time=4:00:00
-    
-    module load anaconda
-    conda activate <XENVIRONMENT>
-    
-    export set DATAPATH=<XRNASTRUCTURE_DATA>
-    python <XMANAGER> <XPROJECT>.workflow -j <XCPUS>
+#SBATCH --job-name <XPROJECT>
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
+#SBATCH --account=<XACCOUNT>
+#SBATCH --qos=<XQOS>
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --ntasks=<XCPUS>
+#SBATCH --time=4:00:00
+
+#module load anaconda
+#conda activate <XENVIRONMENT>
+
+export set DATAPATH=<XRNASTRUCTURE_DATA>
+python <XMANAGER> <XPROJECT>.workflow -j <XCPUS>
 """
 
 """=================================================================================================
@@ -71,6 +72,8 @@ subs['XWORKFLOW'] = name for workflow file, currently f'{subs["XPROJECT"]}.workf
 ================================================================================================="""
 if __name__ == '__main__':
     submit = False
+    workflow = sys.argv[1]
+    print('Workflow file: {workflow}')
 
     # Temperature, Fraction, Stem size
     T = [t for t in range(260, 360, 10)]
@@ -78,29 +81,32 @@ if __name__ == '__main__':
     S = [s for s in range(2, 6)]
 
     njobs = len(T) * len(F) * len(S)
-    print(f'[arameter_sweep')
+    print(f'[parameter_sweep')
     print(f'\tTemperature: {T}')
     print(f'\tFraction: {F}')
     print(f'\tStem minimum size: {S}')
     print(f'\t Total jobs: {njobs}')
 
     base = '/scratch/bell/mgribsko/rna/'
-    subs = {'XACCOUNT': 'standby',
+    subs = {'XACCOUNT': 'gcore',
+            'XQOS': 'standby',
             'XCPUS': '128',
             'XENVIRONMENT': 'RNA26',
-            'XPROJECT':None,
+            'XPROJECT': None,
             'XWORKFLOW': None,
             'XRNASTRUCTURE_DATA': f'{base}RNAstructure/data_tables/',
             'XRNASTRUCTURE_EXE': f'{base}RNAstructure/exe/',
             'XMANAGER': f'{base}RNA/manager_new/manager.py'}
-    workflow_template = f'{base}/RNA/data/parameter_sweep.workflow'
+    # workflow_template = f'{base}/RNA/data/parameter_sweep.workflow'
+    workflow_template = f'{workflow}'
 
+    count = 0
     for t, f, s in product(T, F, S):
+        count += 1
         print(f'{t}  {f}  {s}')
         subs['XT'] = f'{t}'
         subs['XF'] = f'{f}'
         subs['XM'] = f'{s}'
-
 
         subs['XPROJECT'] = f'p_{t}_{f}_{s}'
         subs['XWORKFLOW'] = f'{subs["XPROJECT"]}.workflow'
@@ -112,7 +118,7 @@ if __name__ == '__main__':
 
         # fill in placeholders in workflow template and save
         template = Command('')
-        template = open('data/parameter_sweep.workflow','r').read()
+        template = open(workflow, 'r').read()
 
         for substitution in subs:
             target = f'<{substitution}>'
@@ -128,24 +134,28 @@ if __name__ == '__main__':
             target = f'<{substitution}>'
             slurm = slurm.replace(target, subs[substitution])
 
+        # write out files even if not submitting directly
         slurmout = open(f'{subs["XPROJECT"]}.slurm', 'w')
         slurmout.write(slurm)
         slurmout.close()
         print(slurm)
 
+        # submit
+
+        slurm = subprocess.Popen(['sbatch'],
+                                 stdin=subprocess.PIPE,  # Redirect stdin to a pipe
+                                 stdout=subprocess.PIPE,
+                                 # Redirect stdout to a pipe (optional, if you need the output)
+                                 stderr=subprocess.PIPE,  # Redirect stderr to a pipe (optional)
+                                 text=True  # Handle input/output as text strings (Python 3.7+)
+                                 )
+        with open(f'{subs["XPROJECT"]}.slurm', 'r') as f:
+            stdout, stderr = slurm.communicate(input=f.read())
+
+        # if count > 0:
+        #     exit(1)
+
         # write out files even if not submitting directly
 
-        if submit:
-            # submit directly to slurm
-            pass
-
-        # Start a subprocess that reads from its standard input
-        # process = subprocess.Popen(
-        #     ['sbatch'],  # Command to run (word count with line count flag)
-        #     stdin=subprocess.PIPE,  # Redirect stdin to a pipe
-        #     stdout=subprocess.PIPE,  # Redirect stdout to a pipe (optional, if you need the output)
-        #     stderr=subprocess.PIPE,  # Redirect stderr to a pipe (optional)
-        #     text=True  # Handle input/output as text strings (Python 3.7+)
-        # )
 
         sleep(0.01)
