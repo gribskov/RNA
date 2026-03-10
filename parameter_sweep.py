@@ -57,6 +57,7 @@ python <XMANAGER> <XPROJECT>.workflow -j <XCPUS>
 slurm_template variables provided by main:
 XPROJECT            project name for this parameter set; defines name for workflow file    
 XACCOUNT            account for slurm job
+XQOS                quality of service (standby or normal)
 XCPUS               number of CPUs to request through slurm; number of process to keep running (manager.py)
 XENVIRONMENT        conda environment for python (stochastic_to_xios.py and fingerprint_random.py)
 XRNASTRUCTUREDATA   path to RNAstructure energy tables
@@ -152,10 +153,8 @@ if __name__ == '__main__':
         with open(f'{subs["XPROJECT"]}.slurm', 'r') as f:
             stdout, stderr = slurm.communicate(input=f.read())
 
+        # for debugging; stop after one job
         # if count > 0:
         #     exit(1)
-
-        # write out files even if not submitting directly
-
 
         sleep(0.01)
