@@ -220,11 +220,11 @@ class Workflow:
             if os.path.isdir(project):
                 # project directory exists, remove the entire directory tree
                 shutil.rmtree(project, ignore_errors=False, onerror=None)
-                restart_comment = f'Restart mode. Project directory ({project}) will be replaced'
+                restart_comment = f'Project {project}\tRestart mode. Project directory ({project}) will be replaced'
 
         elif os.path.isdir(project):
             # directory already exists and will be used
-            restart_comment = f'Project directory ({project}) exists and will be reused'
+            restart_comment = f'Project {project}\tProject directory ({project}) exists and will be reused'
 
         # create directories, dir_exist will not create a directory if it already  exists
         self.dir_exist(project)
@@ -243,8 +243,7 @@ class Workflow:
         log.start('stderr', log_base_name + '.err')
         log.add('main', f'Project {project}: started')
         log.add('main', restart_comment)
-        log.add('main', f'{project}: workflow {self.option["workflow"]} read '
-                        f'{len(self.command.parsed["commands"])} commands')
+        log.add('main', f'Project {project}\tworkflow\tread {len(self.command.parsed["commands"])} commands')
 
         # setup templates
         template_n = self.command.make_templates()
@@ -616,8 +615,10 @@ class Command:
             # template is a Template object
             newcommands = template.fill()
             self.commands += newcommands
-            self.log.add('main', f'Project\tGenerate commands\t{len(newcommands)} '
-                                 f'commands added\t{template.name}\t')
+            if newcommands:
+                # only log if new commands are generated
+                self.log.add('main', f'Command\tGenerate commands\t{len(newcommands)} '
+                                     f'commands added\t{template.name}\t')
 
         return len(self.commands)
 
@@ -683,18 +684,19 @@ class Executor:
         # TODO this works but it needs to not have the data tables hardwired
         env = os.environ.copy()
         env["DATAPATH"] = ('/scratch/bell/mgribsko/rna/RNAstructure/data_tables')
-        # project_dir = os.getenv("PROJECT_DIR")
+        project_dir = os.getenv("PROJECT_DIR")
         conda_prefix = os.environ.get("CONDA_PREFIX")
+        exe = os.environ.get("CONDA_EXE")
         conda_env = os.path.basename(os.environ.get("CONDA_DEFAULT_ENV"))
-        # print(f'project:{project_dir}\tprefix:{conda_prefix}\tenv:{conda_env}')
+        # print(f'project:{project_dir}\tprefix:{conda_prefix}\tenv:{conda_env}\texe:{exe}')
         # cmd = 'ls'
         if conda_prefix:
             conda = f'{conda_prefix}/bin/conda'
             conda_exe = '/apps/external/anaconda/2025.12/bin/conda'
-            print(f'conda:{conda}')
+            # print(f'conda:{conda}')
             # Build the command using 'conda run -p <path_to_env>'
             cmd = [conda_exe, "run", "-n", conda_env] + cmd.split()
-            print(f'cmd:{cmd}')
+            # print(f'cmd:{cmd}')
 
         result = subprocess.Popen(cmd,
                                   env=env,
@@ -775,6 +777,8 @@ class Executor:
         # some jobs don't get polled
         for j in to_remove:
             self.joblist.remove(j)
+
+        self.log.add('main', f'Executor\trunning:{self.running} succeeded:{self.finished} failed:{self.failed}')
 
         return True
 
