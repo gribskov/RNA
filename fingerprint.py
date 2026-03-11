@@ -162,7 +162,6 @@ class Fingerprint(dict):
         # fp.close()    if fp is stdout, not good
 
         return True
-
     def readYAML(self, file):
         """-----------------------------------------------------------------------------------------
         read the fingerprint from a file in YAML format
