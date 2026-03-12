@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     # Temperature, Fraction, Stem size
     T = [t for t in range(260, 360, 10)]
-    F = [f for f in range(10, 225, 10)]
+    F = [f for f in range(10, 400, 20)]
     S = [s for s in range(2, 6)]
 
     njobs = len(T) * len(F) * len(S)
