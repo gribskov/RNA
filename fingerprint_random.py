@@ -33,7 +33,7 @@ def process_command_line():
 
     :return:
     ---------------------------------------------------------------------------------------------"""
-    default_subgraphsize = 6
+    default_subgraphsize = 7
     default_coverage = 3
     default_sampling_limit = 10000
 
@@ -69,6 +69,9 @@ def process_command_line():
     cl.add_argument('-n', '--noparent',
                     help='Do not include parent graphs in fingerprint (default=%(default)s)',
                     action='store_true')
+    cl.add_argument('-b', '--basesmin',
+                             help='Minimum number of paired bases in a stem (%(default)s)',
+                             default=3, type=int)
     cl.add_argument('-q', '--quiet',
                     help='Minimal output on stdout (default=%(default)s)',
                     action='store_true')
@@ -104,6 +107,22 @@ def fpt_from_xios(args):
     return fpt
 
 
+def xios_filter(rna, minbp):
+    """---------------------------------------------------------------------------------------------
+    remove stems with less than minbp paired bases. lvienna shows base-pairs as ( so count the
+    number of ( to get the number of basepairs
+
+    :param rna: Xios        structrure to filter
+    :param minbp: int       minimum number of base-pairs in stem
+    :return: int            number of stems
+    ---------------------------------------------------------------------------------------------"""
+    for stem in list(rna.stem_list):
+        if stem.lvienna.count('(') < minbp:
+            rna.stem_list.remove(stem)
+
+    return len(rna.stem_list)
+
+
 # ##################################################################################################
 # Main
 # ##################################################################################################
@@ -123,10 +142,12 @@ else:
     print('\tCoverage (minimum): {}'.format(opt.coverage))
     print(f'\tMaximum sample: {opt.limit}')
     print('\tOmit parents: {}'.format(opt.noparent))
+    print(f'\tMinimum stem size: {opt.basesmin}')
+    print('\tOmit parents: {}'.format(opt.noparent))
 
 # read in the RNA structure
 rna = Topology(xml=opt.rna)
-
+xios_filter(rna, opt.basesmin)
 # print(rna.format_edge_list())
 # this is an unweighted sampling strategy.  Others were tried, sampling:
 # inversely proportional to number of times previously sampled scaled by 1/n and 1/rank
@@ -140,6 +161,7 @@ fingerprint.information['File'] = opt.fpt
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
 fingerprint.information['Number of stems'] = len(rna.stem_list)
+fingerprint.information['Minimum number of stems'] = opt.basesmin
 
 minmotif = ''
 mincount = 0
@@ -181,7 +203,7 @@ else:
     fingerprint.information['Subgraph size'] = opt.subgraphsize
     fingerprint.information['Sampling limit'] = opt.limit
     fingerprint.information['Sample size'] = fingerprint.count
-    print(f'\tSamplesize: {fingerprint.count}')
+    print(f'\tSample size: {fingerprint.count}')
 
 # to include parent, you must read a motif database.  this is only done after all the motifs have
 # been added to the fingerprint
