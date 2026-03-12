@@ -126,8 +126,8 @@ else:
 
 # read in the RNA structure
 rna = Topology(xml=opt.rna)
-# print(rna.format_edge_list())
 
+# print(rna.format_edge_list())
 # this is an unweighted sampling strategy.  Others were tried, sampling:
 # inversely proportional to number of times previously sampled scaled by 1/n and 1/rank
 # proportional to number of neighbors
@@ -139,6 +139,7 @@ fingerprint.information['File'] = opt.fpt
 # below, use .name because these files are opened by arg_parse
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
+fingerprint.information['Number of stems'] = len(rna.stem_list)
 
 minmotif = ''
 mincount = 0
@@ -171,31 +172,41 @@ while True:
         # this is the successful exit point for the loop
         break
 
+    # end of fingerprint sampling loop
+
+if opt.quiet:
+    print(f'cov:{opt.coverage}|subgraph:{opt.subgraphsize}|limit:{opt.limit}', end='')
+else:
+    fingerprint.information['Coverage'] = opt.coverage
+    fingerprint.information['Subgraph size'] = opt.subgraphsize
+    fingerprint.information['Sampling limit'] = opt.limit
+    fingerprint.information['Sample size'] = fingerprint.count
+    print(f'\tSamplesize: {fingerprint.count}')
+
 # to include parent, you must read a motif database.  this is only done after all the motifs have
 # been added to the fingerprint
+
+simple_n = fingerprint.n
 if opt.noparent:
-    if opt.quiet:
-        print(f'fpt: {fingerprint.n} : {fingerprint.count}')
-    else:
-        print('\tSimple fingerprint: {}\t{}\t{}'.format(fingerprint.count, fingerprint.n,
-                                                      fingerprint.mincount()))
+    pass
 else:
     # add the parents
     motif = MotifDB.unpickle(opt.motifdb)
-    simple_n = fingerprint.n
     extended_n = fingerprint.add_parents(motif)
-
     fingerprint.information['Motif database checksum'] = motif.information['checksum']
     fingerprint.information['Motif database description'] = motif.information['name']
-    if opt.quiet:
-        print(f'xpt: {fingerprint.n} : {fingerprint.count}')
-    else:
-        print(f'\nExtended fingerprint: {fingerprint.count}', end='\t')
-        print(f'{fingerprint.n}', end='\t'),
-        print(f'{fingerprint.mincount()}')
-        print(f'{simple_n} simple fingerprints extended to {extended_n}')
+    fingerprint.information['Motif database checksum'] = motif.information['checksum']
 
-if not opt.quiet:
+    if opt.quiet:
+        print(f'|sample:{fingerprint.count}|xpt:{fingerprint.n}', end='')
+    else:
+        print(f'\tExtended fingerprint motifs:{fingerprint.n}')
+
+if opt.quiet:
+    print(f'|fpt:{simple_n}')
+else:
+    # write simple fpt information regardless of whether parents are added
+    print(f'\tSimple fingerprint motifs: {simple_n}')
     print(f'\twriting to {opt.fpt}')
 
 fingerprint.writeYAML(opt.fpt)
