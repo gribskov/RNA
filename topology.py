@@ -268,7 +268,7 @@ class Topology:
         :param fp: file, a writeable file, e.g., sys.stdout
         :return: True
         -----------------------------------------------------------------------------------------"""
-        version = 2.1
+        version = 2.2
         indent = 0
         indent_len = 2
 
@@ -2332,8 +2332,7 @@ class Stem:
             right Vienna string
         :return: string, with stem coordinates and Vienna structure
         -----------------------------------------------------------------------------------------"""
-        return '{0}\t{1}\t{2}\t{3}\t{4}\t{5}'.format(self.lbegin, self.lend, self.rbegin, self.rend,
-                                                     self.lvienna, self.rvienna)
+        return f'{self.lbegin}\t{self.lend}\t{self.rbegin}\t{self.rend}\t{self.lvienna}\t{self.rvienna}'
 
     def trimVienna(self):
         """-----------------------------------------------------------------------------------------
@@ -2375,11 +2374,11 @@ if __name__ == '__main__':
         print('\nSerialRNA graphs')
         for g in serialgraphs:
             pair.from_SerialRNA(g)
-            print('Serial {} => {}'.format(g, pair))
+            print(f'Serial {g} => {pair}')
 
         gstring = '0,2,2,0'
         pair.from_SerialRNA_string(gstring, sep=',')
-        print('Serial string {} => {}'.format(gstring, pair))
+        print('Serial string {gstring} => {pair}')
 
         print('\nVienna format')
         for v in viennagraphs:
@@ -2439,25 +2438,25 @@ if __name__ == '__main__':
 
         for testcase in noncanonical:
             rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
+            print(f'RNA {rna}')
             rna.canonical()
-            print('\tcanonical {}'.format(rna))
+            print(f'\tcanonical {rna}')
 
         print('\nConnected components')
         for testcase in rnas:
             rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
+            print(f'RNA {rna}')
             connected = rna.connected()
             if len(connected) > 1:
                 for i in range(len(connected)):
-                    print('\tcomponent {}: {}'.format(i, connected[i]))
+                    print(f'\tcomponent {i}: {connected[i]}')
 
         print('\nExtension')
         for testcase in rnas:
             rna = SerialRNA(testcase)
-            print('RNA {}'.format(rna))
+            print(f'RNA {rna}')
             for new in rna.addstemzero():
-                print('\t{} {}'.format(new, len(new.connected())))
+                print(f'\t{new} {len(new.connected())}')
 
         return
 
