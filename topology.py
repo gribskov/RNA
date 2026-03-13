@@ -1023,7 +1023,7 @@ class Topology:
         # end of size < n loop
 
         if not vlist:
-            biggest = sorted(biggest, key=lambda v:len(v), reverse=True)
+            biggest = sorted(biggest, key=lambda v: len(v), reverse=True)
             vlist = biggest[0]
 
         return sorted(vlist)
@@ -2145,8 +2145,12 @@ class RNAstructure(Topology):
             stemstr += '{0}\t{1}\n'.format(n, stem.formatted())
         return stemstr
 
-    def adjacency_from_stemlist(self):
+    def adjacency_from_stemlist_old(self):
         """-----------------------------------------------------------------------------------------
+        DEPRECATD
+        This is the method used in v2.1 and earlier, it does not check overlaps to see if both
+        stems can form
+
         Calculate an adjacency matrix from stem_list. assumes stems are ordered by the beginning
         of the left half-stem.
         :return: dict, keys are edge types, values are counts
@@ -2186,6 +2190,90 @@ class RNAstructure(Topology):
                     a[i][j] = 'x'
                     a[j][i] = 'x'
                     edges['x'] += 1
+
+        self.adjacency = a
+        return edges
+
+    def adjacency_from_stemlist(self, minlen):
+        """-----------------------------------------------------------------------------------------
+        New version beginning v2.2
+        Calculate an adjacency matrix from stem_list. assumes stems are ordered by the beginning
+        of the left half-stem. Stem are only considered exclusive if the have less than minlen bases
+        remaining after removing the overlapping section.
+        TODO this is not perfect, a short stem might divide a long stem into two independent pieces
+
+        :param minlen: int      minimum length stem that must remain after removing overlap
+        :return: dict           keys are edge types, values are counts
+        -----------------------------------------------------------------------------------------"""
+        nstem = len(self.stem_list)
+
+        edges = {'i': 0, 'j': 0, 'o': 0, 's': 0, 'x': 0}
+        a = [[0 for _ in range(nstem)] for _ in range(nstem)]
+
+        for i in range(nstem):
+            stem_i = self.stem_list[i]
+
+            for j in range(i + 1, nstem):
+                stem_j = self.stem_list[j]
+
+                if stem_i.rend < stem_j.lbegin:
+                    # i is left of j = serial edge
+                    a[i][j] = 's'
+                    a[j][i] = 's'
+                    edges['s'] += 1
+
+                else:
+                    # there is an overlap, could be i, o, or x
+                    hstem = {'il': [stem_i.lbegin, stem_i.lend],
+                             'ir': [stem_i.rbegin, stem_i.rend],
+                             'jl': [stem_j.lbegin, stem_j.lend],
+                             'jr': [stem_j.rbegin, stem_j.rend],
+                             }
+                    order = sorted(hstem,key=lambda h:hstem[h][0])
+
+                    # a and b are the possible overlapping halfstems, they are the keys in the halfstem dict (hstem)
+                    # compare each pair in sorted order to see if there are any overlaps.
+                    isx = False
+                    for h1 in range(4):
+                        s0 = order[h1]
+                        for h2 in range(h1 + 1, 4):
+                            s1 = order[h2]
+                            if hstem[s1][0] < hstem[s0][1]:
+                                # halfstems h1 and h2 overlap, see if the non-overlapped length is above minlen
+                                # print('overlap')
+                                h1len = hstem[s1][0] - hstem[s0][0]
+                                h2len = hstem[s1][1] - hstem[s0][1]
+                                if h1len < minlen or h2len < minlen:
+                                    # remaining segment too short, this is an x edge, exit h1 and h2 loops
+                                    isx = True
+                                    break
+                        if isx: break
+                    if isx:
+                        # excluded edge, at least one of the halfstems overlap and the remainder is too short
+                        a[i][j] = 'x'
+                        a[j][i] = 'x'
+                        edges['x'] += 1
+                    else:
+                        # i or o edge
+                        # print('io:{order}')
+                        opattern = ''.join(order)
+                        if opattern == 'iljlirjr':
+                            # overlap edge (pseudoknot)
+                            a[i][j] = 'o'
+                            a[j][i] = 'o'
+                            edges['o'] += 1
+                        elif opattern == 'iljljrir':
+                            # included edge (directed, j is inside i)
+                            a[i][j] = 'i'
+                            a[j][i] = 'j'
+                            edges['i'] += 1
+                        elif opattern == 'ilirjljr':
+                            # i is left of j = serial edge
+                            a[i][j] = 's'
+                            a[j][i] = 's'
+                            edges['s'] += 1
+                        else:
+                            sys.stderr.write(f'Topology:adjacency_from_stemlist - unknown overlap type')
 
         self.adjacency = a
         return edges
