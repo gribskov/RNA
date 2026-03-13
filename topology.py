@@ -131,7 +131,7 @@ class Topology:
                 else:
                     colmax[column] = len(colstr)
 
-        if s:
+        if self.stem_list:
             # string may be blank if stemlist is empty
             fmt = ' {{:>{}}}  {{:{}}}  [ {{:{}}} {{:{}}} {{:{}}} {{:{}}} ]  {{:>{}}}  {{:{}}}\n'. \
                 format(colmax['name'], colmax['rend'] + 2,
@@ -549,7 +549,6 @@ class Topology:
         :param stem_center_threshold: int, allowed difference in center of merged stems 
         :return: 
         -----------------------------------------------------------------------------------------"""
-        nmerged = 0
         for i in range(len(self.stem_list)):
             s1 = self.stem_list[i]
             for j in range(i + 1, len(self.stem_list)):
@@ -963,9 +962,9 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int   maximum size of graph to sample
-        :param n: int   minimum size for sampled graph
-        :return: list   list of vertices in sampled graph
+        :param adj: list of list    adjacency matrix for structure
+        :param n: int               minimum size for sampled graph
+        :return: list               list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         attempt_max = 50
         nvertex = len(adj)
@@ -976,6 +975,7 @@ class Topology:
         excluded = set()
         # initialize neighbor with a random vertex for the first vertex
         # neighbor = set([random.randrange(nvertex)])
+        neighbor = {}
         try:
             neighbor = {random.randrange(nvertex)}
         except ValueError:
@@ -1023,6 +1023,7 @@ class Topology:
         # end of size < n loop
 
         if not vlist:
+            # TODO maybe should return the entire sorted list, or all motifs as big as the biggest
             biggest = sorted(biggest, key=lambda v: len(v), reverse=True)
             vlist = biggest[0]
 
@@ -1037,14 +1038,13 @@ class Topology:
         with three or fewer stems, it makes little sense to go lower than 3. Sampling is based on
         the adjacency matrix.
 
-        :param n: int    size of graph to sample
-        :param n: int   minimum size for sampled graph
-        :return: list   list of vertices in sampled graph
+        :param adj: int     stem adjacency matrix
+        :param n: int       minimum size for sampled graph
+        :return: list       list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         nvertex = len(adj)
 
         random.seed()
-        size = 0
 
         too_few_nbor_ct = 0
         vlist = []
@@ -1123,11 +1123,13 @@ class Topology:
     def samplebyweight(adj, n, w):
         """-----------------------------------------------------------------------------------------
         randomly sample a connected subgraph of size=n from the topology weighted by w.  The sampled
-        graph will be
-        connected by non-s edges, but size may be less than n if the graph being sampled is smaller
-        than size or has disconnected segmentsSampling is based on the adjacency matrix.
+        graph will be connected by non-s edges, but size may be less than n if the graph being 
+        sampled is smaller than size or has disconnected segmentsSampling is based on the adjacency 
+        matrix.
 
-        :param n:
+        :param adj: list of list    adjacency matrix
+        :param n: int               maximum graph to sample
+        :param w: list of list      weight of each edge
         :return: topology
         -----------------------------------------------------------------------------------------"""
         # randomly determine starting vertex
@@ -1206,9 +1208,10 @@ class Topology:
 
     def sample_xios(self, n, retry=10):
         """-----------------------------------------------------------------------------------------
+        DEPRECATED, use sample()
         Return a xios structure sampled from the current topology. From the selected vertices
         find all the edges that connect those vertices. If the graph is small or disjoint, the
-        sampled vlist can be empty.  Try up to retry times and then give up.
+        sampled vlist can be empty.  Try up to retry times and then give up (not implemented)
 
         :param self: Xios object
         :param n: int, number of stems to sample
@@ -1219,7 +1222,6 @@ class Topology:
 
         edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
 
-        vlist = []
         tries = 0
         # while len(vlist) < n and tries < retry:
         tries += 1
@@ -1271,15 +1273,15 @@ class SerialRNA(list):
     for working with RNAS encoded for example as 001212, meaning ( ) ( [ ) ]
     ============================================================================================="""
 
-    def __init__(self, list=None):
+    def __init__(self, baselist=None):
         """-----------------------------------------------------------------------------------------
         SerialRNA is a list with some extra methods.  Technically it doesn't need a constructor
         since it inherits one from list, but just in case attributes need to be added, this
         constructor just calls the parent's
         -----------------------------------------------------------------------------------------"""
-        if list is None:
-            list = []
-        super(SerialRNA, self).__init__(list)
+        if baselist is None:
+            baselist = []
+        super(SerialRNA, self).__init__(baselist)
 
         # add additional attributes
 
@@ -1516,7 +1518,8 @@ class PairRNA:
         two nested stems are [ [0,3], [1,2] ]
         a simple pseudoknot is [ [0,2], [1,3] ]
 
-        :param inlist: a list of lists with coordinates of left and right half stems
+        :param topology: Topology       Topology object with coordinates of left and right half stems
+        :param topology_type: string    'pair'|'serial'
         -----------------------------------------------------------------------------------------"""
         if topology is None:
             # avoid mutable initialization in arguments
@@ -1540,7 +1543,7 @@ class PairRNA:
         s = ''
         for i in range(0, len(self.pairs), 2):
             try:
-                s += '({},{}) '.format(self.pairs[i], self.pairs[i + 1])
+                s += '({self.pairs[i]},{self.pairs[i + 1]}) '
             except IndexError:
                 # undefined stem
                 s += '(.,.) '
@@ -1565,13 +1568,13 @@ class PairRNA:
         self.pairs = [0 for _ in range(len(serial))]
 
         # make sure the graph is canonically numbered
-        next = 0
+        nextv = 0
         seen = {}
         for i in range(len(serial)):
             pos = serial[i]
             if pos not in seen:
-                seen[pos] = next
-                next += 1
+                seen[pos] = nextv
+                nextv += 1
             serial[i] = seen[pos]
 
         # the values indicate the stem number, the index indicates the position
@@ -1597,16 +1600,16 @@ class PairRNA:
             serial.append(int(s))
 
         # make sure the graph is canonically numbered
-        next = 0
+        nextp = 0
         seen = {}
         for i in range(len(serial)):
             pos = serial[i]
             if pos not in seen:
-                seen[pos] = next
-                next += 1
+                seen[pos] = nextp
+                nextp += 1
             serial[i] = seen[pos]
 
-        self.pairs = [0 for p in range(len(serial))]
+        self.pairs = [0 for _ in range(len(serial))]
         pos = [p * 2 for p in range(self.nstem)]
         for i in range(len(serial)):
             stem = int(serial[i])
@@ -1652,7 +1655,6 @@ class PairRNA:
         pairs = [0] * nstem * 2
 
         stack = {ch: [] for ch in right}
-        level = []
         stem = 0
         pos = 0
         for bracket in vienna:
@@ -1752,21 +1754,21 @@ class PairRNA:
         l = len(self.pairs)
 
         # make numbering sequential
-        map = []
+        order = []
         for s in sorted(self.pairs, key=lambda p: p):
-            if s not in map:
-                map.append(s)
+            if s not in order:
+                order.append(s)
 
         for i in range(l):
             # renumber sequentially
-            self.pairs[i] = map.index(self.pairs[i])
+            self.pairs[i] = order.index(self.pairs[i])
             if i % 2:
                 # check that beginning and end are in increasing order
                 if self.pairs[i] < self.pairs[i - 1]:
                     self.pairs[i], self.pairs[i - 1] = self.pairs[i - 1], self.pairs[i]
 
         # sort by first position in pair
-        new = map
+        new = order
         n = 0
         for i in sorted(range(0, l, 2), key=lambda p: self.pairs[p]):
             new[n], new[n + 1] = self.pairs[i], self.pairs[i + 1]
@@ -1796,7 +1798,6 @@ class PairRNA:
         :return: True / False
         -----------------------------------------------------------------------------------------"""
         pairs = self.pairs
-        begin = 0
         end = 0
         for i in range(0, len(pairs), 2):
             if pairs[i] <= end:
@@ -1840,6 +1841,7 @@ class RNAstructure(Topology):
         super(RNAstructure, self).__init__(*args, **kwargs)
         self.energy = 0.0  # not defined for probknot
         self.pair = []  # base number of the paired base
+        self.filename = ''
 
     def is_ctheader(self, field):
         """-----------------------------------------------------------------------------------------
@@ -2320,6 +2322,7 @@ class Stem:
         self.rend = 0
         self.lvienna = ''
         self.rvienna = ''
+        self.nstem = 0
 
     def formatted(self):
         """-----------------------------------------------------------------------------------------
