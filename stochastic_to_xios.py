@@ -487,7 +487,7 @@ if __name__ == '__main__':
     sys.stdout.write(f'\n\t{group_n} groups found\n')
     stem_n = struc.final_stems(rna, opt.minstem)
     sys.stdout.write(f'\t{stem_n} stems selected\n\n')
-    rna.adjacency_from_stemlist()
+    rna.adjacency_from_stemlist(minlen=opt.minstem)
     rna.edgelist_from_adjacency(include="ijo", whole=False)
     rna.XIOSwrite(open(opt.output_xios, 'w'))
 
