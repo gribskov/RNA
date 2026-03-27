@@ -41,6 +41,7 @@ if __name__ == '__main__':
 
     #print(f'{len(test)} test fingerprints read from {testparent}')
     # all directories in testparent
+    out =open('summary.out', 'w')
     directories = [entry.name for entry in os.scandir(testparent) if entry.is_dir()]
     dirlist = []
     fptlist = {}
@@ -85,8 +86,8 @@ if __name__ == '__main__':
                         jaccard = nb / (nt + nc + nb)
                     except ZeroDivisionError:
                         jaccard = 0
-                    print(f'{recall:6.3f}  {precision:6.3f} {jaccard:6.3f}  ', end='')
-                    print(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{dir}\t{entry.name}')
+                    out.write(f'{recall:6.3f}  {precision:6.3f} {jaccard:6.3f}  ')
+                    out.write(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{dir}\t{entry.name}\n')
 
 
             fptlist[dir] = fptcount
