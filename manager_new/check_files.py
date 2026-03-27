@@ -30,11 +30,13 @@ if __name__ == '__main__':
         fpt = dir + '/fpt'
 
         with os.scandir(fpt) as entries:
+            fptcount = 0
             for entry in entries:
                 if entry.name.endswith('.fpt'):
+                    fptcount += 1
                     qname = entry.name.replace('.fpt', '')
                     seq[qname].append(dir)
 
-        print(f'{dir}\t{len(seq[qname])}')
+            print(f'{dir}\t{fptcount}')
 
     exit(0)
