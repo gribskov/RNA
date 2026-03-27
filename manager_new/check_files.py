@@ -44,9 +44,9 @@ if __name__ == '__main__':
 
             fptlist[dir] = fptcount
 
-    # list of count of fingerprints for each parameter by count
+    # list of count of fingerprints for each parameter set by count
     for d in sorted(fptlist, key = lambda d: fptlist[d], reverse = True):
-        print(f'{d}\t{fptcount}')
+        print(f'{d}\t{fptlist[d]}')
 
     print(f'{ecount} parameter conditions')
     for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
@@ -55,11 +55,11 @@ if __name__ == '__main__':
     # missing
     for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
         print(f'{query}\t{len(seq[query])}')
-        for s in seq:
-            for d in dirlist:
-                if d in seq:
-                    pass
-                else:
-                    print(f'\t{d}')
+        for d in dirlist:
+            if d in seq[query]:
+                pass
+                # print(f'{d} is in list')
+            else:
+                print(f'\t{d}')
 
     exit(0)
