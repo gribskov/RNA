@@ -39,4 +39,7 @@ if __name__ == '__main__':
 
             print(f'{dir}\t{fptcount}')
 
+    for query in seq:
+        print(f'{query}\t{len(seq[query])}')
+
     exit(0)
