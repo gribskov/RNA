@@ -33,7 +33,7 @@ if __name__ == '__main__':
         fpt = dir + '/fpt'
 
         ecount += 1
-        with os.scandir(fpt) as entries
+        with os.scandir(fpt) as entries:
             fptcount = 0
             for entry in entries:
                 if entry.name.endswith('.fpt'):
