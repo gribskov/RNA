@@ -27,6 +27,7 @@ if __name__ == '__main__':
 
     directories = [entry.name for entry in os.scandir('.') if entry.is_dir()]
     dirlist = []
+    fptlist = {}
     ecount = 0
     for dir in directories:
         dirlist.append(dir)
@@ -41,10 +42,24 @@ if __name__ == '__main__':
                     qname = entry.name.replace('.fpt', '')
                     seq[qname].append(dir)
 
-            print(f'{dir}\t{fptcount}')
+            fptlist[dir] = fptcount
+
+    # list of count of fingerprints for each parameter by count
+    for d in sorted(fptlist, key = lambda d: fptlist[d], reverse = True):
+        print(f'{d}\t{fptcount}')
 
     print(f'{ecount} parameter conditions')
     for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
         print(f'{query}\t{len(seq[query])}')
+
+    # missing
+    for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
+        print(f'{query}\t{len(seq[query])}')
+        for s in seq:
+            for d in dirlist:
+                if d in seq:
+                    pass
+                else:
+                    print(f'\t{d}')
 
     exit(0)
