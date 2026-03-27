@@ -13,25 +13,28 @@ import os
 # ======================================================================================================================
 if __name__ == '__main__':
     # get a list of input files
-    indata = '../../RNA/data/fasta_fixed/*.fa'
+    indata = '../../RNA/data/fasta_fixed'
+    seq = {}
     with os.scandir(indata) as entries:
         n = 0
         for entry in entries:
             if entry.name.endswith('fa'):
                 n += 1
                 print(f'{n}\t{entry.name}')
-
-
+                seq[entry.name.replace('.fa', '')] = []
 
     directories = [entry.name for entry in os.scandir('.') if entry.is_dir()]
-
+    dirlist = []
     for dir in directories:
-        print(dir)
+        dirlist.append(dir)
         fpt = dir + '/fpt'
 
-        with os.scandir('.') as entries:
+        with os.scandir(fpt) as entries:
             for entry in entries:
-                if entry.is_file():
-                    print(f"{entry.name}: {entry.stat().st_size} bytes")
+                if entry.name.endswith('.fpt'):
+                    qname = entry.name.replace('.fpt', '')
+                    seq[qname].append(dir)
+
+        print(f'{dir}\t{len(seq[qname])}')
 
     exit(0)
