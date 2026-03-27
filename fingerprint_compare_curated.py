@@ -28,16 +28,16 @@ if __name__ == '__main__':
     print(f'{len(curated)} curated fingerprints read from {curdir}')
     
     # read and compare test fingerprints
-    fpt_list = glob.glob(testdir)
-    test = {}
-    count = 0
-    for this_fpt in fpt_list:
-        f = Fingerprint()
-        f.readYAML(this_fpt)
-        name = os.path.basename(f.information['File'])
-        test[name] = f
-        count += 1
-        print(f'\t{count}\t{name}')
+    # fpt_list = glob.glob(testdir)
+    # test = {}
+    # count = 0
+    # for this_fpt in fpt_list:
+    #     f = Fingerprint()
+    #     f.readYAML(this_fpt)
+    #     name = os.path.basename(f.information['File'])
+    #     test[name] = f
+    #     count += 1
+    #     print(f'\t{count}\t{name}')
 
     print(f'{len(test)} test fingerprints read from {testparent}')
     # all directories in testparent
