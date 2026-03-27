@@ -20,8 +20,10 @@ if __name__ == '__main__':
         for entry in entries:
             if entry.name.endswith('fa'):
                 n += 1
-                print(f'{n}\t{entry.name}')
+                # print(f'{n}\t{entry.name}')
                 seq[entry.name.replace('.fa', '')] = []
+
+    print(f'{len(seq)} sequences in {indata}')
 
     directories = [entry.name for entry in os.scandir('.') if entry.is_dir()]
     dirlist = []
@@ -39,7 +41,7 @@ if __name__ == '__main__':
 
             print(f'{dir}\t{fptcount}')
 
-    for query in seq:
+    for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
         print(f'{query}\t{len(seq[query])}')
 
     exit(0)
