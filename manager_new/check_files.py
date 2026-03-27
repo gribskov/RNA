@@ -27,11 +27,13 @@ if __name__ == '__main__':
 
     directories = [entry.name for entry in os.scandir('.') if entry.is_dir()]
     dirlist = []
+    ecount = 0
     for dir in directories:
         dirlist.append(dir)
         fpt = dir + '/fpt'
 
-        with os.scandir(fpt) as entries:
+        ecount += 1
+        with os.scandir(fpt) as entries
             fptcount = 0
             for entry in entries:
                 if entry.name.endswith('.fpt'):
@@ -41,6 +43,7 @@ if __name__ == '__main__':
 
             print(f'{dir}\t{fptcount}')
 
+    print(f'{ecount} parameter conditions')
     for query in sorted(seq, key=lambda q: len(seq[q]), reverse=True):
         print(f'{query}\t{len(seq[query])}')
 
