@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #     count += 1
     #     print(f'\t{count}\t{name}')
 
-    print(f'{len(test)} test fingerprints read from {testparent}')
+    #print(f'{len(test)} test fingerprints read from {testparent}')
     # all directories in testparent
     directories = [entry.name for entry in os.scandir(testparent) if entry.is_dir()]
     dirlist = []
@@ -47,16 +47,20 @@ if __name__ == '__main__':
     dcount = 0
     fptcount = 0
     for dir in directories:
-        fpt = dir + '/fpt'
+        fpt = f'{testparent}/{dir}/fpt'
+        #print(f'{dcount}: {fpt}')
         dcount += 1
         with os.scandir(fpt) as entries:
             for entry in entries:
+                #print(f'{entry.name}')
                 if entry.name.endswith('.fpt'):
                     # each file in the fpt directory
                     fptcount += 1
+                    t = Fingerprint()
+                    t.readYAML(f'{fpt}/{entry.name}')
                     try:
-                        c = curated[fpt]
-                        t = test[fpt]
+                        c = curated[entry.name]
+                        #t = test[fpt]
                     except KeyError as e:
                         print(f'!Error: {fpt} not found in test')
                         continue
@@ -82,7 +86,7 @@ if __name__ == '__main__':
                     except ZeroDivisionError:
                         jaccard = 0
                     print(f'{recall:6.3f}  {precision:6.3f} {jaccard:6.3f}  ', end='')
-                    print(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{fpt}')
+                    print(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{dir}\t{entry.name}')
 
 
             fptlist[dir] = fptcount
