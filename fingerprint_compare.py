@@ -39,6 +39,7 @@ def process_command_line():
 
 def read_fingerprints(opt):
     """---------------------------------------------------------------------------------------------
+    MOVED TO FINGERPRINT - DEPRECATED
     Read old format fingerprint (type='encode) and new fingerprint format (type='new') that match
     the file globs in opt.new and opt.encode. fingerprints are stored in separate sets, one set for
     each file glob on the command line
@@ -70,6 +71,7 @@ def read_fingerprints(opt):
 
 def read_encode_fpt(target_list):
     """---------------------------------------------------------------------------------------------
+    MOVED TO FINGERPRINT - DEPRECATED
     read a list of fingerprints in the old (<2022) format, also known as .xpt format, .xpt format
     is XML such as
 
@@ -132,6 +134,7 @@ def read_encode_fpt(target_list):
 
 def etree_to_dict(xpt):
     """---------------------------------------------------------------------------------------------
+    MOVED TO FINGERPRINT - DEPRECATED
     read the <query> <fingerprint> and <database> sections of the fingerprint and return as a dict
     {   'query":{   'query_id':
                     'query_vertex':
@@ -227,6 +230,7 @@ def name_prefix(name, n):
 
 def decodedfs(hexstr):
     """---------------------------------------------------------------------------------------------
+    MOVED TO FINGERPRINT - DEPRECATED
     decode the compressed hexadecimal dfs (perl version) to the current python string version. The
     hexadecimal dfs represents each row of the dfs as
 
