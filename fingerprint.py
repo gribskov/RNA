@@ -6,6 +6,7 @@ import datetime
 import yaml
 import numpy
 import pickle
+from lxml import etree
 
 # note install PyYAML
 
@@ -162,6 +163,7 @@ class Fingerprint(dict):
         # fp.close()    if fp is stdout, not good
 
         return True
+
     def readYAML(self, file):
         """-----------------------------------------------------------------------------------------
         read the fingerprint from a file in YAML format
@@ -195,6 +197,134 @@ class Fingerprint(dict):
 
         return self.n
 
+    def readXML(self, target):
+        """-------------------------------------------------------------------------------------------------------------
+        Read fingerprint in old XML format
+
+        <?xml version="1.0"?>
+        <XIOS_fingerprint>
+            <query>
+                <query_id>/home/huang147/reactor/holder20160220/rnasep_b.Mycoplasma_fermentans.xios</query_id>
+                <query_vertex>15</query_vertex>
+                <query_edge>42</query_edge>
+            </query>
+
+            <fingerprint>
+                <type>random</type>
+                <iteration>510000</iteration>
+                <program>fingerprint_random.pl v1.1.4.8</program>
+                <time_elapsed>1152.365932</time_elapsed>
+            </fingerprint>
+            <database>
+                <database_id>/home/huang147/Motif_fingerprint/2_to_7_stems_topologies.removed_not_true.mini_dfs.txt.removed_redundant.with_label.motif.storable</database_id>
+            </database>
+
+            <motif_list>
+                <motif_n>58</motif_n>
+                <motif>
+                    <id>7_30164</id>
+                    <count>37732</count>
+                    <first_observed>13</first_observed>
+                    <encoded_dfs>0428412c61101418</encoded_dfs>
+                    <mapping>226</mapping>
+                </motif>
+
+            </motif_list>
+
+        </XIOS_fingerprint>
+
+        :param file: string     path to fingerprint file
+        :return: fingerprint
+        -------------------------------------------------------------------------------------------------------------"""
+        # id = os.path.basename(target)
+        # sys.stderr.write(f'{id} - encoded\n')
+        # prefix = name_prefix(target, 4)
+        # fpt = Fingerprint()
+        xptfile = open(target, 'r')
+        xpt = etree.parse(xptfile)
+
+        # read the information fields
+        info = Fingerprint.etree_to_dict(xpt)
+        self.information = info
+
+        # read and transform the motifs
+        nmotif = 0
+        for m in xpt.xpath('//motif_list/motif'):
+            nmotif += 1
+            code = m.find('encoded_dfs')
+            motif = self.decodedfs(code.text)
+            count = m.find('count')
+            self.motif[motif] = int(count.text)
+
+        return nmotif
+
+    def etree_to_dict(xpt):
+        """---------------------------------------------------------------------------------------------
+        read the <query> <fingerprint> and <database> sections of the fingerprint and return as a dict
+        {   'query":{   'query_id':
+                        'query_vertex':
+                        'query_edge':   }
+            'fingerprint':{  'type':
+                            'iteration':
+                            'program':
+                            'time_elapsed:  }
+            'database_id':
+        }
+
+        :param xpt: etree element       etree parsed xml
+        :return: dict                   described above
+        ---------------------------------------------------------------------------------------------"""
+        d = {}
+        # query information
+        q = xpt.xpath('//query')
+        if q:
+            d['query'] = {}
+            for tag in ('query_id', 'query_vertex', 'query_edge'):
+                info = xpt.xpath('//query/{}'.format(tag))[0].text
+                d['query'][tag] = info
+
+        f = xpt.xpath('//fingerprint')
+        if f:
+            d['fingerprint'] = {}
+            for tag in ('type', 'iteration', 'program', 'time_elapsed'):
+                info = xpt.xpath('//fingerprint/{}'.format(tag))[0].text
+                d['fingerprint'][tag] = info
+
+        db = xpt.xpath('//database_id')
+        if db:
+            d['database_id'] = db[0].text
+
+        return d
+
+    @staticmethod
+    def decodedfs(hexstr):
+        """---------------------------------------------------------------------------------------------
+        decode the compressed hexadecimal dfs (perl version) to the current python string version. The
+        hexadecimal dfs represents each row of the dfs as
+
+        000 000 000
+        v1  v2  edge where the edge values are 00=i 01=j 10=o
+
+        :param hexstr: string
+        :return: string
+        ---------------------------------------------------------------------------------------------"""
+        xios = ['i', 'j', 'o']
+        v1mask = 224
+        v2mask = 28
+        emask = 3
+        dfs = ''
+
+        i = 0
+        while i < len(hexstr):
+            hexword = int(hexstr[i:i + 2], 16)
+            v1 = (hexword & v1mask) >> 5
+            v2 = (hexword & v2mask) >> 2
+            edge = hexword & emask
+            dfs += f'{v1}{xios[edge]}{v2}.'
+            i += 2
+
+        return dfs
+
     def setdate(self):
         """-----------------------------------------------------------------------------------------
         set date in information
@@ -204,7 +334,7 @@ class Fingerprint(dict):
         daytime = datetime.datetime.now()
         self.information['Date'] = daytime.strftime('%Y-%m-%d %H:%M:%S')
 
-        return daytime
+        return self.information['Date']
 
     def add_parents(self, motifdb):
         """-----------------------------------------------------------------------------------------
@@ -598,7 +728,7 @@ class FingerprintMatrix:
         motif_n = len(self.motifs)
 
         fpt_list = glob.glob(select_str)
-        #sys.stderr.write(f'{select_str} =>\n\t{fpt_list}\n')
+        # sys.stderr.write(f'{select_str} =>\n\t{fpt_list}\n')
         sys.stderr.write('\n')
         motif_read = 0
         for fpt_file in fpt_list:
@@ -631,8 +761,7 @@ class FingerprintMatrix:
 
         :return: list of str    motif names
         -----------------------------------------------------------------------------------------"""
-        return  [ id for id in self.motifs if self.motifs[id]['selected'] ]
-
+        return [id for id in self.motifs if self.motifs[id]['selected']]
 
     def write(self, filename):
         """-----------------------------------------------------------------------------------------
@@ -667,8 +796,6 @@ class FingerprintMatrix:
             m += 1
 
         return True
-
-
 
     def index2matrix(self):
         """-------------------------------------------------------------------------------------
@@ -746,7 +873,6 @@ class FingerprintMatrix:
             # self.index2matrix()
             self.update_matrix()
 
-
         return len(self.fpt[0])
 
     def pickle(self, outfilename):
@@ -766,7 +892,7 @@ class FingerprintMatrix:
         :param infilename:
         :return:
         -----------------------------------------------------------------------------------------"""
-        picklefile = open(infilename, 'rb' )
+        picklefile = open(infilename, 'rb')
         fmat = pickle.load(picklefile)
 
         return fmat
