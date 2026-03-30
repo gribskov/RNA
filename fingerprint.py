@@ -302,7 +302,7 @@ class Fingerprint(dict):
         decode the compressed hexadecimal dfs (perl version) to the current python string version. The
         hexadecimal dfs represents each row of the dfs as
 
-        000 000 000
+        000 000  00
         v1  v2  edge where the edge values are 00=i 01=j 10=o
 
         :param hexstr: string
