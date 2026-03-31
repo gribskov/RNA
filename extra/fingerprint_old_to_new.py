@@ -2,8 +2,13 @@
 fingerprint_old_to_new.py
 Convert old XML format to current YAML format. should be lossless
 
+usage:
+    python fingerprint_old_to_new.py in.xpt
+    output is the same as the input with xpt changed to fpt
+
 2026-03-30 gribskov
 ====================================================================================================================="""
+import sys
 import xios
 import topology
 from fingerprint import Fingerprint
@@ -12,7 +17,8 @@ from fingerprint import Fingerprint
 # ======================================================================================================================
 if __name__ == '__main__':
 
-    xptfile = '../data/curated_fingerprint/rnasep_b.Mycoplasma_fermentans.xios.xpt'
+
+    xptfile = sys.argv[1]
     xpt = Fingerprint()
     xpt.readXML(xptfile)
 
