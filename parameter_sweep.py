@@ -49,6 +49,7 @@ slurm_template = """#!/bin/bash
 
 export set DATAPATH=<XRNASTRUCTURE_DATA>
 python <XMANAGER> <XPROJECT>.workflow -j <XCPUS>
+../../RNA/scripts/compress_err.sh <XPROJECT>
 """
 
 """=================================================================================================
@@ -72,7 +73,7 @@ subs['XPROJECT'] = name for output directory for this parameter set, currently f
 subs['XWORKFLOW'] = name for workflow file, currently f'{subs["XPROJECT"]}.workflow'
 ================================================================================================="""
 if __name__ == '__main__':
-    submit = False
+    submit = True 
     workflow = sys.argv[1]
     print('Workflow file: {workflow}')
 
@@ -143,18 +144,19 @@ if __name__ == '__main__':
 
         # submit
 
-        slurm = subprocess.Popen(['sbatch'],
+        if submit:
+            slurm = subprocess.Popen(['sbatch'],
                                  stdin=subprocess.PIPE,  # Redirect stdin to a pipe
                                  stdout=subprocess.PIPE,
                                  # Redirect stdout to a pipe (optional, if you need the output)
                                  stderr=subprocess.PIPE,  # Redirect stderr to a pipe (optional)
                                  text=True  # Handle input/output as text strings (Python 3.7+)
                                  )
-        with open(f'{subs["XPROJECT"]}.slurm', 'r') as f:
-            stdout, stderr = slurm.communicate(input=f.read())
+            with open(f'{subs["XPROJECT"]}.slurm', 'r') as f:
+                stdout, stderr = slurm.communicate(input=f.read())
 
         # for debugging; stop after one job
         # if count > 0:
         #     exit(1)
 
-        sleep(0.01)
+        sleep(1)
