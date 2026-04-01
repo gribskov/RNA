@@ -27,10 +27,10 @@ def process_command_line():
     )
     cl.add_argument('-s', '--source',
                     help='Source fingerprint glob (default=%(default)s)',
-                    nargs='*', default='*.fpt')
+                    default='*.fpt')
     cl.add_argument('-t', '--target',
                     help='Target fingerprint directory (default=%(default)s)',
-                    nargs='*', default=[])
+                    default='./')
 
     args = cl.parse_args()
 
@@ -49,16 +49,16 @@ if __name__ == '__main__':
     sys.stderr.write(f'\tsource fingerprints: {opt.source}\n')
     sys.stderr.write(f'\ttarget fingerprint directory: {opt.target}\n')
 
-    for source_fpt in glob.glob(opt.source[0]):
+    for source_fpt in glob.glob(opt.source):
         sfpt = Fingerprint()
         sfpt.readYAML(source_fpt)
 
         base = os.path.basename(source_fpt)
-        target_fpt = opt.target[0] + base
+        target_fpt = opt.target + base
         tfpt = Fingerprint()
         tfpt.readYAML(target_fpt)
 
-        print(f'comparing {base}')
+        print(f'\ncomparing {base}')
         present = []
         missing = []
         tmissing = []
@@ -69,7 +69,7 @@ if __name__ == '__main__':
                 missing.append(motif)
         npresent = len(present)
         nmissing = len(missing)
-        print(f'\t{len(sfpt.motif)} motifs')
+        print(f'\t{source_fpt} motifs: {len(sfpt.motif)}')
         print(f'\t{npresent} present in {target_fpt}')
         print(f'\t{nmissing} missing in {target_fpt}')
 
@@ -81,7 +81,10 @@ if __name__ == '__main__':
         recall = npresent / (npresent + ntmissing)
         precision = npresent / (npresent + ntmissing)
         jaccard = npresent / (npresent + nmissing + ntmissing)
-        print(f'\t{ntmissing} missing in {source_fpt}')
         print(f'\trecall: {recall}\tprecision: {precision}\tjaccard: {jaccard}\n')
+        print(f'\t{target_fpt} motifs: {len(tfpt.motif)}')
+        print(f'\t{ntmissing} missing in {source_fpt}')
+        for m in tmissing:
+            print(f'\t\t{m}')
 
     exit(0)
