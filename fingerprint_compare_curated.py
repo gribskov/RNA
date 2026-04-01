@@ -39,9 +39,10 @@ if __name__ == '__main__':
     #     count += 1
     #     print(f'\t{count}\t{name}')
 
-    #print(f'{len(test)} test fingerprints read from {testparent}')
+    print(f'test fingerprints read from {testparent}')
+    out = open('summary.out', 'w')
+
     # all directories in testparent
-    out =open('summary.out', 'w')
     directories = [entry.name for entry in os.scandir(testparent) if entry.is_dir()]
     dirlist = []
     fptlist = {}
@@ -49,11 +50,11 @@ if __name__ == '__main__':
     fptcount = 0
     for dir in directories:
         fpt = f'{testparent}/{dir}/fpt'
-        #print(f'{dcount}: {fpt}')
+        print(f'{dcount}: {fpt}')
         dcount += 1
         with os.scandir(fpt) as entries:
             for entry in entries:
-                #print(f'{entry.name}')
+                print(f'{entry.name}')
                 if entry.name.endswith('.fpt'):
                     # each file in the fpt directory
                     fptcount += 1
@@ -63,7 +64,7 @@ if __name__ == '__main__':
                         c = curated[entry.name]
                         #t = test[fpt]
                     except KeyError as e:
-                        print(f'!Error: {fpt} not found in test')
+                        print(f'!Error: {entry.name} not found in curated')
                         continue
                     clist = []
                     tlist = []
@@ -81,13 +82,20 @@ if __name__ == '__main__':
                     nc = len(clist)
                     nt = len(tlist)
                     recall = nb / (nb + nc)
-                    precision = nb / (nb + nt)
+                    try:
+                        precision = nb / (nb + nt)
+                    except ZeroDivisionError:
+                        precision = 0
                     try:
                         jaccard = nb / (nt + nc + nb)
                     except ZeroDivisionError:
                         jaccard = 0
+                    #print(f'{recall:6.3f}  {precision:6.3f} {jaccard:6.3f}  ')
+                    #print(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{dir}\t{entry.name}\n')
                     out.write(f'{recall:6.3f}  {precision:6.3f} {jaccard:6.3f}  ')
                     out.write(f'{len(clist)}\t{len(both)}\t{len(tlist)}\t{dir}\t{entry.name}\n')
+                else:
+                    print(f'{entry.name}does not end in .fpt')
 
 
             fptlist[dir] = fptcount
