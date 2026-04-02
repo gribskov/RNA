@@ -7,8 +7,10 @@ import sys
 import os
 import datetime
 import argparse
+import ast
+from collections import defaultdict
 from topology import Topology
-from xios import Gspan, MotifDB
+from xios import Gspan, MotifDB, Xios
 from fingerprint import Fingerprint
 
 
@@ -122,6 +124,27 @@ def xios_filter(rna, minbp):
 
     return len(rna.stem_list)
 
+def expand_vertices(vlist, adj):
+    """---------------------------------------------------------------------------------------------
+    given a set of vertices and adjacency matrix, select all edges and return the xios
+
+    :param vlist: list          integers indicating the vertices in the structure graph
+    :param adj: list of list    adjacency matrix
+    :return: Xios
+    ---------------------------------------------------------------------------------------------"""
+    edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
+    struct = []
+
+    # identify all the edges between the vertices in vlist
+    for r in range(len(vlist) - 1):
+        row = vlist[r]
+        for c in range(r + 1, len(vlist)):
+            col = vlist[c]
+            if adj[row][col] in 'ijo':
+                struct.append([row, col, edge[adj[row][col]]])
+
+    # print(struct)
+    return Xios(list=struct)
 
 # ##################################################################################################
 # Main
@@ -143,7 +166,6 @@ else:
     print(f'\tMaximum sample: {opt.limit}')
     print('\tOmit parents: {}'.format(opt.noparent))
     print(f'\tMinimum stem size: {opt.basesmin}')
-    print('\tOmit parents: {}'.format(opt.noparent))
 
 # read in the RNA structure
 rna = Topology(xml=opt.rna)
@@ -163,41 +185,53 @@ fingerprint.information['RNA structure'] = opt.rna.name
 fingerprint.information['Number of stems'] = len(rna.stem_list)
 fingerprint.information['Minimum number of stems'] = opt.basesmin
 
-minmotif = ''
-mincount = 0
-while True:
+print(f'\n\tGenerating connected vertex sets')
+selected = defaultdict(int)
+adj = rna.adjacency
+count = 0
+# modified the code to first generate samples of connected vertices (vertex sets) and only later
+# generate the DFS codes. This saves a lot of time for small graphs, but not as much for large
+# graphs where the number of combinations is much larger than the sample so most vertex sets are unique
+# TODO one possibility would be to convert to DFS in batches
+for _ in range(opt.limit):
     # sample until the lowest count motif is above the opt.coverage count_threshold.  You only have
     # to recheck the minimum count when your current minimum graph passes the threshold (finding
     # minimum is expensive)
-    xios = rna.sample_xios(opt.subgraphsize)
+    xios = rna.sample_all(adj, opt.subgraphsize)
     if not xios:
         # should never reach here, revised sample_xios will always return a graph
         sys.stderr.write(f'fingerprint_random - graph could not be sampled, possibly too small')
         exit(2)
-    gspan = Gspan(graph=xios)
-    dfs = gspan.minDFS().human_encode()
-    fingerprint.add(dfs)
-    # print(dfs)
 
-    if not opt.quiet and not fingerprint.count % 10000:
-        # screen trace
-        print(fingerprint.count, dfs)
-        # fingerprint.writeYAML(sys.stderr)
-
-    if (dfs == minmotif) or (not mincount):
-        # if the new dfs is the one with the lowest count, update the lowest count, otherwise you
-        # don't need to check
-        minmotif = fingerprint.minkey()
-        mincount = fingerprint.mincount()
-
-    if mincount >= opt.coverage or fingerprint.count > opt.limit:
-        # this is the successful exit point for the loop
+    selected[str(xios)] += 1
+    # print(f'min:{min(selected.values())}')
+    minselect = min(selected.values())
+    count += 1
+    if not count % 10000:
+        print(f'\t\t{count} sets\t minimum count {minselect}')
+    if minselect >= opt.coverage:
+        # TODO when saving vertex lists,  this test will never me met
         break
 
-    # end of fingerprint sampling loop
+# different vertex selections may produce the same dfs so collect them here
+print(f'\nCollecting DFS from vertex sets ({len(selected)})')
+dfsset = defaultdict(int)
+minsubgraph = 4
+for vstr in selected:
+    vset = ast.literal_eval(vstr)
+    if len(vset) < minsubgraph:
+        continue
+    xios = expand_vertices(vset, adj)
+    gspan = Gspan(graph=xios)
+    dfsset[gspan.minDFS().human_encode()] += selected[vstr]
+
+print(f'Uniquifying DFS codes')
+for dfs in dfsset:
+    # finally store the fingerprints and counts
+    fingerprint.add(dfs, dfsset[dfs])
 
 if opt.quiet:
-    print(f'cov:{opt.coverage}|subgraph:{opt.subgraphsize}|limit:{opt.limit}', end='')
+    print(f'\ncov:{opt.coverage}|subgraph:{opt.subgraphsize}|limit:{opt.limit}', end='')
 else:
     fingerprint.information['Coverage'] = opt.coverage
     fingerprint.information['Subgraph size'] = opt.subgraphsize
