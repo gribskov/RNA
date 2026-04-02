@@ -963,7 +963,7 @@ class Topology:
         the adjacency matrix.
 
         :param adj: list of list    adjacency matrix for structure
-        :param n: int               minimum size for sampled graph
+        :param n: int               maximum size for sampled graph
         :return: list               list of vertices in sampled graph
         -----------------------------------------------------------------------------------------"""
         attempt_max = 50
@@ -1026,6 +1026,71 @@ class Topology:
             # TODO maybe should return the entire sorted list, or all motifs as big as the biggest
             biggest = sorted(biggest, key=lambda v: len(v), reverse=True)
             vlist = biggest[0]
+
+        return sorted(vlist)
+
+    @staticmethod
+    def sample_all(adj, n):
+        """-----------------------------------------------------------------------------------------
+        randomly sample a connected subgraph of size=n from the topology.  The sampled graph will be
+        connected by non-s (and currently non-x) edges, i.e., they are io connected.
+        Size may be less than n if the graph being sampled is smaller than size=n or has
+        disconnected segments. Because there 9 graphs with three or fewer stems, it makes little
+        sense to go lower than 3. Sampling is based on the adjacency matrix.
+
+        All sample graphs are returned even if they have only a single stem
+
+        :param adj: list of list    adjacency matrix for structure
+        :param n: int               maximum size for sampled graph
+        :return: list               list of vertices in sampled graph
+        -----------------------------------------------------------------------------------------"""
+        nvertex = len(adj)
+        if nvertex ==0:
+            sys.stderr.write('Topology.sample() - graph size == 0\n')
+
+        random.seed()
+        # neighbor is l list of the vertex indices that are available to be added
+        # excluded is a set of vertices that can't be added because the have exclusive relationships
+        # with vertices in vlist
+        vlist = []
+        neighbor = []
+        excluded = set()
+
+        # initialize neighbor with a random vertex for the first vertex
+        if nvertex > 1:
+            vlist = [random.randrange(nvertex)]
+        else:
+            vlist = [0]
+
+        while len(vlist) < n:
+            # update neighborhood
+            vlatest = vlist[-1]
+            for a in range(nvertex):
+                # if a in neighbor or a in vlist:
+                if a in vlist:
+                    # skip already selected vertices
+                    continue
+                if adj[vlatest][a] == 'x':
+                    # remove vertices that are x the newest vertex
+                    if a in neighbor:
+                        neighbor.remove(a)
+                    excluded.add(a)
+                elif adj[vlatest][a] in 'ijo':
+                    # add viable neighbors to current neighborhood
+                    if a not in neighbor and a not in excluded:
+                        neighbor.append(a)
+
+            # choose a random neighbor to add to vlist
+            if not neighbor:
+                break
+            vnew = random.choice(neighbor)
+            vlist.append(vnew)
+            neighbor.remove(vnew)
+
+        # end of size < n loop
+
+        # vlist either has a list of n vertices, or the neighborhood is exhausted. either way we're
+        # done
 
         return sorted(vlist)
 
@@ -1225,7 +1290,8 @@ class Topology:
         tries = 0
         # while len(vlist) < n and tries < retry:
         tries += 1
-        vlist = Topology.sample(self.adjacency, n)
+        # TODO debug/testing new version of sample
+        vlist = Topology.sample_all(self.adjacency, n)
 
         adj = self.adjacency
         struct = []
