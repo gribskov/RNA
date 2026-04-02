@@ -185,45 +185,55 @@ fingerprint.information['RNA structure'] = opt.rna.name
 fingerprint.information['Number of stems'] = len(rna.stem_list)
 fingerprint.information['Minimum number of stems'] = opt.basesmin
 
+if len(rna.stem_list) < opt.subgraphsize:
+    opt.subgraphsize = max(len(rna.stem_list)-2,1)
+    print(f'Reset subgraph size to {opt.subgraphsize}')
+
+from itertools import combinations
+from  math import comb
+stemlist = rna.stem_list
+expect =  comb(len(rna.stem_list),opt.subgraphsize)
+print(f'expect {expect} sets from {len(rna.stem_list)} stems')
+excluded = 0
+included = 0
+
 print(f'\n\tGenerating connected vertex sets')
 selected = defaultdict(int)
 adj = rna.adjacency
 count = 0
-# modified the code to first generate samples of connected vertices (vertex sets) and only later
-# generate the DFS codes. This saves a lot of time for small graphs, but not as much for large
-# graphs where the number of combinations is much larger than the sample so most vertex sets are unique
-# TODO one possibility would be to convert to DFS in batches
-for _ in range(opt.limit):
-    # sample until the lowest count motif is above the opt.coverage count_threshold.  You only have
-    # to recheck the minimum count when your current minimum graph passes the threshold (finding
-    # minimum is expensive)
-    xios = rna.sample_all(adj, opt.subgraphsize)
-    if not xios:
-        # should never reach here, revised sample_xios will always return a graph
-        sys.stderr.write(f'fingerprint_random - graph could not be sampled, possibly too small')
-        exit(2)
-
-    selected[str(xios)] += 1
-    # print(f'min:{min(selected.values())}')
-    minselect = min(selected.values())
-    count += 1
-    if not count % 10000:
-        print(f'\t\t{count} sets\t minimum count {minselect}')
-    if minselect >= opt.coverage:
-        # TODO when saving vertex lists,  this test will never me met
-        break
 
 # different vertex selections may produce the same dfs so collect them here
 print(f'\nCollecting DFS from vertex sets ({len(selected)})')
 dfsset = defaultdict(int)
-minsubgraph = 4
-for vstr in selected:
-    vset = ast.literal_eval(vstr)
-    if len(vset) < minsubgraph:
-        continue
-    xios = expand_vertices(vset, adj)
-    gspan = Gspan(graph=xios)
-    dfsset[gspan.minDFS().human_encode()] += selected[vstr]
+stemlist = rna.stem_list
+expect =  comb(len(rna.stem_list),opt.subgraphsize)
+print(f'expect {expect} sets from {len(rna.stem_list)} stems')
+count = 0
+for vlist in combinations(range(len(rna.stem_list)), opt.subgraphsize):
+    count += 1
+    # vset = ast.literal_eval(vstr)
+    begin = stemlist[vlist[0]].lbegin
+    end = stemlist[vlist[0]].rend
+    disjoint = False
+    for v in vlist:
+        stem = stemlist[v]
+        if stem.lbegin < end:
+            end = max(end, stem.rend)
+        else:
+            disjoint = True
+            break
+
+    if not disjoint:
+        print(vlist)
+        xios = expand_vertices(vlist, adj)
+        gspan = Gspan(graph=xios)
+        dfsset[gspan.minDFS().human_encode()] += 1
+        dfs = gspan.minDFS().human_encode()
+        dfsset[dfs] += 1
+        if not count % 1000:
+            print(f'{count}\t{dfs}\t{dfsset[dfs]}')
+    else:
+        print(f'vlist ({vlist}) is disjoint')
 
 print(f'Uniquifying DFS codes')
 for dfs in dfsset:
