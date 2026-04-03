@@ -394,7 +394,130 @@ if __name__ == "__main__":
     print_results(results, limit=10)
 
 # ======================================================================================================================
-# main
+# canonical labelling
 # ======================================================================================================================
-if __name__ == '__main__':
-    exit(0)
+"""
+Canonical labeling for graphs with unlabeled vertices and edge labels.
+Returns the minimum DFS code, which serves as a canonical certificate.
+"""
+
+from collections import defaultdict
+from typing import Any, Dict, FrozenSet, List, Optional, Tuple
+
+Edge = Tuple[int, int, Any]   # (u, v, edge_label)  — raw graph edge
+DFSEdge = Tuple[int, int, Any]  # (from_dfs, to_dfs, edge_label)
+
+
+def _ekey(e: DFSEdge):
+    frm, to, el = e
+    if to < frm:               # backward
+        return (0, -frm, to, el)
+    else:                      # forward
+        return (1, frm, el)
+
+
+def canonical_label(edges: List[Edge]) -> Tuple[DFSEdge, ...]:
+    """
+    Given a list of (u, v, edge_label) edges, return the minimum DFS code
+    as a tuple of (from_dfs, to_dfs, edge_label) — the canonical certificate.
+
+    Two graphs are isomorphic (up to edge-label preserving isomorphism)
+    iff their canonical labels are equal.
+    """
+    # Build adjacency list
+    adj: Dict[int, List[Tuple[int, Any]]] = defaultdict(list)
+    vertices = set()
+    for u, v, el in edges:
+        adj[u].append((v, el))
+        adj[v].append((u, el))
+        vertices.add(u)
+        vertices.add(v)
+
+    best: List[DFSEdge] = []
+
+    def grow(
+        code: List[DFSEdge],
+        mapped: Dict[int, int],   # orig_vid -> dfs_id
+        rmpath: List[int],        # dfs_ids on rightmost path
+        vis: FrozenSet,           # frozenset of (min,max) orig edge pairs
+    ) -> None:
+        step = len(code)
+        rm_dfs = rmpath[-1]
+        rm_orig = mapped[rm_dfs]
+        inv = {v: k for k, v in mapped.items()}
+        nxt = max(mapped.values()) + 1
+
+        candidates: List[DFSEdge] = []
+
+        # Backward edges from rightmost vertex
+        for path_dfs in rmpath[:-1]:
+            path_orig = mapped[path_dfs]
+            for nbr, el in adj[rm_orig]:
+                if nbr == path_orig:
+                    eid = (min(rm_orig, path_orig), max(rm_orig, path_orig))
+                    if eid not in vis:
+                        candidates.append((rm_dfs, path_dfs, el))
+
+        # Forward edges from rightmost-path vertices
+        for p_dfs in reversed(rmpath):
+            p_orig = mapped[p_dfs]
+            for nbr, el in sorted(adj[p_orig]):
+                if nbr not in inv:
+                    candidates.append((p_dfs, nxt, el))
+
+        if not candidates:
+            return
+
+        best_cand = min(candidates, key=_ekey)
+
+        for cand in candidates:
+            if cand != best_cand:
+                continue
+
+            frm_d, to_d, el = cand
+            is_fwd = to_d > frm_d
+
+            # Prune: if this prefix is already worse than best, stop
+            if step < len(best):
+                if cand > best[step]:
+                    return
+                if cand < best[step]:
+                    del best[step:]
+            if step >= len(best):
+                best.append(cand)
+
+            code.append(cand)
+
+            if is_fwd:
+                frm_orig = mapped[frm_d]
+                for nbr, el2 in adj[frm_orig]:
+                    if nbr not in inv and el2 == el:
+                        new_mapped = dict(mapped)
+                        new_mapped[to_d] = nbr
+                        eid = (min(frm_orig, nbr), max(frm_orig, nbr))
+                        grow(code, new_mapped, rmpath + [to_d], vis | {eid})
+                        break
+            else:
+                frm_orig = mapped[frm_d]
+                to_orig  = mapped[to_d]
+                eid = (min(frm_orig, to_orig), max(frm_orig, to_orig))
+                grow(code, mapped, rmpath, vis | {eid})
+
+            code.pop()
+
+    for start in vertices:
+        grow([], {start: 0}, [0], frozenset())
+
+    return tuple(best)
+
+
+if __name__ == "__main__":
+    # Two isomorphic triangles with different vertex numbering
+    g1 = [(0, 1, 'a'), (1, 2, 'b'), (2, 0, 'c')]
+    g2 = [(3, 7, 'b'), (7, 5, 'c'), (5, 3, 'a')]
+
+    c1 = canonical_label(g1)
+    c2 = canonical_label(g2)
+    print("g1:", c1)
+    print("g2:", c2)
+    print("isomorphic:", c1 == c2)
