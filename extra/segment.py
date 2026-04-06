@@ -9,6 +9,7 @@ import sys
 import glob
 from topology import Topology
 
+
 def segment_strict(xios):
     """-----------------------------------------------------------------------------------------------------------------
     Check for completely disjoint substructures
@@ -34,13 +35,14 @@ def segment_strict(xios):
         else:
             # does not overlap
             disjoint = True
-            segment.append([begin,end])
+            segment.append([begin, end])
             begin = end = i
             begin_pos = next_begin
             end_pos = next_end
 
     segment.append([begin, end])
     return segment
+
 
 def segment_mountain(xios):
     """-----------------------------------------------------------------------------------------------------------------
@@ -54,18 +56,193 @@ def segment_mountain(xios):
     position = []
     n = 0
     for s in stemlist:
-        position.append([s.lbegin,s.rend, n, 1])
+        position.append([s.lbegin, s.rend, n, 1])
         position.append([s.rend, s.lbegin, n, -1])
         n += 1
 
     height = 0
     n = 0
-    for pos in sorted(position, key=lambda x:x[0]):
+    for pos in sorted(position, key=lambda x: x[0]):
         height += pos[3]
         print(f'{n}\t{height}\t{pos}')
-        n+= 1
+        n += 1
 
     return
+
+
+def segment_line(xios):
+    """-----------------------------------------------------------------------------------------------------------------
+    select stems that cross a coordinate position
+
+    :param xios: XIOS     RNA structure
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    seqlen = len(xios.sequence)
+    cut = seqlen // 2
+    lines = [[0, seqlen]]
+    select = []
+
+    while lines:
+        left, right = lines.pop()
+        cut = (right - left) // 2
+        lines.append([left, cut])
+        lines.append([cut + 1, right])
+
+        first = last = None
+        for n, s in enumerate(xios.stem_list):
+            cross = s.lbegin <= cut and s.rend >= cut
+            if cross and first:
+                last = n
+            elif cross:
+                first = n
+                last = n
+
+        nstem = last - first + 1
+        if nstem <= 25 and nstem > 3:
+            # good size selection, this part is done
+
+            n += 1
+
+    return
+
+def overlap(xios):
+    """-----------------------------------------------------------------------------------------------------------------
+    find the stems that cross each coordinate position
+
+    :param xios: XIOS     RNA structure
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    pos = [[] for _ in range(len(xios.sequence))]
+    stemn = 0
+    for stem in xios.stem_list:
+        for p in range(stem.lbegin, stem.rend+1):
+            pos[p].append(stemn)
+        stemn += 1
+
+    filtered = []
+    current = None
+    for i,p in enumerate(pos):
+        if p != current:
+            filtered.append([i,p])
+            current = p
+
+
+    return  pos
+
+def stem_overlap(xios):
+    """-----------------------------------------------------------------------------------------------------------------
+    condensed adjacency matrix. The set of stems that have a non-S relationship to each stem
+
+    :param xios: XIOS     RNA structure
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    adj = xios.adjacency
+    condensed = []
+    for i in range(len(adj)):
+        condensed.append(set())
+        for j in range(len(adj[i])):
+            # if adj[i][j] in 's-':
+            if adj[i][j] == 's':
+                continue
+            condensed[-1].add(j)
+
+    return condensed
+
+def common(vselect,vset):
+    """
+    vset is condensed adjacency matrix - the set of all stems overalapping each stem
+
+    :param vselect:
+    :param vset:
+    :return:
+    """
+    common = set(vset[vselect[0]])
+    for v in list(vselect):
+        common = common.intersect(vset[v])
+        if not common:
+            return common
+
+    return common
+
+
+def segment_branch(xios, max):
+    """
+    :param xios: XIOS     RNA structure
+    :param max: 
+    :return: 
+    """
+    all = set([i for i in range(len(xios.adjacency))])
+    branches = stem_overlap(xios)
+    stack = [all]
+    while stack:
+        piece = stack.pop()
+        incommon = common(piece, branches)
+
+
+def segment_chunk(xios):
+    """-----------------------------------------------------------------------------------------------------------------
+    select stems that cross a chunk of the sequence
+
+    :param xios: XIOS     RNA structure
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    seqlen = len(xios.sequence)
+    cut = seqlen // 2
+    lines = [[0, seqlen]]
+    candidate = []
+    condensed = stem_overlap(xios)
+    pos = overlap(xios)
+
+    while lines:
+        [left, right] = lines.pop()
+        half = (right + left) // 2
+
+
+        first = last = None
+        for n, s in enumerate(xios.stem_list):
+            l_inchunk = s.lbegin >= left and s.lbegin <= right
+            r_inchunk = s.rend >= left and s.rend <= right
+            cross = l_inchunk or r_inchunk
+
+            if cross and first:
+                last = n
+            elif cross:
+                first = n
+                last = n
+        if not first: continue
+
+        nstem = last - first + 1
+        if nstem > 25:
+            # too big, subdivide
+            lines.append([left, half])
+            lines.append([half + 1, right])
+            continue
+        elif nstem <= 3:
+            # too small, drop segment
+            continue
+
+        candidate.append([first,last])
+
+    # expand these ranges
+    adj = xios.adjacency
+    for s in candidate:
+        first, last = s
+        blocklen = last - first + 1
+        vlist = set(range(first, last + 1))
+        for j in range(0,first):
+            aa = adj[j][first:last+1]
+            scount = aa.count('s')
+            if scount < blocklen:
+                vlist.add(j)
+        for j in range(last+1,len(xios.stem_list)):
+            aa = adj[j][first:last+1]
+            scount = aa.count('s')
+            if scount < blocklen:
+                vlist.add(j)
+        print(f'candidate {first},{last} finished \t{len(vlist)}:{vlist}')
+
+    return
+
 
 # ======================================================================================================================
 # Main
@@ -74,9 +251,10 @@ if __name__ == '__main__':
     sourcedir = sys.argv[1] + '/*.xios'
 
     for source_xios in glob.glob(sourcedir):
-        print(f'{source_xios}')
-        rna = Topology(source_xios,xios=source_xios)
-        segment = segment_mountain(rna)
-        print(f'\t{source_xios}\t{len(rna.stem_list)}\t{len(segment)}\t{segment}')
+        # source_xios = '../data/curated_xios/16S_e.Balamuthia_mandrillaris.xios'
+        print(f'RNA:{source_xios}')
+        rna = Topology(source_xios, xios=source_xios)
+        segment = segment_branch(rna, 25)
+        # print(f'\t{source_xios}\t{len(rna.stem_list)}\t{len(segment)}\t{segment}')
 
     exit(0)
