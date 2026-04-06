@@ -156,28 +156,94 @@ def common(vselect,vset):
     :param vset:
     :return:
     """
-    common = set(vset[vselect[0]])
+    common = vset[0]
     for v in list(vselect):
-        common = common.intersect(vset[v])
+        common = common.intersection(vset[v])
         if not common:
+            # no common vertices
             return common
 
     return common
 
 
+def cut(piece,branches):
+    """
+
+    :param piece:
+    :param branches:
+    :return:
+    """
+    parts = []
+    incommon = common(piece, branches)
+    sbranch = sorted(branches, key=lambda x: len(x), reverse=True)
+    used = set()
+    for v in sbranch:
+        if v.intersection(used):
+            # skip if present in used
+            continue
+        parts.append(v)
+        used = used.union(v)
+        if used == piece:
+            break
+
+    return parts
+
+
+def extend(vset, branches):
+    """
+    extend a vertex set, the extended set is the union of all of its member branches
+    :param vset: 
+    :param branches: 
+    :return: 
+    """
+    merged = vset
+    for v in list(vset):
+        merged = merged.union(branches[v])
+
+    return merged
+
 def segment_branch(xios, max):
     """
+
+    sort vertices by subtree size
+    add all vertices to available
+    while available:
+        choose largest subtree
+        extend
+        if less than cutoff
+            add to segment
+            remove from available
+
     :param xios: XIOS     RNA structure
     :param max: 
     :return: 
     """
-    all = set([i for i in range(len(xios.adjacency))])
-    branches = stem_overlap(xios)
-    stack = [all]
-    while stack:
-        piece = stack.pop()
-        incommon = common(piece, branches)
+    segment = []
+    available = set([i for i in range(len(xios.adjacency))])
+    branches = sorted(stem_overlap(xios), key=lambda x: len(x))
+    sbranch = sorted(branches, key=lambda x: len(x))
+    while available:
+        biggest = branches.pop()
+        if biggest > max:
+            continue
 
+        exended = extend(biggest, xios.adjacency)
+        if len(exended) > max:
+            continue
+
+        segment.append(biggest)
+
+    # stack = [all]
+    # while stack:
+    #     piece = stack.pop()
+    #     pieces = cut(piece, branches)
+    #     for p in pieces:
+    #         if len(p) < max:
+    #             segment.append(p)
+    #         else:
+    #             stack.append(p)
+
+    return segment
 
 def segment_chunk(xios):
     """-----------------------------------------------------------------------------------------------------------------
