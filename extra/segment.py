@@ -193,10 +193,14 @@ def cut(piece, branches):
 
 def extend(v, branches):
     """-----------------------------------------------------------------------------------------------------------------
-    extend a vertex set, the extended set is the union of all of its member branches
-    :param vset: 
-    :param branches: 
-    :return: 
+    extend a vertex set,
+    for a source vertex v, the vertex set is branches[v]
+    the extended set is the union of branches[v] with all vertex sets branches[u] that occur in branches[v] and u > v
+    vertices in branches[v] with u < v are simple added to the merged set
+
+    :param v: int           index of a source vertex set in branches
+    :param branches: list   list of sets of vertices connected to each vertex (defined by stem_overlap)
+    :return: set            extended set of vertices
     -----------------------------------------------------------------------------------------------------------------"""
     merged = branches[v]
     for thisv in list(branches[v]):
@@ -212,7 +216,25 @@ def merge(segment, limit):
     """-----------------------------------------------------------------------------------------------------------------
     compare segments and combine when the segments intersect and the union of the two segments does not exceed the
     size limit. Greedy approach: starting from the smallest set, add to all larger sets that have an intersection,
-    subject to the size limit.
+    subject to the size limit. When segments can no longer be merged (because they have no intersection with others, or
+    because they have reached the size limit, move them to the final list.
+
+    sort candidate vertex sets (segment) by size, push on current stack
+    add all vertex sets to the list of current segments
+    working from the smallest vertex set to the largest:
+        pop the smallest vertex set from the current segment stack
+        for each vertex set remaining in current:
+            calculate intersection with smallest
+            if not intersection, continue
+
+            calculate union with smallest
+            if union > size_limit, continue
+
+            otherwise, smallest can extend the current vertex set
+                replace current with union
+                remove smallest from available vertices
+
+        after checking all vertex sets in current, if no merges are found, add smallest to the final selected set
 
     :param segment:list of set      vertex subsets from segmentation
     :param limit: int               maximum number of elements in segments sets
@@ -238,35 +260,45 @@ def merge(segment, limit):
     return final
 
 
-def segment_branch(xios, max):
+def segment_branch(xios, limit):
     """-----------------------------------------------------------------------------------------------------------------
+    Divide a structure into segments based on the sets of vertices that are iox connected to each vertex (i.e.,
+    branches). This method detects all strictly disjoint sets of vertices so no other check is needed.
+    Method:
+        make a list of all available vertices, process until this list is empty (all vertices occur in a segment)
+        process vertex lists in decreasing size order
+            pop largest vertex set from the list (branches)
+            if largest > limit, can't be a segment, get the next largest vertex set from the list
+            if largest has no intersection with the available vertices, these vertex sets are already covered, next
 
-    sort vertices by subtree size
-    add all vertices to available
-    while available:
-        choose largest subtree
-        extend
-        if less than cutoff
-            add to segment
-            remove from available
+            extend this vertex set: extended = extend(largest_vset, branches)
+            if extended > size limit:
+                not a good segment, discard
+            else:
+                add to segment list
+                remove segment from available vertices
+
+        merge segments in segment list where possible: segment = merge(segment, limit)
 
     :param xios: XIOS     RNA structure
-    :param max: 
-    :return: 
+    :param limit: int     maximum number of vertices, this should be a size that can be exhaustively sampled
+    :return: list         list of vertex sets, the final set of selected quasi-disjoint vertex subsets
     -----------------------------------------------------------------------------------------------------------------"""
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
     branches = stem_overlap(xios)
+
+    # sort indices to the branches list (list of vertex sets) by size of set
     order = [i for i in range(len(branches))]
-    sbranch = sorted(branches, key=lambda x: len(x))
     sorder = sorted(order, key=lambda x: len(branches[x]))
+
     while available:
         try:
             bigv = sorder.pop()
             biggest = branches[bigv]
         except IndexError:
             break
-        if len(biggest) > max:
+        if len(biggest) > limit:
             continue
 
         if not biggest.intersection(available):
@@ -274,7 +306,7 @@ def segment_branch(xios, max):
             continue
 
         extended = extend(bigv, branches)
-        if len(extended) > max:
+        if len(extended) > limit:
             continue
 
         segment.append(extended)
@@ -282,7 +314,7 @@ def segment_branch(xios, max):
         available.difference_update(extended)
         print(available)
 
-    segment = merge(segment, max)
+    segment = merge(segment, limit)
     return segment
 
 
