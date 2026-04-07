@@ -192,12 +192,12 @@ def cut(piece, branches):
 
 
 def extend(v, branches):
-    """
+    """-----------------------------------------------------------------------------------------------------------------
     extend a vertex set, the extended set is the union of all of its member branches
     :param vset: 
     :param branches: 
     :return: 
-    """
+    -----------------------------------------------------------------------------------------------------------------"""
     merged = branches[v]
     for thisv in list(branches[v]):
         if thisv > v:
@@ -208,8 +208,38 @@ def extend(v, branches):
     return merged
 
 
+def merge(segment, limit):
+    """-----------------------------------------------------------------------------------------------------------------
+    compare segments and combine when the segments intersect and the union of the two segments does not exceed the
+    size limit. Greedy approach: starting from the smallest set, add to all larger sets that have an intersection,
+    subject to the size limit.
+
+    :param segment:list of set      vertex subsets from segmentation
+    :param limit: int               maximum number of elements in segments sets
+    :return: list                   list of segment sets
+    -----------------------------------------------------------------------------------------------------------------"""
+    final = []
+    current = sorted(segment, key=lambda x: len(x), reverse=True)
+    while current:
+        small = current.pop()
+        merged = False
+        for v,s in enumerate(current):
+            if small.intersection(s):
+                # overlap, try to combine
+                testmerge = small.union(s)
+                if len(testmerge) <= limit:
+                    current[v] = testmerge
+                    merged = True
+
+        if not merged:
+            # if small cannot be merged it must be saved
+            final.append(small)
+
+    return final
+
+
 def segment_branch(xios, max):
-    """
+    """-----------------------------------------------------------------------------------------------------------------
 
     sort vertices by subtree size
     add all vertices to available
@@ -223,7 +253,7 @@ def segment_branch(xios, max):
     :param xios: XIOS     RNA structure
     :param max: 
     :return: 
-    """
+    -----------------------------------------------------------------------------------------------------------------"""
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
     branches = stem_overlap(xios)
@@ -252,6 +282,7 @@ def segment_branch(xios, max):
         available.difference_update(extended)
         print(available)
 
+    segment = merge(segment, max)
     return segment
 
 
@@ -326,10 +357,16 @@ if __name__ == '__main__':
     sourcedir = sys.argv[1] + '/*.xios'
 
     for source_xios in glob.glob(sourcedir):
+        nfail = 0
         # source_xios = '../data/curated_xios/16S_e.Balamuthia_mandrillaris.xios'
-        print(f'RNA:{source_xios}')
+        # print(f'RNA:{source_xios}')
         rna = Topology(source_xios, xios=source_xios)
         segment = segment_branch(rna, 25)
-        # print(f'\t{source_xios}\t{len(rna.stem_list)}\t{len(segment)}\t{segment}')
+        for s in segment:
+            if len(s) > 25:
+                print(f'{source_xios} failed')
+                nfail = 0
+
+    print(f'number failed:{nfail}')
 
     exit(0)
