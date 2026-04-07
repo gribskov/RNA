@@ -130,28 +130,6 @@ def overlap(xios):
     return pos
 
 
-def get_vset_list(xios):
-    """-----------------------------------------------------------------------------------------------------------------
-    For each stem in the structure, construct a list of vertex sets, vset_list. vset_list[v] is the set of vertices 
-    that have non-serial relationships to v
-
-    :param xios: XIOS       RNA structure
-    :return: list           list of vsets
-    -----------------------------------------------------------------------------------------------------------------"""
-    adj = xios.adjacency
-    vset_list = []
-    for i in range(len(adj)):
-        vset_list.append(set())
-        for j in range(len(adj[i])):
-            # if adj[i][j] in 's-':
-            if adj[i][j] == 's':
-                # do not include in vset
-                continue
-            vset_list[-1].add(j)
-
-    return vset_list
-
-
 def common(vselect, vset):
     """
     vset is condensed adjacency matrix - the set of all stems overalapping each stem
@@ -193,25 +171,47 @@ def cut(piece, branches):
     return parts
 
 
-def extend(v, branches):
+def get_vset_list(xios):
+    """-----------------------------------------------------------------------------------------------------------------
+    For each stem in the structure, construct a list of vertex sets, vset_list. vset_list[v] is the set of vertices 
+    that have non-serial relationships to v
+
+    :param xios: XIOS       RNA structure
+    :return: list           list of vsets
+    -----------------------------------------------------------------------------------------------------------------"""
+    adj = xios.adjacency
+    vset_list = []
+    for i in range(len(adj)):
+        vset_list.append(set())
+        for j in range(len(adj[i])):
+            # if adj[i][j] in 's-':
+            if adj[i][j] == 's':
+                # do not include in vset
+                continue
+            vset_list[-1].add(j)
+
+    return vset_list
+
+
+def vset_extend(v, vset_list):
     """-----------------------------------------------------------------------------------------------------------------
     extend a vertex set,
-    for a source vertex v, the vertex set is branches[v]
-    the extended set is the union of branches[v] with all vertex sets branches[u] that occur in branches[v] and u > v
-    vertices in branches[v] with u < v are simple added to the merged set
+    for a source vertex v, the vertex set is vset_list[v]
+    the extended set is the union of vset_list[v] with all vertex sets vset_list[u] that occur in vset_list[v] and u > v
+    vertices in vset_list[v] with u < v are simple added to the merged set
 
-    :param v: int           index of a source vertex set in branches
-    :param branches: list   list of sets of vertices connected to each vertex (defined by stem_overlap)
+    :param v: int           index of a source vertex set in vset_list
+    :param vset_list: list   list of sets of vertices connected to each vertex (defined by stem_overlap)
     :return: set            extended set of vertices
     -----------------------------------------------------------------------------------------------------------------"""
-    merged = branches[v]
-    for thisv in list(branches[v]):
+    extended = vset_list[v]
+    for thisv in list(vset_list[v]):
         if thisv > v:
-            merged = merged.union(branches[v])
+            extended = extended.union(vset_list[v])
         else:
-            merged.add(thisv)
+            extended.add(thisv)
 
-    return merged
+    return extended
 
 
 def merge(segment, limit):
@@ -273,7 +273,7 @@ def segment_branch(xios, limit):
             if largest > limit, can't be a segment, get the next largest vertex set from the list
             if largest has no intersection with the available vertices, these vertex sets are already covered, next
 
-            extend this vertex set: extended = extend(largest_vset, branches)
+            extend this vertex set: extended = vset_extend(largest_vset, branches)
             if extended > size limit:
                 not a good segment, discard
             else:
@@ -307,7 +307,7 @@ def segment_branch(xios, limit):
             # there are no unique vertices here
             continue
 
-        extended = extend(bigv, branches)
+        extended = vset_extend(bigv, branches)
         if len(extended) > limit:
             continue
 
