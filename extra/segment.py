@@ -220,7 +220,7 @@ def segment_branch(xios, max):
     """
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
-    branches = sorted(stem_overlap(xios), key=lambda x: len(x))
+    branches = stem_overlap(xios)
     sbranch = sorted(branches, key=lambda x: len(x))
     while available:
         try:
@@ -229,6 +229,11 @@ def segment_branch(xios, max):
             break
         if len(biggest) > max:
             continue
+
+        if not biggest.intersection(available):
+            # there are no unique vertices here
+            continue
+
 
         extended = extend(biggest, branches)
         if len(extended) > max:
