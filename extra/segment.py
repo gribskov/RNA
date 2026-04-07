@@ -105,6 +105,7 @@ def segment_line(xios):
 
     return
 
+
 def overlap(xios):
     """-----------------------------------------------------------------------------------------------------------------
     find the stems that cross each coordinate position
@@ -115,19 +116,19 @@ def overlap(xios):
     pos = [[] for _ in range(len(xios.sequence))]
     stemn = 0
     for stem in xios.stem_list:
-        for p in range(stem.lbegin, stem.rend+1):
+        for p in range(stem.lbegin, stem.rend + 1):
             pos[p].append(stemn)
         stemn += 1
 
     filtered = []
     current = None
-    for i,p in enumerate(pos):
+    for i, p in enumerate(pos):
         if p != current:
-            filtered.append([i,p])
+            filtered.append([i, p])
             current = p
 
+    return pos
 
-    return  pos
 
 def stem_overlap(xios):
     """-----------------------------------------------------------------------------------------------------------------
@@ -148,7 +149,8 @@ def stem_overlap(xios):
 
     return condensed
 
-def common(vselect,vset):
+
+def common(vselect, vset):
     """
     vset is condensed adjacency matrix - the set of all stems overalapping each stem
 
@@ -166,7 +168,7 @@ def common(vselect,vset):
     return common
 
 
-def cut(piece,branches):
+def cut(piece, branches):
     """
 
     :param piece:
@@ -189,18 +191,22 @@ def cut(piece,branches):
     return parts
 
 
-def extend(vset, branches):
+def extend(v, branches):
     """
     extend a vertex set, the extended set is the union of all of its member branches
     :param vset: 
     :param branches: 
     :return: 
     """
-    merged = vset
-    for v in list(vset):
-        merged = merged.union(branches[v])
+    merged = branches[v]
+    for thisv in list(branches[v]):
+        if thisv > v:
+            merged = merged.union(branches[v])
+        else:
+            merged.add(thisv)
 
     return merged
+
 
 def segment_branch(xios, max):
     """
@@ -221,10 +227,13 @@ def segment_branch(xios, max):
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
     branches = stem_overlap(xios)
+    order = [i for i in range(len(branches))]
     sbranch = sorted(branches, key=lambda x: len(x))
+    sorder = sorted(order, key=lambda x: len(branches[x]))
     while available:
         try:
-            biggest = sbranch.pop()
+            bigv = sorder.pop()
+            biggest = branches[bigv]
         except IndexError:
             break
         if len(biggest) > max:
@@ -234,8 +243,7 @@ def segment_branch(xios, max):
             # there are no unique vertices here
             continue
 
-
-        extended = extend(biggest, branches)
+        extended = extend(bigv, branches)
         if len(extended) > max:
             continue
 
@@ -244,17 +252,8 @@ def segment_branch(xios, max):
         available.difference_update(extended)
         print(available)
 
-    # stack = [all]
-    # while stack:
-    #     piece = stack.pop()
-    #     pieces = cut(piece, branches)
-    #     for p in pieces:
-    #         if len(p) < max:
-    #             segment.append(p)
-    #         else:
-    #             stack.append(p)
-
     return segment
+
 
 def segment_chunk(xios):
     """-----------------------------------------------------------------------------------------------------------------
@@ -273,7 +272,6 @@ def segment_chunk(xios):
     while lines:
         [left, right] = lines.pop()
         half = (right + left) // 2
-
 
         first = last = None
         for n, s in enumerate(xios.stem_list):
@@ -298,7 +296,7 @@ def segment_chunk(xios):
             # too small, drop segment
             continue
 
-        candidate.append([first,last])
+        candidate.append([first, last])
 
     # expand these ranges
     adj = xios.adjacency
@@ -306,13 +304,13 @@ def segment_chunk(xios):
         first, last = s
         blocklen = last - first + 1
         vlist = set(range(first, last + 1))
-        for j in range(0,first):
-            aa = adj[j][first:last+1]
+        for j in range(0, first):
+            aa = adj[j][first:last + 1]
             scount = aa.count('s')
             if scount < blocklen:
                 vlist.add(j)
-        for j in range(last+1,len(xios.stem_list)):
-            aa = adj[j][first:last+1]
+        for j in range(last + 1, len(xios.stem_list)):
+            aa = adj[j][first:last + 1]
             scount = aa.count('s')
             if scount < blocklen:
                 vlist.add(j)
