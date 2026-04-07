@@ -130,24 +130,26 @@ def overlap(xios):
     return pos
 
 
-def stem_overlap(xios):
+def get_vset_list(xios):
     """-----------------------------------------------------------------------------------------------------------------
-    condensed adjacency matrix. The set of stems that have a non-S relationship to each stem
+    For each stem in the structure, construct a list of vertex sets, vset_list. vset_list[v] is the set of vertices 
+    that have non-serial relationships to v
 
-    :param xios: XIOS     RNA structure
-    :return:
+    :param xios: XIOS       RNA structure
+    :return: list           list of vsets
     -----------------------------------------------------------------------------------------------------------------"""
     adj = xios.adjacency
-    condensed = []
+    vset_list = []
     for i in range(len(adj)):
-        condensed.append(set())
+        vset_list.append(set())
         for j in range(len(adj[i])):
             # if adj[i][j] in 's-':
             if adj[i][j] == 's':
+                # do not include in vset
                 continue
-            condensed[-1].add(j)
+            vset_list[-1].add(j)
 
-    return condensed
+    return vset_list
 
 
 def common(vselect, vset):
@@ -286,7 +288,7 @@ def segment_branch(xios, limit):
     -----------------------------------------------------------------------------------------------------------------"""
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
-    branches = stem_overlap(xios)
+    branches = get_vset_list(xios)
 
     # sort indices to the branches list (list of vertex sets) by size of set
     order = [i for i in range(len(branches))]
@@ -329,7 +331,7 @@ def segment_chunk(xios):
     cut = seqlen // 2
     lines = [[0, seqlen]]
     candidate = []
-    condensed = stem_overlap(xios)
+    condensed = get_vset_list(xios)
     pos = overlap(xios)
 
     while lines:
