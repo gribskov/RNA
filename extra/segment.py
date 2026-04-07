@@ -214,17 +214,21 @@ def vset_extend(v, vset_list):
     return extended
 
 
-def merge(segment, limit):
+def vset_merge(candidate, limit):
     """-----------------------------------------------------------------------------------------------------------------
-    compare segments and combine when the segments intersect and the union of the two segments does not exceed the
-    size limit. Greedy approach: starting from the smallest set, add to all larger sets that have an intersection,
-    subject to the size limit. When segments can no longer be merged (because they have no intersection with others, or
-    because they have reached the size limit, move them to the final list.
+    segment_vset() identifies vertex sets that are quasi-disjoint. That is, they are densely connected inside the vset
+    and loosely connected or disjoint between vsets. These vsets are candidates for subgraphs that are small enough to
+    enumerate all the k-vertex subgraphs, but that preserve most of the important information from the original graph.
 
-    sort candidate vertex sets (segment) by size, push on current stack
-    add all vertex sets to the list of current segments
+    Vset_merge() compares candidate vsets and identifies those that can be combined (union) without exceeding
+    the size limit. Greedy approach: starting from the smallest set, add to all larger sets that have an intersection,
+    subject to the size limit. When candidate vsets can no longer be merged (because they have no intersection with
+    others, or because they have reached the size limit, they are moved to the final (approved) list.
+
+    sort candidate vset list (candidate) by size, push on current stack
+    add all vsets to the list of current vsets
     working from the smallest vertex set to the largest:
-        pop the smallest vertex set from the current segment stack
+        pop the smallest vertex set from the current stack
         for each vertex set remaining in current:
             calculate intersection with smallest
             if not intersection, continue
@@ -238,12 +242,12 @@ def merge(segment, limit):
 
         after checking all vertex sets in current, if no merges are found, add smallest to the final selected set
 
-    :param segment:list of set      vertex subsets from segmentation
-    :param limit: int               maximum number of elements in segments sets
-    :return: list                   list of segment sets
+    :param candidate:list of set    vset_list, vertex subsets from segment_vset()
+    :param limit: int               maximum number of elements in segment sets
+    :return: list                   vset_list final list of vsets to segment structure
     -----------------------------------------------------------------------------------------------------------------"""
     final = []
-    current = sorted(segment, key=lambda x: len(x), reverse=True)
+    current = sorted(candidate, key=lambda x: len(x), reverse=True)
     while current:
         small = current.pop()
         merged = False
@@ -280,7 +284,7 @@ def segment_branch(xios, limit):
                 add to segment list
                 remove segment from available vertices
 
-        merge segments in segment list where possible: segment = merge(segment, limit)
+        merge segments in segment list where possible: segment = vset_merge(segment, limit)
 
     :param xios: XIOS     RNA structure
     :param limit: int     maximum number of vertices, this should be a size that can be exhaustively sampled
@@ -316,7 +320,7 @@ def segment_branch(xios, limit):
         available.difference_update(extended)
         print(available)
 
-    segment = merge(segment, limit)
+    segment = vset_merge(segment, limit)
     return segment
 
 
