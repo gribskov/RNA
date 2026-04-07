@@ -223,15 +223,21 @@ def segment_branch(xios, max):
     branches = sorted(stem_overlap(xios), key=lambda x: len(x))
     sbranch = sorted(branches, key=lambda x: len(x))
     while available:
-        biggest = branches.pop()
-        if biggest > max:
+        try:
+            biggest = sbranch.pop()
+        except IndexError:
+            break
+        if len(biggest) > max:
             continue
 
-        exended = extend(biggest, xios.adjacency)
-        if len(exended) > max:
+        extended = extend(biggest, branches)
+        if len(extended) > max:
             continue
 
-        segment.append(biggest)
+        segment.append(extended)
+        # remove from available
+        available.difference_update(extended)
+        print(available)
 
     # stack = [all]
     # while stack:
