@@ -318,7 +318,7 @@ def segment_vset(xios, limit):
         segment.append(extended)
         # remove from available
         available.difference_update(extended)
-        print(available)
+        # print(available)
 
     segment = vset_merge(segment, limit)
     return segment
