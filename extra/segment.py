@@ -266,7 +266,7 @@ def vset_merge(candidate, limit):
     return final
 
 
-def segment_branch(xios, limit):
+def segment_vset(xios, limit):
     """-----------------------------------------------------------------------------------------------------------------
     Divide a structure into segments based on the sets of vertices that are iox connected to each vertex (i.e.,
     branches). This method detects all strictly disjoint sets of vertices so no other check is needed.
@@ -399,7 +399,7 @@ if __name__ == '__main__':
         # source_xios = '../data/curated_xios/16S_e.Balamuthia_mandrillaris.xios'
         # print(f'RNA:{source_xios}')
         rna = Topology(source_xios, xios=source_xios)
-        segment = segment_branch(rna, 25)
+        segment = segment_vset(rna, 25)
         for s in segment:
             if len(s) > 25:
                 print(f'{source_xios} failed')
