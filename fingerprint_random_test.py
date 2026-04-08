@@ -105,12 +105,12 @@ from topology import Topology
 from xios import Xios, Gspan
 
 rna = Topology()
-rna.XIOSread('data/rnasep_a1.Buchnera_APS.xios')
+rna.XIOSread('data/curated_xios/tRNA.1H4S.xios')
 
-block = 100
+block = 1000
 minmotifcount = 2
-subgraphlen = 4
-replicates = 20
+subgraphlen = 7
+replicates = 3
 print('block: {}  minimum motif count: {}  subgraph length: {}'.format(block, minmotifcount,
                                                                        subgraphlen))
 print('replicates: {}'.format(replicates))
@@ -128,13 +128,13 @@ for rep in range(replicates):
             nrandom += 1
             xios = rna.sample_xios(subgraphlen)
             gspan = Gspan(graph=xios)
-            dfs = gspan.minDFS().ascii_encode()
+            dfs = gspan.minDFS().human_encode()
+            print(f'{rep}:{i}\t{dfs}')
 
             if dfs in fingerprint:
                 fingerprint[dfs] += 1
             else:
                 fingerprint[dfs] = 1
-                print(dfs)
                 nmotif += 1
 
         mincount = min(fingerprint.values())
@@ -144,6 +144,7 @@ for rep in range(replicates):
     mlen.append(nmotif)
     cycles.append(nrandom)
 
+print()
 i = 0
 for dfs in fingerprint:
     i += 1
