@@ -1,13 +1,18 @@
 """=================================================================================================
-sample a random fingerprint from a structure in XIOS XML format
+Generate a fingerprint from a XIOS file. XIOS structures are first broken into quasi-disjoint 
+segments, then all possible subsets of vertices enumerated for each segment.
 
-10 July 2019     Michael Gribskov
+This code was modified from the old fingerprint random.py. Although this is the first version, it is
+labeled as 2.2 to be consistent with the overall XIOS version
+
+9 April 2026     Michael Gribskov
 ================================================================================================="""
+version = 2.2
+
 import sys
 import os
 import datetime
 import argparse
-import ast
 from itertools import combinations
 from collections import defaultdict
 from topology import Topology
@@ -17,7 +22,7 @@ from fingerprint import Fingerprint
 
 def process_command_line():
     """---------------------------------------------------------------------------------------------
-    usage: fingerprint_random.py [-h] [-m MOTIFDB] [-r RNA] [-f FPT] [-s SUBGRAPHSIZE] [-c COVERAGE]
+    usage: fingerprint_complete.py [-h] [-m MOTIFDB] [-r RNA] [-f FPT] [-s SUBGRAPHSIZE] [-c COVERAGE]
                                  [-l LIMIT] [-n] [-q]
 
     Calculate an XIOS fingerprint from a XIOS XML file by random sampling
@@ -28,20 +33,15 @@ def process_command_line():
       -r RNA, --rna RNA                     RNA topology in XIOS XML format
       -f FPT, --fpt FPT                     Fingerprint output file (default=STDOUT)
       -s SUBGRAPHSIZE, --subgraphsize       SUBGRAPHSIZE
-                                            Size subgraph to sample (default=6)
-      -c COVERAGE, --coverage COVERAGE      Minimum coverage for sampled graphs (default=3)
-      -l LIMIT, --limit LIMIT               Maximum random graphs to sample (default=10000)
+                                            Size subgraph to sample (default=7)
+      -c COVERAGE, --coverage COVERAGE     Maximum segment size  (default=20)
       -n, --noparent                        Exclude parent graphs from fingerprint (default=False)
       -q, --quiet                           Minimal output on stdout (default=False)
 
     :return:
     ---------------------------------------------------------------------------------------------"""
-    default_subgraphsize = 7
-    default_coverage = 3
-    default_sampling_limit = 10000
-
     cl = argparse.ArgumentParser(
-        description='Calculate an XIOS fingerprint from a XIOS XML file by random sampling',
+        description=f'v{version} Calculate XIOS fingerprint fromXIOS file by segmentation and complete sampling',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, width=120, max_help_position=40)
     )
     cl.add_argument('-m', '--motifdb',
@@ -60,21 +60,17 @@ def process_command_line():
     cl.add_argument('-s', '--subgraphsize',
                     help='Size subgraph to sample (default=%(default)s)',
                     type=int,
-                    default=default_subgraphsize)
+                    default=7)
     cl.add_argument('-c', '--coverage',
-                    help='Minimum coverage for sampled graphs (default=%(default)s)',
+                    help='Maximum segment size (default=%(default)s)',
                     type=int,
-                    default=default_coverage)
-    cl.add_argument('-l', '--limit',
-                    help='Maximum number of random graphs to sample (default=%(default)s)',
-                    type=int,
-                    default=default_sampling_limit)
+                    default=20)
     cl.add_argument('-n', '--noparent',
                     help='Do not include parent graphs in fingerprint (default=%(default)s)',
                     action='store_true')
     cl.add_argument('-b', '--basesmin',
-                             help='Minimum number of paired bases in a stem (%(default)s)',
-                             default=3, type=int)
+                    help='Minimum number of paired bases in a stem (%(default)s)',
+                    default=3, type=int)
     cl.add_argument('-q', '--quiet',
                     help='Minimal output on stdout (default=%(default)s)',
                     action='store_true')
@@ -125,6 +121,7 @@ def xios_filter(rna, minbp):
 
     return len(rna.stem_list)
 
+
 def expand_vertices(vlist, adj):
     """---------------------------------------------------------------------------------------------
     given a set of vertices and adjacency matrix, select all edges and return the xios
@@ -136,7 +133,7 @@ def expand_vertices(vlist, adj):
     edge = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
     struct = []
 
-    # identify all the edges between the vertices in vlist
+    # identify all edges between the vertices in vlist
     for r in range(len(vlist) - 1):
         row = vlist[r]
         for c in range(r + 1, len(vlist)):
@@ -147,14 +144,15 @@ def expand_vertices(vlist, adj):
     # print(struct)
     return Xios(list=struct)
 
+
 def connected(adj, vlist):
-    """-----------------------------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     True if vertices are connected
 
     :param adj: Xios.adjacency      adjacency matrix
     :param vlist: list              list of vertices to test
     :return: bool                   True if connected
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     # if len(subset) <= 1:
     #     return True
 
@@ -176,15 +174,15 @@ def connected(adj, vlist):
     return False
 
 
-
 def get_vset_list(xios):
-    """-----------------------------------------------------------------------------------------------------------------
-    For each stem in the structure, construct a list of vertex sets, vset_list. vset_list[v] is the set of vertices
+    """---------------------------------------------------------------------------------------------
+    For each stem in the structure, construct a list of vertex sets, vset_list. vset_list[v] is the
+    set of vertices
     that have non-serial relationships to v
 
     :param xios: XIOS       RNA structure
     :return: list           list of vsets
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     adj = xios.adjacency
     vset_list = []
     for i in range(len(adj)):
@@ -200,16 +198,24 @@ def get_vset_list(xios):
 
 
 def vset_extend(v, vset_list):
-    """-----------------------------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     extend a vertex set,
-    for a source vertex v, the vertex set is vset_list[v]
-    the extended set is the union of vset_list[v] with all vertex sets vset_list[u] that occur in vset_list[v] and u > v
-    vertices in vset_list[v] with u < v are simple added to the merged set
+    for a source vertex v, the vertex set is vset_list[v]. the extended set is the union of 
+    vset_list[v] with all vertex sets vset_list[u] that occur in vset_list[v] and u > v vertices in
+    vset_list[v] with u < v are simply added to the merged set.
+    
+    Rationale:
+    The stems (vertices) in the adjacency list are sorted by the coordinate of their leftmost 
+    basepair. This means a vertex u with u<v is either unconnected, contains v (vju), or
+    pseudoknotted (vou). If u is merged into the segment with union, it will include all the stems
+    contained within the bigger outside stem (u). In this case the only segments found will be the
+    completely disjoint subgraphs. A vertex w with v<w is either contained in v(viw), or
+    pseudoknotted. W can be added to the segment using union.
 
-    :param v: int           index of a source vertex set in vset_list
-    :param vset_list: list   list of sets of vertices connected to each vertex (defined by stem_overlap)
-    :return: set            extended set of vertices
-    -----------------------------------------------------------------------------------------------------------------"""
+    :param v: int             index of a source vertex set in vset_list
+    :param vset_list: list    list of vsets for each vertex (defined by get_vset_list)
+    :return: set              extended set of vertices
+    ---------------------------------------------------------------------------------------------"""
     extended = vset_list[v]
     for thisv in list(vset_list[v]):
         if thisv > v:
@@ -221,15 +227,17 @@ def vset_extend(v, vset_list):
 
 
 def vset_merge(candidate, limit):
-    """-----------------------------------------------------------------------------------------------------------------
-    segment_vset() identifies vertex sets that are quasi-disjoint. That is, they are densely connected inside the vset
-    and loosely connected or disjoint between vsets. These vsets are candidates for subgraphs that are small enough to
-    enumerate all the k-vertex subgraphs, but that preserve most of the important information from the original graph.
+    """---------------------------------------------------------------------------------------------
+    vset_merge() identifies vertex sets that are quasi-disjoint. That is, they are densely connected
+    inside the vset and loosely connected (quasi-disjoint) between vsets. These vsets are candidates
+    for subgraphs that are small enough to enumerate all the k-vertex subgraphs, but that preserve
+    most of the important information from the original graph.
 
-    Vset_merge() compares candidate vsets and identifies those that can be combined (union) without exceeding
-    the size limit. Greedy approach: starting from the smallest set, add to all larger sets that have an intersection,
-    subject to the size limit. When candidate vsets can no longer be merged (because they have no intersection with
-    others, or because they have reached the size limit, they are moved to the final (approved) list.
+    Vset_merge() compares candidate segments and identifies those that can be combined (union)
+    without exceeding the size limit. Greedy approach: starting from the smallest set, add to all
+    larger sets that have an intersection, subject to the size limit. When candidate vsets can no
+    longer be merged (because they have no intersection with others, or because they have reached
+    the size limit, they are moved to the final (approved) list.
 
     sort candidate vset list (candidate) by size, push on current stack
     add all vsets to the list of current vsets
@@ -246,18 +254,19 @@ def vset_merge(candidate, limit):
                 replace current with union
                 remove smallest from available vertices
 
-        after checking all vertex sets in current, if no merges are found, add smallest to the final selected set
+        after checking all vertex sets in current, if no merges are found, add smallest to the final
+        selected set
 
     :param candidate:list of set    vset_list, vertex subsets from segment_vset()
     :param limit: int               maximum number of elements in segment sets
     :return: list                   vset_list final list of vsets to segment structure
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     final = []
     current = sorted(candidate, key=lambda x: len(x), reverse=True)
     while current:
         small = current.pop()
         merged = False
-        for v,s in enumerate(current):
+        for v, s in enumerate(current):
             if small.intersection(s):
                 # overlap, try to combine
                 testmerge = small.union(s)
@@ -273,15 +282,18 @@ def vset_merge(candidate, limit):
 
 
 def segment_vset(xios, limit):
-    """-----------------------------------------------------------------------------------------------------------------
-    Divide a structure into segments based on the sets of vertices that are iox connected to each vertex (i.e.,
-    branches). This method detects all strictly disjoint sets of vertices so no other check is needed.
+    """---------------------------------------------------------------------------------------------
+    Divide a structure into segments based on the sets of vertices that are iox connected to each
+    vertex (vsets). This method detects all strictly disjoint sets of vertices, as well as 
+    quasi-disjoint sets that have very few connecting edges to others.
     Method:
-        make a list of all available vertices, process until this list is empty (all vertices occur in a segment)
+        make a list of all available vsets, process until this list is empty 
+            (all vertices occur in a segment or the set is disjoint)
         process vertex lists in decreasing size order
             pop largest vertex set from the list (branches)
             if largest > limit, can't be a segment, get the next largest vertex set from the list
-            if largest has no intersection with the available vertices, these vertex sets are already covered, next
+            if largest has no intersection with the available vertices, these vertex sets are
+                already covered, next
 
             extend this vertex set: extended = vset_extend(largest_vset, branches)
             if extended > size limit:
@@ -293,8 +305,8 @@ def segment_vset(xios, limit):
         merge segments in segment list where possible: segment = vset_merge(segment, limit)
 
     :param xios: XIOS     RNA structure
-    :param limit: int     maximum number of vertices, this should be a size that can be exhaustively sampled
-    :return: list         list of vertex sets, the final set of selected quasi-disjoint vertex subsets
+    :param limit: int     maximum vertices, should be a size that can be exhaustively sampled
+    :return: list         list of vertex sets, the selected quasi-disjoint vertex subsets
     -----------------------------------------------------------------------------------------------------------------"""
     segment = []
     available = set([i for i in range(len(xios.adjacency))])
@@ -329,33 +341,36 @@ def segment_vset(xios, limit):
     segment = vset_merge(segment, limit)
     return segment
 
+
 # ##################################################################################################
 # Main
 # ##################################################################################################
-daytime = datetime.datetime.now()
-runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
+start = datetime.datetime.now()
+runstart = start.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
-segment_limit = 25
 
+verbose = not opt.quiet
 if opt.quiet:
-    print(f'fingerprint_random: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
+    print(f'fingerprint_complete: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
           end='\n')
 else:
-    print('fingerprint_random - Sample XIOS fingerprint from RNA topology {}'.format(runstart))
+    print(f'fingerprint_complete v{version} - Calculate XIOS fingerprint from RNA topology {runstart}')
     print('\tRNA structure: {}'.format(opt.rna.name))
     print('\tMotif database: {}'.format(opt.motifdb.name))
     print('\tFingerprint: {}'.format(opt.fpt))
-    print('\tSubgraph size: {}'.format(opt.subgraphsize))
-    print('\tCoverage (minimum): {}'.format(opt.coverage))
-    print(f'\tMaximum sample: {opt.limit}')
-    print('\tOmit parents: {}'.format(opt.noparent))
     print(f'\tMinimum stem size: {opt.basesmin}')
-    print(f'\tSegment limit: {segment_limit}')
+    print('\tSubgraph size: {}'.format(opt.subgraphsize))
+    print(f'\tMaximum segment size: {opt.coverage}')
+    if opt.noparent:
+        print('\tMode: extended, parent motifs are included')
+        mode = 'extended'
+    else:
+        print('\tMode: simple, Parent motifs are omitted')
+        mode = 'simple'
 
-# read in the RNA structure
+# read in the RNA structure, and remove stems with less than minimum number of basepairs
 rna = Topology(xml=opt.rna)
 xios_filter(rna, opt.basesmin)
-# print(rna.format_edge_list())
 
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
@@ -363,28 +378,36 @@ fingerprint.information['File'] = opt.fpt
 # below, use .name because these files are opened by arg_parse
 fingerprint.information['Motif database'] = opt.motifdb.name
 fingerprint.information['RNA structure'] = opt.rna.name
-fingerprint.information['Number of stems'] = len(rna.stem_list)
 fingerprint.information['Minimum number of stems'] = opt.basesmin
+fingerprint.information['Number of stems (filtered)'] = len(rna.stem_list)
+fingerprint.information['Maximum segment size'] = opt.coverage
+fingerprint.information['Mode'] = mode
 
-print(f'\n\tGenerating connected vertex sets')
+if verbose: print(f'\n\tSegmenting structure')
+
 selected = defaultdict(int)
 adj = rna.adjacency
 count = 0
-
 # segment structure into tractable pieces
-segment = segment_vset(rna, 25)
+segment = segment_vset(rna, opt.coverage)
+if verbose:
+    print(f'{len(segment)} segments found')
+    for s in segment:
+        print(f'\t{s}')
+
+if verbose: print(f'Identifying {opt.subgraphsize} motifs')
 
 # for each segment > basemin (minimum number of stems) exhaustive enumerate combinations and convert
 # to DFS code (motifs)
-nsample = 0
-n_disjoint = 0
 dfsset = defaultdict(int)
 adjacency = rna.adjacency
+nsample = 0
+n_disjoint = 0
 for subgraph in segment:
-    print(f'subgraph:{subgraph}')
+    if verbose: print(f'subgraph:{subgraph}')
     ssample = 0
-    for vlist in combinations(list(subgraph),opt.subgraphsize):
-        # sample all combination of size opt.limit
+    for vlist in combinations(list(subgraph), opt.subgraphsize):
+        # sample all combinations of size opt.limit
         nsample += 1
         ssample += 1
 
@@ -393,68 +416,31 @@ for subgraph in segment:
             # print(f'\t{n_disjoint} disconnected: {vlist}')
             continue
 
-        if not nsample % 10000:
+        if verbose and not nsample % 10000:
             print(f'\t{nsample}:{ssample}:{n_disjoint} {vlist}\t{subgraph}')
 
         xios = expand_vertices(vlist, adj)
         gspan = Gspan(graph=xios)
-        # print(gspan.graph)
         dfsset[gspan.minDFS().human_encode()] += 1
 
     print(f'\t{nsample}:{ssample}:{n_disjoint} motifs: {len(dfsset)}')
 
-# modified the code to first generate samples of connected vertices (vertex sets) and only later
-# generate the DFS codes. This saves a lot of time for small graphs, but not as much for large
-# graphs where the number of combinations is much larger than the sample so most vertex sets are unique
-# TODO one possibility would be to convert to DFS in batches
-# for _ in range(opt.limit):
-#     # sample until the lowest count motif is above the opt.coverage count_threshold.  You only have
-#     # to recheck the minimum count when your current minimum graph passes the threshold (finding
-#     # minimum is expensive)
-#     xios = rna.sample_all(adj, opt.subgraphsize)
-#     if not xios:
-#         # should never reach here, revised sample_xios will always return a graph
-#         sys.stderr.write(f'fingerprint_random - graph could not be sampled, possibly too small')
-#         exit(2)
-#
-#     selected[str(xios)] += 1
-#     # print(f'min:{min(selected.values())}')
-#     minselect = min(selected.values())
-#     count += 1
-#     if not count % 10000:
-#         print(f'\t\t{count} sets\t minimum count {minselect}')
-#     if minselect >= opt.coverage:
-#         # TODO when saving vertex lists,  this test will never me met
-#         break
-#
-# # different vertex selections may produce the same dfs so collect them here
-# print(f'\nCollecting DFS from vertex sets ({len(selected)})')
-# dfsset = defaultdict(int)
-# minsubgraph = 4
-# for vstr in selected:
-#     vset = ast.literal_eval(vstr)
-#     if len(vset) < minsubgraph:
-#         continue
-#     xios = expand_vertices(vset, adj)
-#     gspan = Gspan(graph=xios)
-#     dfsset[gspan.minDFS().human_encode()] += selected[vstr]
-#
-# print(f'Uniquifying DFS codes')
 for dfs in dfsset:
     # finally store the fingerprints and counts
     fingerprint.add(dfs, dfsset[dfs])
 
+# Summary and notes for fingerprint file
+
 if opt.quiet:
     print(f'\ncov:{opt.coverage}|subgraph:{opt.subgraphsize}|limit:{opt.limit}', end='')
 else:
-    fingerprint.information['Coverage'] = opt.coverage
+    fingerprint.information['Maximum segment size'] = opt.coverage
     fingerprint.information['Subgraph size'] = opt.subgraphsize
-    fingerprint.information['Sampling limit'] = opt.limit
-    fingerprint.information['Sample size'] = fingerprint.count
-    print(f'\tSample size: {fingerprint.count}')
+    fingerprint.information['Total subgraphs'] = nsample
+    fingerprint.information['Disjoint subgraphs'] = n_disjoint
+    print(f'\t{nsample}:{ssample}:{n_disjoint} {vlist}')
 
-# to include parent, you must read a motif database.  this is only done after all the motifs have
-# been added to the fingerprint
+# Generate parent motifs from motif database if requested
 
 simple_n = fingerprint.n
 if opt.noparent:
@@ -480,8 +466,11 @@ else:
     print(f'\twriting to {opt.fpt}')
 
 fingerprint.writeYAML(opt.fpt)
-daytime = datetime.datetime.now()
-runend = daytime.strftime('%Y-%m-%d %H:%M:%S')
+stop = datetime.datetime.now()
+runend = stop.strftime('%Y-%m-%d %H:%M:%S')
 sys.stdout.write('Completed: {}'.format(runend))
+
+runtime = stop - start
+print(f'Elapsed time: {runtime.strftime('%H:%M:%S')}')
 
 exit(0)
