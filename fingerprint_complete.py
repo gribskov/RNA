@@ -335,7 +335,7 @@ def segment_vset(xios, limit):
 daytime = datetime.datetime.now()
 runstart = daytime.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
-segment_limit = 25
+segment_limit = 20
 
 if opt.quiet:
     print(f'fingerprint_random: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
