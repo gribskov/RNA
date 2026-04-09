@@ -70,7 +70,7 @@ def process_command_line():
                     action='store_true')
     cl.add_argument('-b', '--basesmin',
                     help='Minimum number of paired bases in a stem (%(default)s)',
-                    default=3, type=int)
+                    default=2, type=int)
     cl.add_argument('-q', '--quiet',
                     help='Minimal output on stdout (default=%(default)s)',
                     action='store_true')
@@ -218,8 +218,9 @@ def vset_extend(v, vset_list):
     ---------------------------------------------------------------------------------------------"""
     extended = vset_list[v]
     for thisv in list(vset_list[v]):
+        # extended.add(thisv)
         if thisv > v:
-            extended = extended.union(vset_list[v])
+            extended = extended.union(vset_list[thisv])
         else:
             extended.add(thisv)
 
@@ -368,9 +369,9 @@ else:
     print('\tSubgraph size: {}'.format(opt.subgraphsize))
     print(f'\tMaximum segment size: {opt.coverage}')
     if opt.noparent:
-        print('\tMode: extended, parent motifs are included')
-    else:
         print('\tMode: simple, parent motifs are omitted')
+    else:
+        print('\tMode: extended, parent motifs are included')
 
 # read in the RNA structure, and remove stems with less than minimum number of basepairs
 rna = Topology(xml=opt.rna)
