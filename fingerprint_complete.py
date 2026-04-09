@@ -217,12 +217,11 @@ def vset_extend(v, vset_list):
     :return: set              extended set of vertices
     ---------------------------------------------------------------------------------------------"""
     extended = vset_list[v]
-    for thisv in list(vset_list[v]):
-        # extended.add(thisv)
-        if thisv > v:
-            extended = extended.union(vset_list[thisv])
-        else:
-            extended.add(thisv)
+    for u in list(vset_list[v]):
+        x=1
+        # extended.add(u)
+        if u > v:
+            extended = extended.union(vset_list[u])
 
     return extended
 
@@ -330,13 +329,13 @@ def segment_vset(xios, limit):
             # there are no unique vertices here
             continue
 
-        extended = vset_extend(bigv, branches)
-        if len(extended) > limit:
-            continue
+        # extended = vset_extend(bigv, branches)
+        # if len(extended) > limit:
+        #     continue
 
-        segment.append(extended)
+        segment.append(biggest)
         # remove from available
-        available.difference_update(extended)
+        available.difference_update(biggest)
         # print(available)
 
     segment = vset_merge(segment, limit)
@@ -379,7 +378,7 @@ xios_filter(rna, opt.basesmin)
 
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
-fingerprint.information['Run details'] = {'version':f'fingerprint_complete v{version}'}
+fingerprint.information['Run details'] = {'version': f'fingerprint_complete v{version}'}
 fingerprint.information['Run details']['Maximum segment size'] = opt.coverage
 fingerprint.information['Run details']['Mode'] = mode
 fingerprint.information['Run details']['Minimum number of stems'] = opt.basesmin
@@ -391,7 +390,7 @@ fingerprint.information['Fingerprint file'] = opt.fpt
 # below, use .name because these files are opened by arg_parse
 if not opt.noparent:
     # only use motifDB if parents are required
-    fingerprint.information['Motif database'] = {'name':opt.motifdb.name}
+    fingerprint.information['Motif database'] = {'name': opt.motifdb.name}
 fingerprint.information['Result'] = {'Number of stems after filtering': len(rna.stem_list)}
 
 if verbose: print(f'\n\tSegmenting structure with {len(rna.stem_list)} stems')
@@ -418,10 +417,13 @@ adjacency = rna.adjacency
 nsample = 0
 n_disjoint = 0
 for subgraph in segment:
-    if verbose: print(f'\tsubgraph:{subgraph}')
+    subgraphsize = min(len(subgraph) - 1, opt.subgraphsize)
+    subgraphsize = max(3, subgraphsize)
+    if verbose: print(f'({subgraphsize})\tsubgraph:{sorted(subgraph)}')
+
     ssample = 0
-    for vlist in combinations(list(subgraph), opt.subgraphsize):
-        # sample all combinations of size opt.limit
+    for vlist in combinations(list(subgraph), subgraphsize):
+        # sample all combinations of size subgraphsize
         nsample += 1
         ssample += 1
 
