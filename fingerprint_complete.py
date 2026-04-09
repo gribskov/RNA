@@ -350,8 +350,14 @@ runstart = start.strftime('%Y-%m-%d %H:%M:%S')
 opt = process_command_line()
 
 verbose = not opt.quiet
+mode = None
+if opt.noparent:
+    mode = 'simple'
+else:
+    mode = 'extended'
+
 if opt.quiet:
-    print(f'fingerprint_complete: {daytime};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
+    print(f'fingerprint_complete: {runstart};motifdb:{opt.motifdb.name};{opt.rna.name};fpt:{opt.fpt}',
           end='\n')
 else:
     print(f'fingerprint_complete v{version} - Calculate XIOS fingerprint from RNA topology {runstart}')
@@ -363,10 +369,8 @@ else:
     print(f'\tMaximum segment size: {opt.coverage}')
     if opt.noparent:
         print('\tMode: extended, parent motifs are included')
-        mode = 'extended'
     else:
-        print('\tMode: simple, Parent motifs are omitted')
-        mode = 'simple'
+        print('\tMode: simple, parent motifs are omitted')
 
 # read in the RNA structure, and remove stems with less than minimum number of basepairs
 rna = Topology(xml=opt.rna)
@@ -374,16 +378,22 @@ xios_filter(rna, opt.basesmin)
 
 fingerprint = Fingerprint()
 fingerprint.information['Date'] = runstart
-fingerprint.information['File'] = opt.fpt
-# below, use .name because these files are opened by arg_parse
-fingerprint.information['Motif database'] = opt.motifdb.name
+fingerprint.information['Run details'] = {'version':f'fingerprint_complete v{version}'}
+fingerprint.information['Run details']['Maximum segment size'] = opt.coverage
+fingerprint.information['Run details']['Mode'] = mode
+fingerprint.information['Run details']['Minimum number of stems'] = opt.basesmin
+fingerprint.information['Run details']['Maximum segment size'] = opt.coverage
+fingerprint.information['Run details']['Subgraph size'] = opt.subgraphsize
+# motifdb and xios file are opened by argparse, so you must use the name attribute
 fingerprint.information['RNA structure'] = opt.rna.name
-fingerprint.information['Minimum number of stems'] = opt.basesmin
-fingerprint.information['Number of stems (filtered)'] = len(rna.stem_list)
-fingerprint.information['Maximum segment size'] = opt.coverage
-fingerprint.information['Mode'] = mode
+fingerprint.information['Fingerprint file'] = opt.fpt
+# below, use .name because these files are opened by arg_parse
+if not opt.noparent:
+    # only use motifDB if parents are required
+    fingerprint.information['Motif database'] = {'name':opt.motifdb.name}
+fingerprint.information['Result'] = {'Number of stems after filtering': len(rna.stem_list)}
 
-if verbose: print(f'\n\tSegmenting structure')
+if verbose: print(f'\n\tSegmenting structure with {len(rna.stem_list)} stems')
 
 selected = defaultdict(int)
 adj = rna.adjacency
@@ -391,11 +401,14 @@ count = 0
 # segment structure into tractable pieces
 segment = segment_vset(rna, opt.coverage)
 if verbose:
-    print(f'{len(segment)} segments found')
+    plural = ''
+    if len(segment) > 1: plural = 's'
+    print(f'\t{len(segment)} segment{plural} found')
     for s in segment:
         print(f'\t{s}')
 
-if verbose: print(f'Identifying {opt.subgraphsize} motifs')
+if verbose: print(f'\n\tIdentifying {opt.subgraphsize} stem motifs')
+fingerprint.information['Result']['Segments'] = len(segment)
 
 # for each segment > basemin (minimum number of stems) exhaustive enumerate combinations and convert
 # to DFS code (motifs)
@@ -404,7 +417,7 @@ adjacency = rna.adjacency
 nsample = 0
 n_disjoint = 0
 for subgraph in segment:
-    if verbose: print(f'subgraph:{subgraph}')
+    if verbose: print(f'\tsubgraph:{subgraph}')
     ssample = 0
     for vlist in combinations(list(subgraph), opt.subgraphsize):
         # sample all combinations of size opt.limit
@@ -417,60 +430,60 @@ for subgraph in segment:
             continue
 
         if verbose and not nsample % 10000:
-            print(f'\t{nsample}:{ssample}:{n_disjoint} {vlist}\t{subgraph}')
+            print(f'\t\t{nsample}:{ssample}:{n_disjoint} {vlist}\t{subgraph}')
 
         xios = expand_vertices(vlist, adj)
         gspan = Gspan(graph=xios)
         dfsset[gspan.minDFS().human_encode()] += 1
 
-    print(f'\t{nsample}:{ssample}:{n_disjoint} motifs: {len(dfsset)}')
+    if verbose: print(f'\t\t{nsample}:{ssample}:{n_disjoint} motifs: {len(dfsset)}')
 
-for dfs in dfsset:
+for dfs in sorted(dfsset):
     # finally store the fingerprints and counts
     fingerprint.add(dfs, dfsset[dfs])
 
 # Summary and notes for fingerprint file
+simple_n = fingerprint.n
+fingerprint.information['Result']['Simple fingerprints'] = simple_n
+fingerprint.information['Result']['Total subgraphs'] = nsample
+fingerprint.information['Result']['Disjoint subgraphs'] = n_disjoint
 
-if opt.quiet:
-    print(f'\ncov:{opt.coverage}|subgraph:{opt.subgraphsize}|limit:{opt.limit}', end='')
+if verbose:
+    print(f'\n\tOverall sampling stats: total:{nsample}  disjoint:{n_disjoint}')
+    print(f'\tSimple fingerprint motifs: {simple_n}')
 else:
-    fingerprint.information['Maximum segment size'] = opt.coverage
-    fingerprint.information['Subgraph size'] = opt.subgraphsize
-    fingerprint.information['Total subgraphs'] = nsample
-    fingerprint.information['Disjoint subgraphs'] = n_disjoint
-    print(f'\t{nsample}:{ssample}:{n_disjoint} {vlist}')
+    if opt.noparent:
+        # for quiet mode only print if no extended motifs
+        print(f'\nsegment_size:{opt.coverage}|subgraph:{opt.subgraphsize}|simple:{simple_n}', end='')
 
 # Generate parent motifs from motif database if requested
 
-simple_n = fingerprint.n
 if opt.noparent:
     pass
 else:
     # add the parents
     motif = MotifDB.unpickle(opt.motifdb)
+    fingerprint.information['Motif database']['checksum'] = motif.information['checksum']
+    fingerprint.information['Motif database']['description'] = motif.information['name']
     extended_n = fingerprint.add_parents(motif)
-    fingerprint.information['Motif database checksum'] = motif.information['checksum']
-    fingerprint.information['Motif database description'] = motif.information['name']
-    fingerprint.information['Motif database checksum'] = motif.information['checksum']
+    fingerprint.information['Result']['Extended fingerprints'] = extended_n
 
     if opt.quiet:
-        print(f'|sample:{fingerprint.count}|xpt:{fingerprint.n}', end='')
+        print(f'\nsegment_size:{opt.coverage}|subgraph:{opt.subgraphsize}|', end='')
+        print(f'sample:{fingerprint.count}|simple:{simple_n}|extended:{fingerprint.n}')
     else:
         print(f'\tExtended fingerprint motifs:{fingerprint.n}')
 
-if opt.quiet:
-    print(f'|fpt:{simple_n}')
-else:
-    # write simple fpt information regardless of whether parents are added
-    print(f'\tSimple fingerprint motifs: {simple_n}')
-    print(f'\twriting to {opt.fpt}')
+if verbose: print(f'\twriting to {opt.fpt}')
 
 fingerprint.writeYAML(opt.fpt)
 stop = datetime.datetime.now()
 runend = stop.strftime('%Y-%m-%d %H:%M:%S')
-sys.stdout.write('Completed: {}'.format(runend))
-
 runtime = stop - start
-print(f'Elapsed time: {runtime.strftime('%H:%M:%S')}')
+fingerprint.information['Elapsed time'] = str(runtime)
+
+if verbose:
+    print('\nCompleted: {}'.format(runend))
+    print(f'Elapsed time: {runtime}')
 
 exit(0)
