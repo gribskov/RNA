@@ -419,7 +419,7 @@ n_disjoint = 0
 for subgraph in segment:
     subgraphsize = min(len(subgraph) - 1, opt.subgraphsize)
     subgraphsize = max(3, subgraphsize)
-    if verbose: print(f'({subgraphsize})\tsubgraph:{sorted(subgraph)}')
+    if verbose: print(f'\tsubgraph (subgraphsize):{sorted(subgraph)}\t({subgraphsize})')
 
     ssample = 0
     for vlist in combinations(list(subgraph), subgraphsize):
