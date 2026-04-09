@@ -114,7 +114,7 @@ class Xios(list):
             elif arg == 'serial':
                 self.len = self.from_serial(kwargs['serial'])
             else:
-                sys.stderr.write('Xios::__init__ - unknown keyword argument {}'.format(arg))
+                sys.stderr.write(f'Xios::__init__ - unknown keyword argument {arg}')
 
     def from_list(self, graph):
         """-----------------------------------------------------------------------------------------
@@ -172,8 +172,9 @@ class Xios(list):
         Converts a PairRNA object to Xios. This requires determining the nesting relationships
         between each pair of stems.
 
-        :param ingraph: Graph object from RNA/graph.py
-        :return: int, number of edges
+        :param ingraph: Graph   object from RNA/graph.py
+        :param sedge: Boolean   True to include serial edges
+        :return: int            number of edges
         -----------------------------------------------------------------------------------------"""
         self.clear()
 
@@ -251,14 +252,14 @@ class Xios(list):
         -----------------------------------------------------------------------------------------"""
         etype = {'i': 0, 'j': 1, 'o': 2, 's': 3, 'x': 4}
 
-        map = []
+        vmap = []
         for e in range(len(self)):
             edge = self[e]
             for v in (0, 1):
-                if edge[v] not in map:
-                    map.append(edge[v])
+                if edge[v] not in vmap:
+                    vmap.append(edge[v])
 
-                edge[v] = map.index(edge[v])
+                edge[v] = vmap.index(edge[v])
 
             if type(edge[2]) == 'str':
                 if edge[2].isdigit():
@@ -269,7 +270,7 @@ class Xios(list):
                     except KeyError as err:
                         print(edge, err)
 
-        return map
+        return vmap
 
     def hex_encode(self):
         """-----------------------------------------------------------------------------------------
@@ -290,28 +291,29 @@ class Xios(list):
             byte += edge[1] << 2
             byte += edge[2]
 
-            hexstring += '{:02x}'.format(byte)
+            hexstring += 'f{byte:02x}'
 
         return hexstring
 
-    def hex_decode(self, hex):
+    def hex_decode(self, hexval):
         """-----------------------------------------------------------------------------------------
         Decode the hexadecimal encoded graph produced by hex_encode(). The current graph is
         overwritten by the new graph coming from the hex code so this is like reading in a hex
         encoded graph.
 
-        :return: int, number of rows
+        :param hexval:str      one row of hexadecimal encoded DFS code
+        :return: int
         -----------------------------------------------------------------------------------------"""
         self.clear()
         n = 0
-        for i in range(0, len(hex), 2):
+        for i in range(0, len(hexval), 2):
             n += 1
-            dec = int(hex[i:i + 2], 16)
+            dec = int(hexval[i:i + 2], 16)
             v0 = (dec & 224) >> 5
             v1 = (dec & 28) >> 2
             e = (dec & 3)
 
-            # print('[{}, {}, {}]'.format(v0, v1, e))
+            # print(f'[{v0}, {v1}, {e}]')
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
@@ -319,15 +321,14 @@ class Xios(list):
 
     def hex2_encode(self):
         """-----------------------------------------------------------------------------------------
-        endcode the entire graph as a hexadecimal string using two bytes.  Each vertex is encoded as
-        7 bits so it can only be used with graphs that have 127 or fewer vertices.
+        endcode the entire graph as a hexadecimal string using two bytes per edge.  Each vertex is
+        encoded as 7 bits so it can only be used with graphs that have 127 or fewer vertices.
 
         Encoding
           bit 0       edge type part 1, i=0, j=1, o=2, x=3
           bit 1 - 7   v0 (0-128)
           bit 0       edge type part 2, i=0, j=1, o=2, x=3
           bit 1 - 7   v1 (0-128)
-
 
         :return:
         -----------------------------------------------------------------------------------------"""
@@ -341,34 +342,35 @@ class Xios(list):
             byte2 += (edge[2] & 1) << 7  # low order bit (j or s edge)
             byte2 += (edge[1] & 127)
 
-            hexstring += '{:02x}{:02x}'.format(byte1, byte2)
+            hexstring += '{byte1:02x}{byte2:02x}'
 
         return hexstring
 
-    def hex2_decode(self, hex):
+    def hex2_decode(self, hexfmt):
         """-----------------------------------------------------------------------------------------
         Decode the hexadecimal encoded graph produced by hex2_encode(). The current graph is
         overwritten by the new graph coming from the hex code so this is like reading in a hex
         encoded graph.
 
-        :return: int, number of rows
+        :param hexfmt: str     hexadecimal encoded DFS code
+        :return: True
         -----------------------------------------------------------------------------------------"""
         self.clear()
         n = 0
-        for i in range(0, len(hex), 4):
+        for i in range(0, len(hexfmt), 4):
             n += 1
-            dec1 = int(hex[i:i + 2], 16)
-            dec2 = int(hex[i + 2:i + 4], 16)
+            dec1 = int(hexfmt[i:i + 2], 16)
+            dec2 = int(hexfmt[i + 2:i + 4], 16)
             v0 = (dec1 & 127)
             e = (dec1 & 128) >> 6
             v1 = (dec2 & 127)
             e += (dec2 & 128) >> 7
 
-            # print('[{}, {}, {}]'.format(v0, v1, e))
+            # print('[{v0}, {v1}, {e}]')
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
-            return True
+        return True
 
     def human_encode(self, width=1):
         """-----------------------------------------------------------------------------------------
@@ -390,7 +392,7 @@ class Xios(list):
             e = edge[2]
             if isinstance(edge[2], int):
                 e = XiosEdge.i2a[edge[2]]
-            string += '{}{}{}.'.format(v0, e, v1)
+            string += f'{v0}{e}{v1}.'
 
         return string
 
@@ -430,7 +432,7 @@ class Xios(list):
             byte2 += (edge[2] & 1) << 6  # low order bit (j or s edge)
             byte2 += (edge[1] + 33 & 63)
 
-            string += '{}{}'.format(chr(byte1), chr(byte2))
+            string += f'{chr(byte1)}{chr(byte2)}'
 
         return string
 
@@ -443,7 +445,6 @@ class Xios(list):
         :return: int, number of rows
         -----------------------------------------------------------------------------------------"""
         self.clear()
-        n = len(code)
         for i in range(0, len(code), 2):
             dec1 = ord(code[i])
             dec2 = ord(code[i + 1])
@@ -452,7 +453,7 @@ class Xios(list):
             v1 = (dec2 & 63) - 33
             e += (dec2 & 64) >> 6
 
-            # print('[{}, {}, {}]'.format(v0, v1, e))
+            # print(f'[{v0}, {v1}, {e}]')
             edge = XiosEdge([v0, v1, e])
             self.append(edge)
 
@@ -476,7 +477,7 @@ import datetime
 from xios import Xios
 
 
-class MotifDB():
+class MotifDB:
     """=============================================================================================
     I keep going back and forth over whether the object should be a dict, or whether it should have
     defined fields.  Defined fields requires fewer accessors, but a general accessor with getattr
@@ -504,7 +505,7 @@ class MotifDB():
                 self.fromJSON(kwds[key])
 
             else:
-                sys.stderr.write('MotifDB::init - unknown keyword ({})'.format(key))
+                sys.stderr.write(f'MotifDB::init - unknown keyword ({key})')
 
     def add_with_len(self, motif, n_stems):
         """-----------------------------------------------------------------------------------------
@@ -524,8 +525,10 @@ class MotifDB():
         """-----------------------------------------------------------------------------------------
         add parent to the parent list of child, and add all the parents of parent to the parent
         list of child
+
+        :param child:   motif (encoded DFS)
         :param parent:
-        :return:
+        :return: int    number of parents
         -----------------------------------------------------------------------------------------"""
         # if child not in self.parent:
         #     self.parent[child] = []
@@ -670,7 +673,7 @@ class MotifDB():
             try:
                 fp = open(fpin, 'r')
             except OSError:
-                sys.stderr.write('MotifDB.fromJSON - error opening file ({})'.format(fpin))
+                sys.stderr.write(f'MotifDB.fromJSON - error opening file ({fpin})')
         else:
             fp = fpin
 
@@ -916,7 +919,7 @@ class Gspan:
                 self.graph = graph
 
             else:
-                sys.stderr.write('Gspan::__init__ - unknown graph type ({})\n'.format(graph))
+                sys.stderr.write(f'Gspan::__init__ - unknown graph type ({graph})\n')
 
             self.graph_normalize()
 
@@ -951,7 +954,7 @@ class Gspan:
 
         TODO use Xios object
 
-        :param graphstr:
+        :param graphstr: str
         :return:
         -----------------------------------------------------------------------------------------"""
         translation = str.maketrans('[],', '   ')
@@ -1037,7 +1040,6 @@ class Gspan:
                 edge.reverse()
 
         self.vnum = len(v)
-        #        self.map = v
 
         # initialize d2g and g2d
         self.d2g = [None for _ in range(0, self.vnum)]
@@ -1384,8 +1386,8 @@ class Gspan:
                     # equal v0, v1 must always be the same
                     if cedge[1] != medge[1]:
                         sys.stdout.write('gspan::minimum - forward v1 not equal\n')
-                        sys.stdout.write('\t{}\n'.format(self.graph))
-                        sys.stdout.write('\t{}\n'.format(self.mindfs))
+                        sys.stdout.write(f'\t{self.graph}\n')
+                        sys.stdout.write(f'\t{self.mindfs}\n')
                     if cedge[2] < medge[2]:
                         # c is lt
                         cmp = 'lt'
@@ -1517,7 +1519,7 @@ if __name__ == '__main__':
         print('    edge reversed', e)
         e.set(1, 2, 1)
         e.g2d = [2, 1, 0]
-        print('    dfs numbering using {}: {}'.format(e.g2d, e))
+        print(f'    dfs numbering using {e.g2d}: {e}')
         e.reverse()
         print('    dfs numbering reversed', e)
 
@@ -1531,7 +1533,7 @@ if __name__ == '__main__':
         e3 = e2.copy()
         e3[0], e3[1] = e3[1], e3[0]
         e3[0] = 5
-        print('copy {} | {}'.format(e2, e3))
+        print(f'copy {e2} | {e3}')
 
         if e1 < e2:
             print('e1 smaller')
@@ -1549,22 +1551,22 @@ if __name__ == '__main__':
         -----------------------------------------------------------------------------------------"""
         print('Testing Xios class')
         # mapping of edge types to integers to avoid quoting all the time
-        i = 0
-        j = 1
-        o = 2
-        s = 3
+        # i = 0
+        # j = 1
+        # o = 2
+        # s = 3
 
         print('\nLoad from python list')
         rnas = [[[0, 1, 0], [1, 2, 0], [2, 0, 1]], [['a', 1, 'i'], [1, 2, 'j'], [2, 0, 'j']]]
         for rna in rnas:
             x = Xios(list=rna)
-            print('\t{}'.format(x))
+            print(f'\t{x}')
 
         print('\nLoad from python list-like string')
         rnas = ['[[0, 1, 0], [1, 2, 0], [2, 0, 1]]', '(0,1,0) (1,2,0) (2,0,1)', '0 1 i 1 2 i 2 0 j']
         for rna in rnas:
             x = Xios(string=rna)
-            print('\t{}\t =>\t{}'.format(rna, x))
+            print(f'\t{rna}\t =>\t{x}')
 
         print('\nRead from Pair format (no normalization)')
         rnapairs = [[[0, 1], [2, 3]],
@@ -1574,27 +1576,27 @@ if __name__ == '__main__':
                     [[1, 7], [1, 3], [2, 5], [4, 7]]]
         for rna in rnapairs:
             xg = Xios(graph=rna)
-            print('\tinput:{}\tXios:{}'.format(rna, xg))
+            print(f'\tinput:{rna}\tXios:{xg}')
 
         print('\nRead from SerialRNA format (no normalization)')
         rnas = [[0, 1, 2, 2, 1, 0], [1, 0, 2, 2, 0, 1], [0, 1, 2, 1, 2, 0], [2, 0, 1, 2, 0, 1]]
         for rna in rnas:
             xg = Xios(serial=rna)
-            print('\tinput:{}\tXios:{}'.format(rna, xg))
+            print(f'\tinput:{rna}\tXios:{xg}')
 
         print('\nNormalization')
 
         graph = [['a', 13, 'i'], [11, 12, 'i'], [12, 'a', 'j']]
         print('\tx2 read from list', graph)
         x2 = Xios(list=graph)
-        map = x2.normalize()
-        print('\tnormalized={}\tmap:{}\n'.format(x2, map))
+        vmap = x2.normalize()
+        print(f'\tnormalized={x2}\tmap:{vmap}\n')
 
         graph = '[[0, 1, 0], [1, 2, 0], [2, 0, 1]]'
         print('\tx3 read from string', graph)
         x3 = Xios(string=graph)
-        map = x3.normalize()
-        print('\tnormalized={}\tmap:{}\n'.format(x3, map))
+        vmap = x3.normalize()
+        print(f'\tnormalized={x3}\tmap:{vmap}\n')
 
         # encoding/decoding
 
@@ -1605,38 +1607,38 @@ if __name__ == '__main__':
         graphs = [x2, x3, x4]
         print('\thuman encoding')
         for rna in graphs:
-            print('\t\tinput {}'.format(rna))
+            print(f'\t\tinput {rna}')
             code = rna.human_encode()
-            print('\t\tcoded {}'.format(code))
+            print(f'\t\tcoded {code}')
             test.human_decode(code)
-            print('\t\tdecoded {}\n'.format(test))
+            print(f'\t\tdecoded {test}\n')
 
         print('\thex2 encoding')
         for rna in graphs:
-            print('\t\tinput {}'.format(rna))
-            code = rna.hex2_encode()
-            print('\t\tcoded {}'.format(code))
-            test.hex2_decode(code)
-            print('\t\tdecoded {}\n'.format(test))
+            print(f'\t\tinput {rna}')
+            code = rna.human_encode()
+            print(f'\t\tcoded {code}')
+            test.human_decode(code)
+            print(f'\t\tdecoded {test}\n')
 
         print('\tascii encoding')
         for rna in graphs:
-            print('\t\tinput {}'.format(rna))
-            code = rna.ascii_encode()
-            print('\t\tcoded {}'.format(code))
-            test.ascii_decode(code)
-            print('\t\tdecoded {}\n'.format(test))
+            print(f'\t\tinput {rna}')
+            code = rna.human_encode()
+            print(f'\t\tcoded {code}')
+            test.human_decode(code)
+            print(f'\t\tdecoded {test}\n')
 
         exit(1)
 
         # graph normalization create an unnormalized graph by doubling the vertex numbers
         # XIOS
-        x = Xios()
-        x.append(XiosEdge([0, 1, 0]))
-        x.append(XiosEdge([1, 2, 0]))
-        x.append(XiosEdge([2, 0, 1]))
+        # x = Xios()
+        # x.append(XiosEdge([0, 1, 0]))
+        # x.append(XiosEdge([1, 2, 0]))
+        # x.append(XiosEdge([2, 0, 1]))
 
-        return
+        # return
 
 
     def test_Gspan():
@@ -1696,7 +1698,7 @@ if __name__ == '__main__':
             # [[0, 1, 2], [1, 2, 2], [1, 3, 2], [2, 3, 2], [3, 4, 2], [4, 5, 2], [5, 6, 2]],
             # [[0, 1, 2], [1, 2, 2], [2, 3, 2], [3, 4, 2], [3, 5, 2], [4, 5, 2], [5, 6, 2]],
             [[1, 5, 0], [1, 3, 0], [1, 4, 0], [1, 2, 0], [1, 0, 2], [2, 0, 2]]
-            ]
+        ]
         # testing reading graphs from string
         gstr = '[[a, c, 1], [a, b, 0], [a, d, 0], [c, b, 0], [c, d, 0], [b, d, 2]]'
         # g = Gspan(gstr)
@@ -1704,12 +1706,12 @@ if __name__ == '__main__':
         for graph in graphset:
             print('\nGraph normalization')
         g = copy.deepcopy(graph)
-        print('    original graph: {}'.format(g))
+        print(f'    original graph: {g}')
 
         # for edge in g:
         #     for i in range(0, 2):
         #         edge[i] *= 2
-        # print('    un-normalized graph: {}'.format(g))
+        # print(f'    un-normalized graph: {g}')
 
         print('\nGspan canonical graph')
         for g in graphset:
@@ -1719,10 +1721,10 @@ if __name__ == '__main__':
             for _ in range(1):
                 # map = gspan.graph_randomize()
                 gspan.graph_normalize()
-                # print('    renormalized graph: {}'.format(gspan.graph))
-                glen = len(gspan.graph)
+                # print(f'    renormalized graph: {gspan.graph}')
+                # glen = len(gspan.graph)
                 gspan.minDFS()
-                print('\trandomized{}\n\tminDFS {}'.format(gspan.graph, gspan.mindfs))
+                print(f'\trandomized{gspan.graph}\n\tminDFS {gspan.mindfs}')
 
         return
 
