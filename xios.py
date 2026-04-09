@@ -6,7 +6,7 @@ class XiosEdge(list):
     XIOS Edge class
     and edge is a 3-tuple of (v0, v1, edge)
     v0 and v1 can be integers or strings, and need not be consecutive.  edge can be one of the
-    allowed characters [ijosx] or the corresponding integer. the authoritative converstions are
+    allowed characters [ijosx] or the corresponding integer. the authoritative conversions are
     given by the class variables below: a2i, arev, a2a, irev
     ============================================================================================="""
     # class variables for master definition of edge types
