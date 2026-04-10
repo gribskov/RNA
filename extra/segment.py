@@ -387,7 +387,124 @@ def segment_chunk(xios):
 
     return
 
+def dfs(current_set, frontier, start_vertex, graph, target_size, results):
+    """
+    Depth-first expansion of connected vertex sets.
 
+    Parameters
+    ----------
+    current_set : set[int]
+        Vertices currently in the connected set
+    frontier : set[int]
+        Neighbor vertices that can be added next
+    start_vertex : int
+        Root vertex used for canonical ordering
+    graph : dict[int, set[int]]
+        Adjacency list representation of the graph
+    target_size : int
+        Maximum allowed size of vertex sets
+    results : set[frozenset]
+        Storage for all discovered vertex sets
+    """
+
+    # Record the current connected set
+    results.add(frozenset(current_set))
+
+    # Stop expanding if size limit reached
+    if len(current_set) == target_size:
+        return
+
+    for v in list(frontier):
+        # Canonical ordering to avoid duplicates
+        if v < start_vertex:
+            continue
+
+        new_set = current_set | {v}
+
+        # New frontier: neighbors of v plus old frontier
+        new_frontier = frontier | graph[v]
+        new_frontier -= new_set  # remove already included vertices
+
+        dfs(
+            new_set,
+            new_frontier,
+            start_vertex,
+            graph,
+            target_size,
+            results
+        )
+
+from collections import defaultdict
+
+def adj_matrix_to_graph(adj):
+    """
+    Step 1: Build Graph from Adjacency Matrix
+Directed edges are treated as weakly connected for connectivity purposes (i.e., direction ignored when expanding).
+    Converts adjacency matrix to undirected adjacency list
+    (directed edges become undirected for connectivity).
+    """
+    n = len(adj)
+    graph = defaultdict(set)
+    for i in range(n):
+        for j in range(n):
+            if adj[i][j] != 0:
+                graph[i].add(j)
+                graph[j].add(i)
+    return graph
+
+def connected_sets_upto_k(graph, target_size):
+    """
+    Step 2: Enumerate Connected Vertex Sets ≤ target_size
+Efficient DFS expansion from each vertex.
+We enforce canonical ordering to avoid duplicates
+    Enumerate all connected vertex sets of size ≤ target_size.
+    Returns a list of frozensets.
+    """
+    results = set()
+
+    def dfs(current_set, frontier, start_vertex):
+        results.add(frozenset(current_set))
+
+        if len(current_set) == target_size:
+            return
+
+        for v in list(frontier):
+            if v < start_vertex:
+                continue  # canonical ordering
+
+            new_set = current_set | {v}
+            new_frontier = frontier | graph[v]
+            new_frontier -= new_set
+
+            dfs(new_set, new_frontier, start_vertex)
+
+    for v in graph:
+        dfs({v}, set(graph[v]), v)
+
+    return results
+
+def quasi_disjoint_sets(sets, max_overlap=0):
+    """
+    Step 3: Enforce Quasi‑Disjointness
+    Filters a list of sets so every pair overlaps by ≤ max_overlap.
+    """
+    selected = []
+
+    for s in sorted(sets, key=len):
+        if all(len(s & t) <= max_overlap for t in selected):
+            selected.append(s)
+
+    return selected
+
+def find_quasi_disjoint_vertex_sets(
+    adjacency_matrix,
+    target_size,
+    max_overlap=0
+):
+    graph = adj_matrix_to_graph(adjacency_matrix)
+    candidates = connected_sets_upto_k(graph, target_size)
+    return quasi_disjoint_sets(candidates, max_overlap)
+``
 # ======================================================================================================================
 # Main
 # ======================================================================================================================
