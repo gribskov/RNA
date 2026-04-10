@@ -341,6 +341,81 @@ def segment_vset(xios, limit):
     segment = vset_merge(segment, limit)
     return segment
 
+def vset_merge_optimized(candidate, limit):
+    """
+    Optimized vset_merge using union-find–style heuristics.
+
+    candidate : list[set]
+        Candidate vertex sets
+    limit : int
+        Maximum allowed size of merged sets
+
+    returns : list[set]
+        Final merged vertex sets
+    """
+
+    n = len(candidate)
+    if n == 0:
+        return []
+
+    # ---------- Union-Find structures ----------
+    parent = list(range(n))
+    vset = {i: set(candidate[i]) for i in range(n)}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]  # path compression
+            x = parent[x]
+        return x
+
+    def union(x, y):
+        rx, ry = find(x), find(y)
+        if rx == ry:
+            return rx
+
+        # union by size: small -> large
+        if len(vset[rx]) > len(vset[ry]):
+            rx, ry = ry, rx
+
+        parent[rx] = ry
+        vset[ry] |= vset[rx]
+        del vset[rx]
+        return ry
+
+    # ---------- Build vertex → vsets index ----------
+    vertex_to_sets = {}
+    for i, s in enumerate(candidate):
+        for v in s:
+            vertex_to_sets.setdefault(v, []).append(i)
+
+    # ---------- Process vsets from smallest to largest ----------
+    order = sorted(range(n), key=lambda i: len(candidate[i]))
+
+    for i in order:
+        ri = find(i)
+        if ri != i:
+            continue  # already merged
+
+        # check only vsets that overlap via shared vertices
+        for v in list(vset[ri]):
+            for j in vertex_to_sets.get(v, []):
+                rj = find(j)
+                if rj == ri:
+                    continue
+
+                # size constraint
+                if len(vset[ri]) + len(vset[rj]) > limit:
+                    continue
+
+                ri = union(ri, rj)
+
+    # ---------- Collect final merged sets ----------
+    final = []
+    for i in range(n):
+        if find(i) == i:
+            final.append(vset[i])
+
+    return final
 
 # ##################################################################################################
 # Main
