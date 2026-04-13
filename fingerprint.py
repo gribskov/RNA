@@ -143,7 +143,7 @@ class Fingerprint(dict):
         fields = ['information', 'total', 'nmotif', 'motif']
 
         m = self.motif
-        if method == 'count':
+        if sort == 'count':
             s = {k:m[k] for k in sorted(m, key=lambda x: m[x], reverse=True)}
         else:
             s = {k: m[k] for k in sorted(m)}
