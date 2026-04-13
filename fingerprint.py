@@ -162,7 +162,7 @@ class Fingerprint(dict):
         return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
         # return yaml.dump(root, indent=2, default_flow_style=False)
 
-    def writeYAML(self, file):
+    def writeYAML(self, file, sort='count'):
         """-----------------------------------------------------------------------------------------
         Write the fingerprint to a file in YAML format
 
@@ -180,7 +180,7 @@ class Fingerprint(dict):
             # file is not str, assume it is a file pointer
             fp = file
 
-        fp.write(self.toYAML())
+        fp.write(self.toYAML(sort))
         # fp.close()    if fp is stdout, not good
 
         return True
