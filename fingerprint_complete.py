@@ -341,6 +341,70 @@ def segment_vset(xios, limit):
     segment = vset_merge(segment, limit)
     return segment
 
+def show_adjacency(xios, segment):
+    """---------------------------------------------------------------------------------------------
+    plot the adjacency matrix and segments
+
+    :param xios: Xios       RNA structure object
+    :param segment: list    list of vertex sets
+    :return: True
+    ---------------------------------------------------------------------------------------------"""
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap, BoundaryNorm
+    from matplotlib.patches import Patch
+
+    # Example adjacency matrix (as characters)
+    # 0 = no edge, 'o' = undirected, 'i' = i-directed, 'j' = j-directed
+    # A_char = np.array([
+    #     ['0', 'o', 'i', '0'],
+    #     ['o', '0', '0', 'j'],
+    #     ['j', '0', '0', 'o'],
+    #     ['0', 'i', 'o', '0']
+    # ])
+    A_char = np.array(xios.adjacency)
+
+    # Map characters to numeric codes
+    # mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3, 'x': 4, '-': 0}
+    mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3}
+    A = np.vectorize(mapping.get)(A_char)
+
+    # Define colors: index 0 = no edge, 1 = undirected, 2 = i-directed, 3 = j-directed
+    colors = ['white', 'tab:gray', 'tab:blue', 'tab:red']
+    cmap = ListedColormap(colors)
+    bounds = [-0.5, 0.5, 1.5, 2.5, 3.5]
+    norm = BoundaryNorm(bounds, cmap.N)
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    im = ax.imshow(A, cmap=cmap, norm=norm)
+
+    # Axis labels and ticks
+    n = A.shape[0]
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xlabel("j")
+    ax.set_ylabel("i")
+    ax.set_title("Adjacency matrix with edge types")
+
+    # Grid lines
+    ax.set_xticks(np.arange(-0.5, n, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, n, 1), minor=True)
+    ax.grid(which='minor', color='black', linewidth=0.5)
+    ax.tick_params(which='minor', bottom=False, left=False)
+
+    # Legend
+    legend_elements = [
+        Patch(facecolor='white', edgecolor='black', label='no edge'),
+        Patch(facecolor='tab:gray', edgecolor='black', label='undirected (o)'),
+        Patch(facecolor='tab:blue', edgecolor='black', label='directed i'),
+        Patch(facecolor='tab:red', edgecolor='black', label='directed j'),
+    ]
+    ax.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.tight_layout()
+    plt.show()
+
+    return True
 
 # ##################################################################################################
 # Main
@@ -406,6 +470,8 @@ if verbose:
     print(f'\t{len(segment)} segment{plural} found')
     for s in segment:
         print(f'\t{s}')
+
+show_adjacency(rna,segment)
 
 if verbose: print(f'\n\tIdentifying {opt.subgraphsize} stem motifs')
 fingerprint.information['Result']['Segments'] = len(segment)
