@@ -103,6 +103,22 @@ class Fingerprint(dict):
 
         return m[0]
 
+    def sort_motif(self, method='count'):
+        """-----------------------------------------------------------------------------------------
+        sort by alphabetic or size, count, descending, is the old behavior so it is default
+
+        :param method: str      'size'|'alpha'
+        :return: True
+        -----------------------------------------------------------------------------------------"""
+        if method == 'count':
+            self.motif = sorted(self.motif, key=lambda x: self.motif[x], reverse=True)
+        elif method.startswith('alpha'):
+            self.motif = sorted(self.motif)
+        else:
+            sys.stderr.write(f'fingerprint::sort_motif - unknown sorting method({method})\n')
+
+        return True
+
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
         Convert fingerprint to JSON string
