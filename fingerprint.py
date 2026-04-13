@@ -113,7 +113,10 @@ class Fingerprint(dict):
         if method == 'count':
             self.motif = sorted(self.motif.items(), key=lambda item: item[1])
         elif method.startswith('alpha'):
-            self.motif = dict(sorted(self.motif.items()))
+            print('sorting alpha')
+            new = dict(sorted(self.motif.items()))
+            self.motif =  sorted(self.motif.items(), key=lambda item: item[0])
+        else:
             sys.stderr.write(f'fingerprint::sort_motif - unknown sorting method({method})\n')
 
         return True
