@@ -111,10 +111,9 @@ class Fingerprint(dict):
         :return: True
         -----------------------------------------------------------------------------------------"""
         if method == 'count':
-            self.motif = sorted(self.motif, key=lambda x: self.motif[x], reverse=True)
+            self.motif = sorted(self.motif.items(), key=lambda item: item[1])
         elif method.startswith('alpha'):
-            self.motif = sorted(self.motif)
-        else:
+            self.motif = dict(sorted(self.motif.items()))
             sys.stderr.write(f'fingerprint::sort_motif - unknown sorting method({method})\n')
 
         return True
