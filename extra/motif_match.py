@@ -51,12 +51,14 @@ def edge_index(adj):
     idx = {'i':[], 'j':[], 'o':[]}
 
     for u in range(len(adj)):
+        for x in 'ijo':
+            idx[x].append([])
         for v in range(len(adj)):
-            e = adj[v][u]
+            e = adj[u][v]
             if e not in 'ijo':
                 continue
 
-            idx[e].append([u,v])
+            idx[e][u].append(v)
 
     return idx
 
@@ -73,7 +75,16 @@ if __name__ == '__main__':
 
     idx = edge_index(xios.adjacency)
 
-    map = [[[None for _ in range(vmax+1)],0]]
+    # push initial mappings based on first DFS row onto map stack
+    d0, d1, edge = motif[0]
+    map = []
+    for u,vlist in enumerate(idx[edge]):
+        for v in vlist:
+            mapping = [None for _ in range(vmax+1)]
+            mapping[d0] = u
+            mapping[d1] = v
+            map.append([mapping,1])
+
     while map:
         # depth first search of d to graph mappings
         mapping, edge_n = map.pop()
@@ -81,38 +92,21 @@ if __name__ == '__main__':
             print(mapping)
             continue
         d0, d1, edge = motif[edge_n]
-        for g0, g1 in idx[edge]:
-            # all possible matching edges to the DFS row
+        g0 = mapping[d0]
+        if mapping[d1] is not None:
+            # both d0 and d1 are defined, check if the required edge exists
+            # this is a backward edge
+            if mapping[d1] in idx[edge][g0]:
+                map.append([mapping,edge_n + 1])
+        else:
+            # d1 is not yet define, push mappings for all matches
+            # forward edges
+            # print(idx[edge][g0])
+            for v in idx[edge][g0]:
+                if v not in mapping:
+                    new = mapping[:]
+                    new[d1] = v
+                    map.append([new,edge_n + 1])
 
-            # check for match already defined vertices
-            if mapping[d0] is not None:
-                # vertex d0 is known, check if g0 agrees
-                if g0 != mapping[d0]:
-                    # discordant with current mapping
-                    continue
-            else:
-                # d0 is None, check if g0 is already used
-                if g0 in mapping:
-                    continue
-
-            if mapping[d1] is not None:
-                # vertex is known
-                if g1 != mapping[d1]:
-                    # discordant with current mapping
-                    continue
-            else:
-                # d1 is None, check if g1 is already used
-                if g1 in mapping:
-                    continue
-
-            # except IndexError:
-            #     print('oops')
-
-            # both vertices are unknown or concordant with current d2g map
-
-            new = [mapping[:],edge_n+1]
-            new[0][d0] = g0
-            new[0][d1] = g1
-            map.append(new)
 
     exit(0)
