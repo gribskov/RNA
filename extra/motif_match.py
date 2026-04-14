@@ -86,48 +86,29 @@ if __name__ == '__main__':
 
             # check for match already defined vertices
             if mapping[d0] is not None:
-                # vertex is known
+                # vertex d0 is known, check if g0 agrees
                 if g0 != mapping[d0]:
                     # discordant with current mapping
                     continue
+            else:
+                # d0 is None, check if g0 is already used
+                if g0 in mapping:
+                    continue
 
-            try:
-                if mapping[d1] is not None:
-                    # vertex is known
-                    if g1 != mapping[d1]:
-                        # discordant with current mapping
-                        continue
-            except IndexError:
-                print('oops')
+            if mapping[d1] is not None:
+                # vertex is known
+                if g1 != mapping[d1]:
+                    # discordant with current mapping
+                    continue
+            else:
+                # d1 is None, check if g1 is already used
+                if g1 in mapping:
+                    continue
 
-            # try:
-            #     g0idx = mapping.index(g0)
-            # except ValueError:
-            #     #g0 not found in map
-            #     g0idx = None
-            # if g0idx != d0 and g0idx is not None:
-            #     continue
-            #
-            # try:
-            #     g1idx = mapping.index(g1)
-            # except ValueError:
-            #     #g0 not found in map
-            #     g1idx = None
-            # if g1idx != d0 and g1idx is not None:
-            #     continue
+            # except IndexError:
+            #     print('oops')
 
-
-
-            # if g0 in mapping or g1 in mapping:
-            #     # g0 and g1 are already in current mapping
-            #     continue
-            #
-            # if mapping[d0] != None and mapping [d0] != g0:
-            #     # d0 and d1 are already defined
-            #     continue
-            # if mapping[d1] != None and mapping [d1] != g1:
-            #     # d0 and d1 are already defined
-            #     continue
+            # both vertices are unknown or concordant with current d2g map
 
             new = [mapping[:],edge_n+1]
             new[0][d0] = g0
