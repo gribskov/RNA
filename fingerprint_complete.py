@@ -68,6 +68,9 @@ def process_command_line():
     cl.add_argument('-n', '--noparent',
                     help='Do not include parent graphs in fingerprint (default=%(default)s)',
                     action='store_true')
+    cl.add_argument('-v', '--visualize',
+                    help='Plot adjacency matix and segmentation (default=%(default)s)',
+                    action='store_true')
     cl.add_argument('-b', '--basesmin',
                     help='Minimum number of paired bases in a stem (%(default)s)',
                     default=2, type=int)
@@ -218,7 +221,7 @@ def vset_extend(v, vset_list):
     ---------------------------------------------------------------------------------------------"""
     extended = vset_list[v]
     for u in list(vset_list[v]):
-        x=1
+        x = 1
         # extended.add(u)
         if u > v:
             extended = extended.union(vset_list[u])
@@ -341,12 +344,14 @@ def segment_vset(xios, limit):
     segment = vset_merge(segment, limit)
     return segment
 
-def show_adjacency(xios, segment):
+
+def show_adjacency(xios, segment, rna_name):
     """---------------------------------------------------------------------------------------------
     plot the adjacency matrix and segments
 
     :param xios: Xios       RNA structure object
     :param segment: list    list of vertex sets
+    :param rna_name: str    name of the structure
     :return: True
     ---------------------------------------------------------------------------------------------"""
     import numpy as np
@@ -365,46 +370,63 @@ def show_adjacency(xios, segment):
     A_char = np.array(xios.adjacency)
 
     # Map characters to numeric codes
-    # mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3, 'x': 4, '-': 0}
-    mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3}
+    mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3, 'x': 4, 's': 0, '-': 2}
+    # mapping = {'0': 0, 'o': 1, 'i': 2, 'j': 3}
     A = np.vectorize(mapping.get)(A_char)
 
-    # Define colors: index 0 = no edge, 1 = undirected, 2 = i-directed, 3 = j-directed
-    colors = ['white', 'tab:gray', 'tab:blue', 'tab:red']
+    # Define colors: index 0 = no edge, 1 = o, 2 = i, 3 = j, 4 = x
+    colors = ['white', 'black', 'palegreen', 'palegreen', 'red']
     cmap = ListedColormap(colors)
-    bounds = [-0.5, 0.5, 1.5, 2.5, 3.5]
+    bounds = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
     norm = BoundaryNorm(bounds, cmap.N)
 
-    fig, ax = plt.subplots(figsize=(4, 4))
+    fig, ax = plt.subplots(figsize=(10, 10))
     im = ax.imshow(A, cmap=cmap, norm=norm)
+    ypos = len(A)
+    for s in segment:
+        vlist = sorted(list(s))
+        begin = vlist[0]
+        current = begin
+        for v in vlist:
+            if v > current + 1:
+                ax.hlines(ypos, begin - 0.5, current + 0.5, colors='black', linewidth=3)
+                begin = v
+            current = v
+        ax.hlines(ypos, begin - 0.5, current + 0.5, colors='black', linewidth=3)
+        ypos += 1
 
     # Axis labels and ticks
     n = A.shape[0]
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
-    ax.set_xlabel("j")
-    ax.set_ylabel("i")
-    ax.set_title("Adjacency matrix with edge types")
+    ax.set_xlabel("stem v")
+    ax.set_ylabel("stem u")
+    ax.set_title(f"{rna_name} adjacency matrix")
 
     # Grid lines
+    ax.tick_params(axis='x', labelsize=6, labelrotation=-90)
     ax.set_xticks(np.arange(-0.5, n, 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, n, 1), minor=True)
+    ax.tick_params(axis='y', labelsize=6)
+    ax.set_yticks(np.arange(-0.5, n + len(segment), 1), minor=True)
+    # ax.set_yticks(np.arange(-0.5, n, 1), minor=True)
     ax.grid(which='minor', color='black', linewidth=0.5)
     ax.tick_params(which='minor', bottom=False, left=False)
 
     # Legend
     legend_elements = [
         Patch(facecolor='white', edgecolor='black', label='no edge'),
-        Patch(facecolor='tab:gray', edgecolor='black', label='undirected (o)'),
-        Patch(facecolor='tab:blue', edgecolor='black', label='directed i'),
-        Patch(facecolor='tab:red', edgecolor='black', label='directed j'),
+        Patch(facecolor='red', edgecolor='black', label='excluded (x)'),
+        Patch(facecolor='palegreen', edgecolor='black', label='included (i/j)'),
+        Patch(facecolor='black', edgecolor='black', label='pseudoknot (o)'),
     ]
-    ax.legend(handles=legend_elements, bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.legend(handles=legend_elements, bbox_to_anchor=(1.0, 1.01), loc='upper left')
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'{name}.pdf', format="pdf")
+    #plt.show()
 
     return True
+
 
 # ##################################################################################################
 # Main
@@ -471,7 +493,9 @@ if verbose:
     for s in segment:
         print(f'\t{s}')
 
-show_adjacency(rna,segment)
+if opt.visualize:
+    name = os.path.basename(opt.rna.name).replace('.xios', '')
+    show_adjacency(rna, segment, name)
 
 if verbose: print(f'\n\tIdentifying {opt.subgraphsize} stem motifs')
 fingerprint.information['Result']['Segments'] = len(segment)
