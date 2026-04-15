@@ -471,7 +471,7 @@ if verbose:
     for s in segment:
         print(f'\t{s}')
 
-show_adjacency(rna,segment)
+#show_adjacency(rna,segment)
 
 if verbose: print(f'\n\tIdentifying {opt.subgraphsize} stem motifs')
 fingerprint.information['Result']['Segments'] = len(segment)
