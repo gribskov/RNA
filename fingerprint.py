@@ -103,6 +103,22 @@ class Fingerprint(dict):
 
         return m[0]
 
+    # def sort_motif(self, method='count'):
+    #     """-----------------------------------------------------------------------------------------
+    #     sort by alphabetic or size, count, descending, is the old behavior so it is default
+    #
+    #     :param method: str      'size'|'alpha'
+    #     :return: True
+    #     -----------------------------------------------------------------------------------------"""
+    #     if method == 'count':
+    #         self.motif = sorted(self.motif.items(), key=lambda item: item[1])
+    #     elif method.startswith('alpha'):
+    #         self.motif = dict(sorted(self.motif.items()))
+    #     else:
+    #         sys.stderr.write(f'fingerprint::sort_motif - unknown sorting method({method})\n')
+    #
+    #     return True
+
     def toJSON(self):
         """-----------------------------------------------------------------------------------------
         Convert fingerprint to JSON string
@@ -118,7 +134,7 @@ class Fingerprint(dict):
 
         return json.dumps({fields[i]: root[i] for i in range(len(fields))}, indent=4)
 
-    def toYAML(self, sort='len'):
+    def toYAML(self, sort='count'):
         """-----------------------------------------------------------------------------------------
         Convert fingerprint to JSON string
 
@@ -127,21 +143,26 @@ class Fingerprint(dict):
         fields = ['information', 'total', 'nmotif', 'motif']
 
         m = self.motif
-        if sort == 'len':
-            m = {}
-            for k in sorted(self.motif, key=lambda x: self.motif[x], reverse=True):
-                m[k] = self.motif[k]
+        if sort == 'count':
+            s = {k:m[k] for k in sorted(m, key=lambda x: m[x], reverse=True)}
+        else:
+            s = {k: m[k] for k in sorted(m)}
+
+        # if sort == 'len':
+        #     m = {}
+        #     for k in sorted(self.motif, key=lambda x: self.motif[x], reverse=True):
+        #         m[k] = self.motif[k]
 
         root = [{'fingerprint': [{'information': self.information},
                                  {'total': self.count},
                                  {'nmotif': self.n},
-                                 {'motif': m}]
+                                 {'motif': s}]
                  }]
 
         return yaml.dump(root, indent=2, default_flow_style=False, sort_keys=False)
         # return yaml.dump(root, indent=2, default_flow_style=False)
 
-    def writeYAML(self, file):
+    def writeYAML(self, file, sort='count'):
         """-----------------------------------------------------------------------------------------
         Write the fingerprint to a file in YAML format
 
@@ -159,7 +180,7 @@ class Fingerprint(dict):
             # file is not str, assume it is a file pointer
             fp = file
 
-        fp.write(self.toYAML())
+        fp.write(self.toYAML(sort))
         # fp.close()    if fp is stdout, not good
 
         return True

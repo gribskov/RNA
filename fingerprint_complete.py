@@ -569,7 +569,7 @@ else:
 
 if verbose: print(f'\twriting to {opt.fpt}')
 
-fingerprint.writeYAML(opt.fpt)
+fingerprint.writeYAML(opt.fpt, sort='alpha')
 stop = datetime.datetime.now()
 runend = stop.strftime('%Y-%m-%d %H:%M:%S')
 runtime = stop - start

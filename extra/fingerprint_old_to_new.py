@@ -24,6 +24,6 @@ if __name__ == '__main__':
 
     xpt.information['fingerprint']['converted from'] = f'{xptfile.rstrip()} at: {xpt.setdate()}'
     fptfile = os.path.basename(xptfile).replace('.xpt', '.fpt')
-    xpt.writeYAML(fptfile)
+    xpt.writeYAML(fptfile, sort='alpha')
 
     exit(0)
