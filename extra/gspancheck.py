@@ -1,6 +1,6 @@
 """=================================================================================================
-more unique graphs are found when forward and backward structures are porocessed separately,
-implying that gspan givws different answers.  this programs genreates forward and backaward
+more unique graphs are found when forward and backward structures are processed separately,
+implying that gspan gives different answers.  this programs generates forward and backward
 versions of the 7 stem motif list
 
 Michael Gribskov 21 June 2019

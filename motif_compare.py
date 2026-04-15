@@ -3,6 +3,8 @@ Count the number of fingerprints in which each motif is found so that rare or no
 motifs can be excluded from the distance calculation
 
 all fingerprints matching fptsuffix are used
+
+14 April 2026   Michael Gribskov
 #################################################################################################"""
 import glob
 import os
