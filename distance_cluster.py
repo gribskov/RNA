@@ -694,6 +694,7 @@ if __name__ == '__main__':
     sys.stderr.write(f'distance_cluster: Cluster and calculate ROC from distance{newline}')
     sys.stderr.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{newline}{newline}")
     sys.stderr.write(f"distance file: {opt.distance}{newline}")
+    sys.stderr.write(f"distance type: {opt.type}{newline}")
     sys.stderr.write(f"clustering threshold: {opt.mindist}{newline}")
 
     # single linkage clusters
@@ -705,6 +706,8 @@ if __name__ == '__main__':
         dist, label = sortbydata(dist, label)
         curve, auc = ROC(dist, label)
         sys.stderr.write(f'{newline}ROC AUC = {auc:.4g}{newline}')
+        if opt.plotable:
+            sys.stdout.write(curve)
 
     cluster, index = connected(distance, opt.mindist)
 
