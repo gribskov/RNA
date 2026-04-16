@@ -707,7 +707,8 @@ if __name__ == '__main__':
         curve, auc = ROC(dist, label)
         sys.stderr.write(f'{newline}ROC AUC = {auc:.4g}{newline}')
         if opt.plotable:
-            sys.stdout.write(curve)
+            for l in curve:
+             sys.stdout.write(f'{l}\n')
 
     cluster, index = connected(distance, opt.mindist)
 
