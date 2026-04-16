@@ -33,6 +33,40 @@ def get_name_group(namestr):
     return name, group
 
 
+def entropy(data):
+    """-----------------------------------------------------------------------------------------------------------------
+
+    :param data:
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    column_totals = df.sum()
+
+
+    return
+
+
+def plottotal(data, size):
+    # print(sorted(d, reverse=True))
+    import matplotlib.pyplot as plt
+    # sort the data
+    sorted_data = np.sort(data)[::-1]
+
+    # x positions
+    x = np.arange(len(sorted_data))
+
+    # plot
+    plt.figure()
+    plt.bar(x, sorted_data)
+    plt.gca().xaxis.set_visible(False)
+
+    plt.xlabel("Sorted index")
+    plt.ylabel("Value")
+    plt.title(f"Sorted data bar chart n={size}")
+    plt.show()
+
+    return
+
+
 # ======================================================================================================================
 # main
 # ======================================================================================================================
@@ -72,6 +106,7 @@ if __name__ == '__main__':
     result = group_counts.copy()
     result["total"] = total_counts
 
-
+    # plottotal(result['total'], nfpt)
+    entropy(result)
 
     exit(0)
