@@ -9,7 +9,7 @@ import glob
 import math
 import sys
 import os
-#from cgi import print_form
+# from cgi import print_form
 from collections import defaultdict
 from fingerprint import Fingerprint, FingerprintSet
 import numpy as np
@@ -37,6 +37,9 @@ def get_name_group(namestr):
 
 def entropy(data, prior):
     """-----------------------------------------------------------------------------------------------------------------
+    calculate the entropy of each motif from the frequencies of the motif in each group. Add a pseudocount which is the
+    average number of motifs per group summed across all motifs. This corrects for both group size and sequence length.
+    the prior distribution is also used to calculate a background entropy which is subtracted
 
     :param prior: series      fraction of motifs in each group: expected distribution of a random motif
     :param data:dataframe     motif counts, columns are sample groups, rows are motifs
@@ -48,22 +51,23 @@ def entropy(data, prior):
     groups = data.columns.tolist()
     groups.remove('all')
 
+    # background entropy
     h0 = 0.0
     for group, value in prior.items():
         if group != 'all':
             h0 += -prior[group] * math.log2(prior[group])
-    # print(f'background entropy: {h0: .3f}')
 
+    # entropy for each motif
     f = data
     f = data[groups].div(data['all'], axis=0)
     h = -(f * np.log2(f)).sum(axis=1) - h0
-
-    print(h.head())
+    # print(h.head())
 
     return h.sort_values(ascending=False)
 
     def plottotal(data, size):
         """-----------------------------------------------------------------------------------------------------------------
+        plot the distribution of the numbr of occurrences of each motif
 
         :param data:
         :param size:
@@ -89,11 +93,12 @@ def entropy(data, prior):
 
         return
 
+
 # ======================================================================================================================
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
-    #fptglob = '../data/fpt/*.xios.out'
+    # fptglob = '../data/fpt/*.xios.out'
     fptglob = '*.fpt'
 
     fpt_list = glob.glob(fptglob)
@@ -131,9 +136,10 @@ if __name__ == '__main__':
 
     total = result.sum(numeric_only=True)
     prior = total / total['all']
-    plus = result +  prior
+    plus = result + prior
     print(result.head())
     # plottotal(result['total'], nfpt)
+
     h = entropy(plus, prior)
     result['entropy'] = h
     print('\ncounts with entropy')
