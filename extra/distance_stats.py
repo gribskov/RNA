@@ -9,7 +9,7 @@ import glob
 import math
 import sys
 import os
-from cgi import print_form
+#from cgi import print_form
 from collections import defaultdict
 from fingerprint import Fingerprint, FingerprintSet
 import numpy as np
@@ -93,7 +93,8 @@ def entropy(data, prior):
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
-    fptglob = '../data/fpt/*.xios.out'
+    #fptglob = '../data/fpt/*.xios.out'
+    fptglob = '*.fpt'
 
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
