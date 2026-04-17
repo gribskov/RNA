@@ -6,8 +6,10 @@ calculates statistics on structure distances
 Michael Gribskov 4/16/2026
 ====================================================================================================================="""
 import glob
+import math
 import sys
 import os
+from cgi import print_form
 from collections import defaultdict
 from fingerprint import Fingerprint, FingerprintSet
 import numpy as np
@@ -33,39 +35,59 @@ def get_name_group(namestr):
     return name, group
 
 
-def entropy(data):
+def entropy(data, prior):
     """-----------------------------------------------------------------------------------------------------------------
 
-    :param data:
+    :param prior: series      fraction of motifs in each group: expected distribution of a random motif
+    :param data:dataframe     motif counts, columns are sample groups, rows are motifs
     :return:
     -----------------------------------------------------------------------------------------------------------------"""
-    column_totals = df.sum()
+    # print(data.info())
+    # print(data.head())
+    # print(total)
+    groups = data.columns.tolist()
+    groups.remove('all')
 
+    h0 = 0.0
+    for group, value in prior.items():
+        if group != 'all':
+            h0 += -prior[group] * math.log2(prior[group])
+    # print(f'background entropy: {h0: .3f}')
 
-    return
+    f = data
+    f = data[groups].div(data['all'], axis=0)
+    h = -(f * np.log2(f)).sum(axis=1) - h0
 
+    print(h.head())
 
-def plottotal(data, size):
-    # print(sorted(d, reverse=True))
-    import matplotlib.pyplot as plt
-    # sort the data
-    sorted_data = np.sort(data)[::-1]
+    return h.sort_values(ascending=False)
 
-    # x positions
-    x = np.arange(len(sorted_data))
+    def plottotal(data, size):
+        """-----------------------------------------------------------------------------------------------------------------
 
-    # plot
-    plt.figure()
-    plt.bar(x, sorted_data)
-    plt.gca().xaxis.set_visible(False)
+        :param data:
+        :param size:
+        :return:
+        -----------------------------------------------------------------------------------------------------------------"""
+        # print(sorted(d, reverse=True))
+        import matplotlib.pyplot as plt
+        # sort the data
+        sorted_data = np.sort(data)[::-1]
 
-    plt.xlabel("Sorted index")
-    plt.ylabel("Value")
-    plt.title(f"Sorted data bar chart n={size}")
-    plt.show()
+        # x positions
+        x = np.arange(len(sorted_data))
 
-    return
+        # plot
+        plt.figure()
+        plt.bar(x, sorted_data)
+        plt.gca().xaxis.set_visible(False)
 
+        plt.xlabel("Sorted index")
+        plt.ylabel("Value")
+        plt.title(f"Sorted data bar chart n={size}")
+        plt.show()
+
+        return
 
 # ======================================================================================================================
 # main
@@ -96,7 +118,6 @@ if __name__ == '__main__':
 
     df = pd.DataFrame(records)
 
-    total_counts = df.groupby("feature")["sample"].nunique()
     group_counts = (
         df.groupby(["feature", "group"])["sample"]
         .nunique()
@@ -104,9 +125,21 @@ if __name__ == '__main__':
     )
 
     result = group_counts.copy()
-    result["total"] = total_counts
+    result['all'] = df.groupby("feature")["sample"].nunique()
+    # print(result.head())
 
+    total = result.sum(numeric_only=True)
+    prior = total / total['all']
+    plus = result +  prior
+    print(result.head())
     # plottotal(result['total'], nfpt)
-    entropy(result)
+    h = entropy(plus, prior)
+    result['entropy'] = h
+    print('\ncounts with entropy')
+    pd.options.display.max_rows = 2000
+    pd.options.display.max_columns = 20
+    pd.options.display.max_colwidth = 100
+    pd.options.display.width = 200
+    print(result.sort_values(by='entropy'))
 
     exit(0)
