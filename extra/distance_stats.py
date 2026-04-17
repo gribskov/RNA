@@ -65,33 +65,72 @@ def entropy(data, prior):
 
     return h.sort_values(ascending=False)
 
-    def plottotal(data, size):
-        """-----------------------------------------------------------------------------------------------------------------
-        plot the distribution of the numbr of occurrences of each motif
 
-        :param data:
-        :param size:
-        :return:
-        -----------------------------------------------------------------------------------------------------------------"""
-        # print(sorted(d, reverse=True))
-        import matplotlib.pyplot as plt
-        # sort the data
-        sorted_data = np.sort(data)[::-1]
+def binary_entropy(data, prior):
+    """-------------------------------------------------------------------------------------------------------------
+    two class entropy for distinguishing each group from all others
 
-        # x positions
-        x = np.arange(len(sorted_data))
+    :param prior: series      fraction of motifs in each group: expected distribution of a random motif
+    :param data:dataframe     motif counts, columns are sample groups, rows are motifs
+    :return:
+    -------------------------------------------------------------------------------------------------------------"""
+    groups = data.columns.tolist()
+    groups.remove('all')
 
-        # plot
-        plt.figure()
-        plt.bar(x, sorted_data)
-        plt.gca().xaxis.set_visible(False)
+    # background entropy
+    h0 = pd.Series(np.zeros(len(groups)), index=groups)
 
-        plt.xlabel("Sorted index")
-        plt.ylabel("Value")
-        plt.title(f"Sorted data bar chart n={size}")
-        plt.show()
+    for group, value in prior.items():
+        if group != 'all':
+            # group vs not-group
+            h0[group] += -prior[group] * math.log2(prior[group])
+            h0[group] += -(1 - prior[group]) * math.log2(1 - prior[group])
 
-        return
+    # entropy for each motif
+    f = data
+    f = f[groups].div(f['all'], axis=0)
+
+    for group, value in prior.items():
+        if group != 'all':
+            f[group] = -f[group] * np.log2(f[group]) + (1.0 - f[group]) * np.log2(1.0 - f[group]) - h0[group]
+            # h = -(f * np.log2(f)).sum(axis=1) - h0
+            # print(h.head())
+
+    col = f.columns
+    labels = []
+    for c in col:
+        labels.append(c+'_be')
+    f.columns = labels
+
+    return f
+
+
+def plottotal(data, size):
+    """-------------------------------------------------------------------------------------------------------------
+    plot the distribution of the numbr of occurrences of each motif
+
+    :param data:
+    :param size:
+    :return:
+    -----------------------------------------------------------------------------------------------------------------"""
+    import matplotlib.pyplot as plt
+    # sort the data
+    sorted_data = np.sort(data)[::-1]
+
+    # x positions
+    x = np.arange(len(sorted_data))
+
+    # plot
+    plt.figure()
+    plt.bar(x, sorted_data)
+    plt.gca().xaxis.set_visible(False)
+
+    plt.xlabel("Sorted index")
+    plt.ylabel("Value")
+    plt.title(f"Sorted data bar chart n={size}")
+    plt.show()
+
+    return
 
 
 # ======================================================================================================================
@@ -99,12 +138,13 @@ def entropy(data, prior):
 # ======================================================================================================================
 if __name__ == '__main__':
     # fptglob = '../data/fpt/*.xios.out'
-    fptglob = '*.fpt'
+    fptglob = sys.argv[1]
 
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
 
     motifs = defaultdict(list)
+    groups = defaultdict(int)
     fptidx = []
     groupidx = []
     nfpt = 0
@@ -114,6 +154,7 @@ if __name__ == '__main__':
         nfpt += 1
         fpt.readYAML(this_fpt)
         name, group = get_name_group(fpt.information['RNA structure'])
+        groups[group] += 1
 
         for f in fpt.motif:  # set() avoids double-counting within sample
             records.append({
@@ -123,6 +164,7 @@ if __name__ == '__main__':
             })
 
     df = pd.DataFrame(records)
+    ginfo = pd.DataFrame.from_dict(groups, orient='index', columns=['count'])
 
     group_counts = (
         df.groupby(["feature", "group"])["sample"]
@@ -135,18 +177,40 @@ if __name__ == '__main__':
     # print(result.head())
 
     total = result.sum(numeric_only=True)
+    ginfo['motifs'] = total
     prior = total / total['all']
+    ginfo['prior'] = prior
+    # print(prior)
     plus = result + prior
-    print(result.head())
+    # print(result.head())
     # plottotal(result['total'], nfpt)
 
-    h = entropy(plus, prior)
-    result['entropy'] = h
-    print('\ncounts with entropy')
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
     pd.options.display.max_colwidth = 100
-    pd.options.display.width = 200
-    print(result.sort_values(by='entropy'))
+    pd.options.display.width = 500
+
+    h = entropy(plus, prior)
+    result['entropy'] = h
+    # print('\ncounts with entropy')
+    #
+    # print(result.sort_values(by='entropy'))
+
+    hb = binary_entropy(plus, prior)
+    # result['entropy'] = hb['g2']
+    m = pd.merge(result, hb, on='feature')
+    # h = entropy(plus, prior)
+    # result['entropy'] = h
+    # print('\ncounts with entropy')
+    #
+    # print(result.sort_values(by='entropy')))
+    # print(    # h = entropy(plus, prior)
+    # result['entropy'] = h
+    # print('\ncounts with entropy')
+    #
+    print(ginfo)
+    print(m.sort_values(by='entropy'))
+
+
 
     exit(0)
