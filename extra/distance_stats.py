@@ -199,6 +199,8 @@ if __name__ == '__main__':
     hb = binary_entropy(plus, prior)
     # result['entropy'] = hb['g2']
     m = pd.merge(result, hb, on='feature')
+    t = m[m['all']>3]
+    t = t.sort_values(by='g2_be')
     # h = entropy(plus, prior)
     # result['entropy'] = h
     # print('\ncounts with entropy')
