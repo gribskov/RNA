@@ -7,13 +7,16 @@ Michael Gribskov 4/16/2026
 ====================================================================================================================="""
 import glob
 import math
-import sys
 import os
-# from cgi import print_form
+import sys
 from collections import defaultdict
-from fingerprint import Fingerprint, FingerprintSet
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import jensenshannon
+
+from fingerprint import Fingerprint
 
 
 def get_name_group(namestr):
@@ -181,9 +184,28 @@ if __name__ == '__main__':
     prior = total / total['all']
     ginfo['prior'] = prior
     # print(prior)
-    plus = result + prior
-    # print(result.head())
-    # plottotal(result['total'], nfpt)
+
+    # normalize for different group size by dividing by the number of motifs in each group
+    # add prior to avoid zeros
+    plus = (result + prior) / (total + prior)
+
+    # calculate the probability of each feature in each group
+    prob_dist = plus.div(plus.sum(axis=1), axis=0)
+
+    # Calculate pairwise Jensen - Shannon Distance
+    # ensenshannon() calculates the square root of JS Divergence
+    features = prob_dist.index
+    js_distances = {}
+
+    for f1, f2 in combinations(features, 2):
+        p = prob_dist.loc[f1]
+        q = prob_dist.loc[f2]
+        # compute distance, then square to get divergence
+        distance = jensenshannon(p, q)
+        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
+
+    for pair, jsd in sorted(js_distances.items(), key=lambda p,j: j, reverse=True):
+        print(f"JSD({pair[0]}, {pair[1]}) = {jsd:.3f}")
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
