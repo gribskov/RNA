@@ -102,7 +102,7 @@ def binary_entropy(data, prior):
     col = f.columns
     labels = []
     for c in col:
-        labels.append(c+'_be')
+        labels.append(c + '_be')
     f.columns = labels
 
     return f
@@ -177,6 +177,8 @@ if __name__ == '__main__':
 
     result = group_counts.copy()
     result['all'] = df.groupby("feature")["sample"].nunique()
+    result = result[result['all'] > 5]
+    result = result[result['all'] < 100]
     # print(result.head())
 
     total = result.sum(numeric_only=True)
@@ -188,9 +190,10 @@ if __name__ == '__main__':
     # normalize for different group size by dividing by the number of motifs in each group
     # add prior to avoid zeros
     plus = (result + prior) / (total + prior)
+    pminusall = plus.drop(columns=['all'])
 
     # calculate the probability of each feature in each group
-    prob_dist = plus.div(plus.sum(axis=1), axis=0)
+    prob_dist = pminusall.div(pminusall.sum(axis=1), axis=0)
 
     # Calculate pairwise Jensen - Shannon Distance
     # ensenshannon() calculates the square root of JS Divergence
@@ -202,10 +205,28 @@ if __name__ == '__main__':
         q = prob_dist.loc[f2]
         # compute distance, then square to get divergence
         distance = jensenshannon(p, q)
-        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
+        js_distances[(f1, f2)] = distance ** 2  # Jensen-Shannon Divergence
 
-    for pair, jsd in sorted(js_distances.items(), key=lambda p,j: j, reverse=True):
-        print(f"JSD({pair[0]}, {pair[1]}) = {jsd:.3f}")
+    js = open('jsd.out', 'w')
+    njs = 0
+    unique = defaultdict(int)
+    for pair, jsd in sorted(js_distances.items(), key=lambda i: i[1], reverse=True):
+        njs += 1
+        p1 = prob_dist.loc[pair[0]]
+        p2 = prob_dist.loc[pair[1]]
+
+        unique[pair[0]] += 1
+        unique[pair[1]] += 1
+        nunique = len(unique)
+
+        print(f"{njs}\tJSD({pair[0]}, {pair[1]}) = {jsd:.3f}\t {p1.idxmax()}|{p2.idxmax()}\tunique motifs: {nunique}", file=js)
+        top = ''
+        bottom = ''
+        for i in range(len(p1)):
+            top += f'\t{p1.iloc[i]:.3f}'
+            bottom += f'\t{p2.iloc[i]:.3f}'
+        print(f'{top}\t{p1.idxmax()}\t{unique[pair[0]]}\n{bottom}\t{p2.idxmax()}\t{unique[pair[1]]}', file=js)
+
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
@@ -221,7 +242,7 @@ if __name__ == '__main__':
     hb = binary_entropy(plus, prior)
     # result['entropy'] = hb['g2']
     m = pd.merge(result, hb, on='feature')
-    t = m[m['all']>3]
+    t = m[m['all'] > 3]
     t = t.sort_values(by='g2_be')
     # h = entropy(plus, prior)
     # result['entropy'] = h
@@ -234,7 +255,5 @@ if __name__ == '__main__':
     #
     print(ginfo)
     print(m.sort_values(by='entropy'))
-
-
 
     exit(0)
