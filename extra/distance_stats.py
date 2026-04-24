@@ -33,7 +33,6 @@ def get_name_group(namestr):
         group = group.split('_')[0]
     if '.' in group:
         group = group.split('.')[0]
-    print(f'{nfpt}\t{name}\t class: {group}')
 
     return name, group
 
@@ -102,7 +101,7 @@ def binary_entropy(data, prior):
     col = f.columns
     labels = []
     for c in col:
-        labels.append(c+'_be')
+        labels.append(c + '_be')
     f.columns = labels
 
     return f
@@ -135,104 +134,112 @@ def plottotal(data, size):
 
     return
 
+def readfpt(fpt_list):
+    """-----------------------------------------------------------------------------------------------------------------
+    read the kist of fingerprints into a dataframe the raw dataframe is three columns: structure_name, group, and feature
+    example:
+    16S_b.Clostridium_innocuum     16S     0i1.1i2.2j0.0i3.0i4.0i5.
+
+    :param fpt_list:list    paths to fingerprint files
+    :return: dataframe      structure_name, group, feature
+    :return: dataframe      count of number of structures in each group
+    -----------------------------------------------------------------------------------------------------------------"""
+    group = defaultdict(int)
+    nfpt = 0
+    records = []
+    for this_fpt in fpt_list:
+        nfpt += 1
+        fpt = Fingerprint()
+        fpt.readYAML(this_fpt)
+        n, g = get_name_group(fpt.information['RNA structure'])
+        print(f'\t{nfpt}\t{g}\t{n}')
+        group[g] += 1
+
+        for f in fpt.motif:  # set() avoids double-counting within sample
+            records.append({
+                'sample': n,
+                'group': g,
+                'feature': f
+            })
+
+    raw = pd.DataFrame(records)
+    motif = (
+        raw.groupby(['feature', 'group'])['sample']
+        .nunique()
+        .unstack(fill_value=0)
+    )
+
+    return raw, group
+
 
 # ======================================================================================================================
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
-    # fptglob = '../data/fpt/*.xios.out'
     fptglob = sys.argv[1]
-
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
-
-    motifs = defaultdict(list)
-    groups = defaultdict(int)
-    fptidx = []
-    groupidx = []
-    nfpt = 0
-    records = []
-    for this_fpt in fpt_list:
-        fpt = Fingerprint()
-        nfpt += 1
-        fpt.readYAML(this_fpt)
-        name, group = get_name_group(fpt.information['RNA structure'])
-        groups[group] += 1
-
-        for f in fpt.motif:  # set() avoids double-counting within sample
-            records.append({
-                "sample" : name,
-                "group"  : group,
-                "feature": f
-            })
-
-    df = pd.DataFrame(records)
-    ginfo = pd.DataFrame.from_dict(groups, orient='index', columns=['count'])
-
-    group_counts = (
-        df.groupby(["feature", "group"])["sample"]
+    raw, group = readfpt(fpt_list)
+    # group = defaultdict(int)
+    # nfpt = 0
+    # records = []
+    # for this_fpt in fpt_list:
+    #     nfpt += 1
+    #     fpt = Fingerprint()
+    #     fpt.readYAML(this_fpt)
+    #     n, g = get_name_group(fpt.information['RNA structure'])
+    #     group[g] += 1
+    #
+    #     for f in fpt.motif:  # set() avoids double-counting within sample
+    #         records.append({
+    #             'sample': n,
+    #             'group': g,
+    #             'feature': f
+    #         })
+    #
+    # raw = pd.DataFrame(records)
+    motif = (
+        raw.groupby(['feature', 'group'])['sample']
         .nunique()
         .unstack(fill_value=0)
     )
 
-    result = group_counts.copy()
-    result['all'] = df.groupby("feature")["sample"].nunique()
-    # print(result.head())
+    # groups summaries: number of samples and motifs per group
+    # prior is the probability that a random motif belongs to a group
+    ginfo = pd.DataFrame(data=group, index=['sample_n'])
+    ginfo.loc['motif_n'] = motif.sum(axis=0)
+    motif_all = ginfo.loc['motif_n'].sum()
+    ginfo.loc['prior'] = ginfo.loc['motif_n']/motif_all
+    # check = ginfo.loc['prior'].sum()
 
-    total = result.sum(numeric_only=True)
-    ginfo['motifs'] = total
-    prior = total / total['all']
-    ginfo['prior'] = prior
-    # print(prior)
-
-    # normalize for different group size by dividing by the number of motifs in each group
-    # add prior to avoid zeros
-    plus = (result + prior) / (total + prior)
-
-    # calculate the probability of each feature in each group
-    prob_dist = plus.div(plus.sum(axis=1), axis=0)
+    # normalized probability is raw count + prior / row_sum
+    prob = motif.add(ginfo.loc['prior'])
+    prob = prob.div(prob.sum(axis=1), axis=0)
 
     # Calculate pairwise Jensen - Shannon Distance
     # ensenshannon() calculates the square root of JS Divergence
-    features = prob_dist.index
+    features = prob.index
     js_distances = {}
 
     for f1, f2 in combinations(features, 2):
-        p = prob_dist.loc[f1]
-        q = prob_dist.loc[f2]
+        p = prob.loc[f1]
+        q = prob.loc[f2]
         # compute distance, then square to get divergence
         distance = jensenshannon(p, q)
         js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
 
-    for pair, jsd in sorted(js_distances.items(), key=lambda p,j: j, reverse=True):
+    n = 0
+    for pair, jsd in sorted(js_distances.items(), key=lambda p: p[1], reverse=True):
+        n += 1
         print(f"JSD({pair[0]}, {pair[1]}) = {jsd:.3f}")
+        if n == 50:
+            break
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
     pd.options.display.max_colwidth = 100
     pd.options.display.width = 500
 
-    h = entropy(plus, prior)
-    result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
-    # print(result.sort_values(by='entropy'))
-
-    hb = binary_entropy(plus, prior)
-    # result['entropy'] = hb['g2']
-    m = pd.merge(result, hb, on='feature')
-    # h = entropy(plus, prior)
-    # result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
-    # print(result.sort_values(by='entropy')))
-    # print(    # h = entropy(plus, prior)
-    # result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
     print(ginfo)
-    print(m.sort_values(by='entropy'))
-
-
 
     exit(0)
