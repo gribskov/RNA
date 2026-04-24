@@ -27,7 +27,7 @@ def get_name_group(namestr):
     :return:
     -----------------------------------------------------------------------------------------------------------------"""
     name = os.path.basename(namestr)
-    name.replace('.xios', '')
+    name = name.replace('.xios', '')
     group = name
     if '_' in group:
         group = group.split('_')[0]
@@ -176,41 +176,39 @@ def readfpt(fpt_list):
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
+    count_min = 5
+    count_max = 100
+    target_ratio = 0.5
     fptglob = sys.argv[1]
+
+    print(f'fingerprints: {fptglob}')
+    print(f'minimum motif count: {count_min}')
+    print(f'maximum motif count: {count_max}')
+    print(f'target feature fraction: {target_ratio}')
+
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
     raw, group = readfpt(fpt_list)
-    # group = defaultdict(int)
-    # nfpt = 0
-    # records = []
-    # for this_fpt in fpt_list:
-    #     nfpt += 1
-    #     fpt = Fingerprint()
-    #     fpt.readYAML(this_fpt)
-    #     n, g = get_name_group(fpt.information['RNA structure'])
-    #     group[g] += 1
-    #
-    #     for f in fpt.motif:  # set() avoids double-counting within sample
-    #         records.append({
-    #             'sample': n,
-    #             'group': g,
-    #             'feature': f
-    #         })
-    #
-    # raw = pd.DataFrame(records)
+    print(f'fingerprints read: {len(raw)}')
+    print(f'data groups read: {len(group)}')
+
+    # convert to dataframe with counts of motfis for each group, and filter my maximum and minimum count
     motif = (
         raw.groupby(['feature', 'group'])['sample']
         .nunique()
         .unstack(fill_value=0)
     )
-
-    # groups summaries: number of samples and motifs per group
-    # prior is the probability that a random motif belongs to a group
+    # group summary: number of samples and motifs per group (before filtering)
     ginfo = pd.DataFrame(data=group, index=['sample_n'])
     ginfo.loc['motif_n'] = motif.sum(axis=0)
     motif_all = ginfo.loc['motif_n'].sum()
-    ginfo.loc['prior'] = ginfo.loc['motif_n']/motif_all
-    # check = ginfo.loc['prior'].sum()
+
+    # filter by minimum and maximum count; prior is the probability that a random motif belongs to a group
+    motif = motif[(motif.sum(axis=1) > count_min) & (motif.sum(axis=1) < count_max)]
+    ginfo.loc['filtered_n'] = motif.sum(axis=0)
+    motif_all = ginfo.loc['filtered_n'].sum()
+    ginfo.loc['prior'] = ginfo.loc['filtered_n']/motif_all
+    ginfo.loc['prior'] = ginfo.loc['motif_n'] / motif_all
 
     # normalized probability is raw count + prior / row_sum
     prob = motif.add(ginfo.loc['prior'])
@@ -219,6 +217,7 @@ if __name__ == '__main__':
     # Calculate pairwise Jensen - Shannon Distance
     # ensenshannon() calculates the square root of JS Divergence
     features = prob.index
+    feature_n = len(features)
     js_distances = {}
 
     for f1, f2 in combinations(features, 2):
@@ -229,11 +228,25 @@ if __name__ == '__main__':
         js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
 
     n = 0
+    features_found = defaultdict(int)
     for pair, jsd in sorted(js_distances.items(), key=lambda p: p[1], reverse=True):
         n += 1
-        print(f"JSD({pair[0]}, {pair[1]}) = {jsd:.3f}")
-        if n == 50:
+        pmax = motif.loc[pair[0]].idxmax()
+        qmax = motif.loc[pair[1]].idxmax()
+        features_found[pair[0]] += 1
+        features_found[pair[1]] += 1
+        feature_ratio = len(features_found) / feature_n
+        print(f"{n}\t{pair[0]}\t{pair[1]}\t{jsd:.3f}\t{pmax}|{qmax}\t{len(features_found)}\t{feature_ratio:.3f}")
+        if feature_ratio > target_ratio:
             break
+
+    print(f'\nselected features({len(features_found)})')
+    for motif in sorted(features_found):
+        # print(motif)
+        # mprob = prob.loc[motif]
+        probstr = prob.loc[motif].to_string(index=False, header=False, float_format='%7.3f')
+        probstr = probstr.replace('\n', '\t')
+        print(f'{motif}\t{probstr}')
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
