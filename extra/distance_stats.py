@@ -177,8 +177,8 @@ def readfpt(fpt_list):
 # ======================================================================================================================
 if __name__ == '__main__':
     count_min = 5
-    count_max = 100
-    target_ratio = 0.5
+    count_max = 160
+    target_ratio = 0.9
     fptglob = sys.argv[1]
 
     print(f'fingerprints: {fptglob}')
@@ -241,18 +241,20 @@ if __name__ == '__main__':
             break
 
     print(f'\nselected features({len(features_found)})')
-    for motif in sorted(features_found):
+    for motifid in sorted(features_found):
         # print(motif)
         # mprob = prob.loc[motif]
-        probstr = prob.loc[motif].to_string(index=False, header=False, float_format='%7.3f')
+        n = motif.loc[motifid].sum()
+        probstr = prob.loc[motifid].to_string(index=False, header=False, float_format='%7.3f')
         probstr = probstr.replace('\n', '\t')
-        print(f'{motif}\t{probstr}')
+        print(f'{motifid}\t{n}\t{probstr}')
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
     pd.options.display.max_colwidth = 100
     pd.options.display.width = 500
+    pd.set_option("display.precision", 3)
 
-    print(ginfo)
+    print(f'\n{ginfo}')
 
     exit(0)
