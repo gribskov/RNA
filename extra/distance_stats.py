@@ -1,10 +1,10 @@
-"""=====================================================================================================================
+"""=================================================================================================
 distance_stats.py
 
 calculates statistics on structure distances
 
 Michael Gribskov 4/16/2026
-====================================================================================================================="""
+================================================================================================="""
 import glob
 import math
 import os
@@ -20,12 +20,12 @@ from fingerprint import Fingerprint
 
 
 def get_name_group(namestr):
-    """-----------------------------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     get the structure name and group from the xios file name
 
     :param namestr: string     xios structure file, from fingerprint yaml
     :return:
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     name = os.path.basename(namestr)
     name = name.replace('.xios', '')
     group = name
@@ -38,15 +38,16 @@ def get_name_group(namestr):
 
 
 def entropy(data, prior):
-    """-----------------------------------------------------------------------------------------------------------------
-    calculate the entropy of each motif from the frequencies of the motif in each group. Add a pseudocount which is the
-    average number of motifs per group summed across all motifs. This corrects for both group size and sequence length.
-    the prior distribution is also used to calculate a background entropy which is subtracted
+    """---------------------------------------------------------------------------------------------
+    calculate the entropy of each motif from the frequencies of the motif in each group. Add a
+    pseudocount which is the average number of motifs per group summed across all motifs. This
+    corrects for both group size and sequence length. the prior distribution is also used to
+    calculate a background entropy which is subtracted
 
-    :param prior: series      fraction of motifs in each group: expected distribution of a random motif
+    :param prior: series      fraction of motifs in each group: expected random motif distribution
     :param data:dataframe     motif counts, columns are sample groups, rows are motifs
     :return:
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     # print(data.info())
     # print(data.head())
     # print(total)
@@ -69,13 +70,13 @@ def entropy(data, prior):
 
 
 def binary_entropy(data, prior):
-    """-------------------------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     two class entropy for distinguishing each group from all others
 
-    :param prior: series      fraction of motifs in each group: expected distribution of a random motif
+    :param prior: series      fraction of motifs in each group: expected random motifdistribution
     :param data:dataframe     motif counts, columns are sample groups, rows are motifs
     :return:
-    -------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     groups = data.columns.tolist()
     groups.remove('all')
 
@@ -108,13 +109,13 @@ def binary_entropy(data, prior):
 
 
 def plottotal(data, size):
-    """-------------------------------------------------------------------------------------------------------------
+    """---------------------------------------------------------------------------------------------
     plot the distribution of the numbr of occurrences of each motif
 
     :param data:
     :param size:
     :return:
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     import matplotlib.pyplot as plt
     # sort the data
     sorted_data = np.sort(data)[::-1]
@@ -135,15 +136,16 @@ def plottotal(data, size):
     return
 
 def readfpt(fpt_list):
-    """-----------------------------------------------------------------------------------------------------------------
-    read the kist of fingerprints into a dataframe the raw dataframe is three columns: structure_name, group, and feature
+    """---------------------------------------------------------------------------------------------
+    read the kist of fingerprints into a dataframe the raw dataframe is three columns: structure_
+    name, group, and feature
     example:
     16S_b.Clostridium_innocuum     16S     0i1.1i2.2j0.0i3.0i4.0i5.
 
     :param fpt_list:list    paths to fingerprint files
     :return: dataframe      structure_name, group, feature
     :return: dataframe      count of number of structures in each group
-    -----------------------------------------------------------------------------------------------------------------"""
+    ---------------------------------------------------------------------------------------------"""
     group = defaultdict(int)
     nfpt = 0
     records = []
@@ -172,9 +174,9 @@ def readfpt(fpt_list):
     return raw, group
 
 
-# ======================================================================================================================
+# ==================================================================================================
 # main
-# ======================================================================================================================
+# ==================================================================================================
 if __name__ == '__main__':
     count_min = 5
     count_max = 160
@@ -192,7 +194,7 @@ if __name__ == '__main__':
     print(f'fingerprints read: {len(raw)}')
     print(f'data groups read: {len(group)}')
 
-    # convert to dataframe with counts of motfis for each group, and filter my maximum and minimum count
+    # convert to dataframe with motif counts for each group
     motif = (
         raw.groupby(['feature', 'group'])['sample']
         .nunique()
@@ -203,7 +205,7 @@ if __name__ == '__main__':
     ginfo.loc['motif_n'] = motif.sum(axis=0)
     motif_all = ginfo.loc['motif_n'].sum()
 
-    # filter by minimum and maximum count; prior is the probability that a random motif belongs to a group
+    # filter by min and max count; prior is the probability of a random motif belongs to a group
     motif = motif[(motif.sum(axis=1) > count_min) & (motif.sum(axis=1) < count_max)]
     ginfo.loc['filtered_n'] = motif.sum(axis=0)
     motif_all = ginfo.loc['filtered_n'].sum()
@@ -225,7 +227,7 @@ if __name__ == '__main__':
         q = prob.loc[f2]
         # compute distance, then square to get divergence
         distance = jensenshannon(p, q)
-        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
+        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence from Scipy
 
     n = 0
     features_found = defaultdict(int)
