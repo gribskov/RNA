@@ -19,7 +19,7 @@ from scipy.spatial.distance import jensenshannon
 from fingerprint import Fingerprint
 
 
-def get_name_group(namestr):
+def get_sample_group(namestr):
     """-----------------------------------------------------------------------------------------------------------------
     get the structure name and group from the xios file name
 
@@ -140,59 +140,68 @@ def plottotal(data, size):
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
-    # fptglob = '../data/fpt/*.xios.out'
     fptglob = sys.argv[1]
+    
+    # selected motifs must have motif_count_min > motif_count < motif_count_max
+    motif_count_min = 5
+    motif_count_max = 100
 
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
 
-    motifs = defaultdict(list)
-    groups = defaultdict(int)
-    fptidx = []
-    groupidx = []
-    nfpt = 0
+    # read motifs and classes (groups)
+    group = defaultdict(lambda: {'n': 0, 'nmotif': 0})
     records = []
+
+    nfpt = 0
     for this_fpt in fpt_list:
         fpt = Fingerprint()
         nfpt += 1
         fpt.readYAML(this_fpt)
-        name, group = get_name_group(fpt.information['RNA structure'])
-        groups[group] += 1
+        sample, g = get_sample_group(fpt.information['RNA structure'])
+        group[g]['n'] +=1
 
-        for f in fpt.motif:  # set() avoids double-counting within sample
+        for f in fpt.motif:
+            # raw data has sample name, class, and feature id
+            group[g]['nmotif'] += 1
             records.append({
-                "sample" : name,
-                "group"  : group,
-                "feature": f
+                'sample' :sample,
+                'group'  : g,
+                'feature': f
             })
 
+    # convert to dataframe and convert to counts of each motif in each class
     df = pd.DataFrame(records)
-    ginfo = pd.DataFrame.from_dict(groups, orient='index', columns=['count'])
-
-    group_counts = (
-        df.groupby(["feature", "group"])["sample"]
+    # mpg = motifs_per_group
+    mpg = (
+        df.groupby(['feature', 'group'])['sample']
         .nunique()
         .unstack(fill_value=0)
     )
+    ginfo = pd.DataFrame.from_dict(group, orient='index', columns=['n', 'nmotif'])
 
-    result = group_counts.copy()
-    result['all'] = df.groupby("feature")["sample"].nunique()
-    result = result[result['all'] > 5]
-    result = result[result['all'] < 100]
-    # print(result.head())
+    # filter by total number of motif occurrences
+    motif_total = df.groupby('feature')['sample'].nunique()
+    mpg = mpg[motif_total > motif_count_min]
+    mpg = mpg[motif_total < motif_count_max]
+    # update motif counts after filtering
+    ginfo['nmotif'] = mpg.sum(numeric_only=True)
 
-    total = result.sum(numeric_only=True)
-    ginfo['motifs'] = total
-    prior = total / total['all']
-    ginfo['prior'] = prior
-    # print(prior)
+    # add a prior consisting of the fraction of all motifs found in each group, i.e. P(motif|group)
+    total = mpg.sum(numeric_only=True)
+    ginfo['prior'] = ginfo['nmotif'] / ginfo['nmotif'].sum()
 
     # normalize for different group size by dividing by the number of motifs in each group
     # add prior to avoid zeros
-    plus = (result + prior) / (total + prior)
+    # adj = mpg + ginfo['prior']
+    prior = ginfo['prior']
+    prob = mpg + prior
+    # prob = (mpg + prior) / (mpg.sum(axis=1) + 1)
+    plus = (mpg + ginfo['prior']) / (ginfo['nmotif'] + ginfo['prior'])
     pminusall = plus.drop(columns=['all'])
 
     # calculate the probability of each feature in each group
+    p = (mpg + ginfo['prior']) / (ginfo['total'] + ginfo['prior'])/ginfo['nmotif'].sum()
     prob_dist = pminusall.div(pminusall.sum(axis=1), axis=0)
 
     # Calculate pairwise Jensen - Shannon Distance
