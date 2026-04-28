@@ -19,7 +19,7 @@ from scipy.spatial.distance import jensenshannon
 from fingerprint import Fingerprint
 
 
-def get_sample_group(namestr):
+def get_name_group(namestr):
     """-----------------------------------------------------------------------------------------------------------------
     get the structure name and group from the xios file name
 
@@ -27,13 +27,12 @@ def get_sample_group(namestr):
     :return:
     -----------------------------------------------------------------------------------------------------------------"""
     name = os.path.basename(namestr)
-    name.replace('.xios', '')
+    name = name.replace('.xios', '')
     group = name
     if '_' in group:
         group = group.split('_')[0]
     if '.' in group:
         group = group.split('.')[0]
-    print(f'{nfpt}\t{name}\t class: {group}')
 
     return name, group
 
@@ -135,134 +134,127 @@ def plottotal(data, size):
 
     return
 
+def readfpt(fpt_list):
+    """-----------------------------------------------------------------------------------------------------------------
+    read the kist of fingerprints into a dataframe the raw dataframe is three columns: structure_name, group, and feature
+    example:
+    16S_b.Clostridium_innocuum     16S     0i1.1i2.2j0.0i3.0i4.0i5.
+
+    :param fpt_list:list    paths to fingerprint files
+    :return: dataframe      structure_name, group, feature
+    :return: dataframe      count of number of structures in each group
+    -----------------------------------------------------------------------------------------------------------------"""
+    group = defaultdict(int)
+    nfpt = 0
+    records = []
+    for this_fpt in fpt_list:
+        nfpt += 1
+        fpt = Fingerprint()
+        fpt.readYAML(this_fpt)
+        n, g = get_name_group(fpt.information['RNA structure'])
+        print(f'\t{nfpt}\t{g}\t{n}')
+        group[g] += 1
+
+        for f in fpt.motif:  # set() avoids double-counting within sample
+            records.append({
+                'sample': n,
+                'group': g,
+                'feature': f
+            })
+
+    raw = pd.DataFrame(records)
+    motif = (
+        raw.groupby(['feature', 'group'])['sample']
+        .nunique()
+        .unstack(fill_value=0)
+    )
+
+    return raw, group
+
 
 # ======================================================================================================================
 # main
 # ======================================================================================================================
 if __name__ == '__main__':
+    count_min = 5
+    count_max = 160
+    target_ratio = 0.9
     fptglob = sys.argv[1]
-    
-    # selected motifs must have motif_count_min > motif_count < motif_count_max
-    motif_count_min = 5
-    motif_count_max = 100
+
+    print(f'fingerprints: {fptglob}')
+    print(f'minimum motif count: {count_min}')
+    print(f'maximum motif count: {count_max}')
+    print(f'target feature fraction: {target_ratio}')
 
     fpt_list = glob.glob(fptglob)
     print(f'fingerprints: {fptglob}')
+    raw, group = readfpt(fpt_list)
+    print(f'fingerprints read: {len(raw)}')
+    print(f'data groups read: {len(group)}')
 
-    # read motifs and classes (groups)
-    group = defaultdict(lambda: {'n': 0, 'nmotif': 0})
-    records = []
-
-    nfpt = 0
-    for this_fpt in fpt_list:
-        fpt = Fingerprint()
-        nfpt += 1
-        fpt.readYAML(this_fpt)
-        sample, g = get_sample_group(fpt.information['RNA structure'])
-        group[g]['n'] +=1
-
-        for f in fpt.motif:
-            # raw data has sample name, class, and feature id
-            group[g]['nmotif'] += 1
-            records.append({
-                'sample' :sample,
-                'group'  : g,
-                'feature': f
-            })
-
-    # convert to dataframe and convert to counts of each motif in each class
-    df = pd.DataFrame(records)
-    # mpg = motifs_per_group
-    mpg = (
-        df.groupby(['feature', 'group'])['sample']
+    # convert to dataframe with counts of motfis for each group, and filter my maximum and minimum count
+    motif = (
+        raw.groupby(['feature', 'group'])['sample']
         .nunique()
         .unstack(fill_value=0)
     )
-    ginfo = pd.DataFrame.from_dict(group, orient='index', columns=['n', 'nmotif'])
+    # group summary: number of samples and motifs per group (before filtering)
+    ginfo = pd.DataFrame(data=group, index=['sample_n'])
+    ginfo.loc['motif_n'] = motif.sum(axis=0)
+    motif_all = ginfo.loc['motif_n'].sum()
 
-    # filter by total number of motif occurrences
-    motif_total = df.groupby('feature')['sample'].nunique()
-    mpg = mpg[motif_total > motif_count_min]
-    mpg = mpg[motif_total < motif_count_max]
-    # update motif counts after filtering
-    ginfo['nmotif'] = mpg.sum(numeric_only=True)
+    # filter by minimum and maximum count; prior is the probability that a random motif belongs to a group
+    motif = motif[(motif.sum(axis=1) > count_min) & (motif.sum(axis=1) < count_max)]
+    ginfo.loc['filtered_n'] = motif.sum(axis=0)
+    motif_all = ginfo.loc['filtered_n'].sum()
+    ginfo.loc['prior'] = ginfo.loc['filtered_n']/motif_all
+    ginfo.loc['prior'] = ginfo.loc['motif_n'] / motif_all
 
-    # add a prior consisting of the fraction of all motifs found in each group, i.e. P(motif|group)
-    total = mpg.sum(numeric_only=True)
-    ginfo['prior'] = ginfo['nmotif'] / ginfo['nmotif'].sum()
-
-    # normalize for different group size by dividing by the number of motifs in each group
-    # add prior to avoid zeros
-    # adj = mpg + ginfo['prior']
-    prior = ginfo['prior']
-    prob = mpg + prior
-    # prob = (mpg + prior) / (mpg.sum(axis=1) + 1)
-    plus = (mpg + ginfo['prior']) / (ginfo['nmotif'] + ginfo['prior'])
-    pminusall = plus.drop(columns=['all'])
-
-    # calculate the probability of each feature in each group
-    p = (mpg + ginfo['prior']) / (ginfo['total'] + ginfo['prior'])/ginfo['nmotif'].sum()
-    prob_dist = pminusall.div(pminusall.sum(axis=1), axis=0)
+    # normalized probability is raw count + prior / row_sum
+    prob = motif.add(ginfo.loc['prior'])
+    prob = prob.div(prob.sum(axis=1), axis=0)
 
     # Calculate pairwise Jensen - Shannon Distance
     # ensenshannon() calculates the square root of JS Divergence
-    features = prob_dist.index
+    features = prob.index
+    feature_n = len(features)
     js_distances = {}
 
     for f1, f2 in combinations(features, 2):
-        p = prob_dist.loc[f1]
-        q = prob_dist.loc[f2]
+        p = prob.loc[f1]
+        q = prob.loc[f2]
         # compute distance, then square to get divergence
         distance = jensenshannon(p, q)
-        js_distances[(f1, f2)] = distance ** 2  # Jensen-Shannon Divergence
+        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence
 
-    js = open('jsd.out', 'w')
-    njs = 0
-    unique = defaultdict(int)
-    for pair, jsd in sorted(js_distances.items(), key=lambda i: i[1], reverse=True):
-        njs += 1
-        p1 = prob_dist.loc[pair[0]]
-        p2 = prob_dist.loc[pair[1]]
+    n = 0
+    features_found = defaultdict(int)
+    for pair, jsd in sorted(js_distances.items(), key=lambda p: p[1], reverse=True):
+        n += 1
+        pmax = motif.loc[pair[0]].idxmax()
+        qmax = motif.loc[pair[1]].idxmax()
+        features_found[pair[0]] += 1
+        features_found[pair[1]] += 1
+        feature_ratio = len(features_found) / feature_n
+        print(f"{n}\t{pair[0]}\t{pair[1]}\t{jsd:.3f}\t{pmax}|{qmax}\t{len(features_found)}\t{feature_ratio:.3f}")
+        if feature_ratio > target_ratio:
+            break
 
-        unique[pair[0]] += 1
-        unique[pair[1]] += 1
-        nunique = len(unique)
-
-        print(f"{njs}\tJSD({pair[0]}, {pair[1]}) = {jsd:.3f}\t {p1.idxmax()}|{p2.idxmax()}\tunique motifs: {nunique}", file=js)
-        top = ''
-        bottom = ''
-        for i in range(len(p1)):
-            top += f'\t{p1.iloc[i]:.3f}'
-            bottom += f'\t{p2.iloc[i]:.3f}'
-        print(f'{top}\t{p1.idxmax()}\t{unique[pair[0]]}\n{bottom}\t{p2.idxmax()}\t{unique[pair[1]]}', file=js)
-
+    print(f'\nselected features({len(features_found)})')
+    for motifid in sorted(features_found):
+        # print(motif)
+        # mprob = prob.loc[motif]
+        n = motif.loc[motifid].sum()
+        probstr = prob.loc[motifid].to_string(index=False, header=False, float_format='%7.3f')
+        probstr = probstr.replace('\n', '\t')
+        print(f'{motifid}\t{n}\t{probstr}')
 
     pd.options.display.max_rows = 2000
     pd.options.display.max_columns = 20
     pd.options.display.max_colwidth = 100
     pd.options.display.width = 500
+    pd.set_option("display.precision", 3)
 
-    h = entropy(plus, prior)
-    result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
-    # print(result.sort_values(by='entropy'))
-
-    hb = binary_entropy(plus, prior)
-    # result['entropy'] = hb['g2']
-    m = pd.merge(result, hb, on='feature')
-    t = m[m['all'] > 3]
-    t = t.sort_values(by='g2_be')
-    # h = entropy(plus, prior)
-    # result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
-    # print(result.sort_values(by='entropy')))
-    # print(    # h = entropy(plus, prior)
-    # result['entropy'] = h
-    # print('\ncounts with entropy')
-    #
-    print(ginfo)
-    print(m.sort_values(by='entropy'))
+    print(f'\n{ginfo}')
 
     exit(0)
