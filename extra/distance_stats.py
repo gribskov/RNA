@@ -215,47 +215,25 @@ if __name__ == '__main__':
     # normalized probability is raw count + prior / row_sum
     prob = motif.add(ginfo.loc['prior'])
     prob = prob.div(prob.sum(axis=1), axis=0)
+    cols = prob.columns
+    column_pairs = list(combinations(cols, 2))
 
-    # Calculate pairwise Jensen - Shannon Distance
-    # ensenshannon() calculates the square root of JS Divergence
-    features = prob.index
-    feature_n = len(features)
-    js_distances = {}
+    # 2. Iterate through pairs and calculate the ratio
 
-    for f1, f2 in combinations(features, 2):
-        p = prob.loc[f1]
-        q = prob.loc[f2]
-        # compute distance, then square to get divergence
-        distance = jensenshannon(p, q)
-        js_distances[(f1, f2)] = distance * distance  # Jensen-Shannon Divergence from Scipy
+    for col1, col2 in column_pairs:
+        # Use vectorized division for speed
+        prob[f'{col1}_{col2}'] = np.abs(np.log(prob[col1] / prob[col2]))
 
-    n = 0
-    features_found = defaultdict(int)
-    for pair, jsd in sorted(js_distances.items(), key=lambda p: p[1], reverse=True):
-        n += 1
-        pmax = motif.loc[pair[0]].idxmax()
-        qmax = motif.loc[pair[1]].idxmax()
-        features_found[pair[0]] += 1
-        features_found[pair[1]] += 1
-        feature_ratio = len(features_found) / feature_n
-        print(f"{n}\t{pair[0]}\t{pair[1]}\t{jsd:.3f}\t{pmax}|{qmax}\t{len(features_found)}\t{feature_ratio:.3f}")
-        if feature_ratio > target_ratio:
-            break
+    top_n = 1
+    p2 = prob.iloc[:,len(group):]
+    top_motifs = p2.apply(lambda x: x.nlargest(top_n).index.tolist())
+    counts = top_motifs.stack().value_counts()
 
-    print(f'\nselected features({len(features_found)})')
-    for motifid in sorted(features_found):
-        # print(motif)
-        # mprob = prob.loc[motif]
-        n = motif.loc[motifid].sum()
-        probstr = prob.loc[motifid].to_string(index=False, header=False, float_format='%7.3f')
-        probstr = probstr.replace('\n', '\t')
-        print(f'{motifid}\t{n}\t{probstr}')
-
-    pd.options.display.max_rows = 2000
-    pd.options.display.max_columns = 20
-    pd.options.display.max_colwidth = 100
-    pd.options.display.width = 500
-    pd.set_option("display.precision", 3)
+    # pd.options.display.max_rows = 2000
+    # pd.options.display.max_columns = 20
+    # pd.options.display.max_colwidth = 100
+    # pd.options.display.width = 500
+    # pd.set_option("display.precision", 3)
 
     print(f'\n{ginfo}')
 
